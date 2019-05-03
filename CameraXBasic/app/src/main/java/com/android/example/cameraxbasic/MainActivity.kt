@@ -28,6 +28,7 @@ import com.android.example.cameraxbasic.utils.FLAGS_FULLSCREEN
 
 const val KEY_EVENT_ACTION = "key_event_action"
 const val KEY_EVENT_EXTRA = "key_event_extra"
+private const val IMMERSIVE_FLAG_TIMEOUT = 500L
 
 /**
  * Main entry point into our app. This app follows the single-activity pattern, and all
@@ -48,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         // be trying to set app to immersive mode before it's ready and the flags do not stick
         container.postDelayed({
             container.systemUiVisibility = FLAGS_FULLSCREEN
-        }, 500)
+        }, IMMERSIVE_FLAG_TIMEOUT)
     }
 
     /** When key down event is triggered, relay it via local broadcast so fragments can handle it */

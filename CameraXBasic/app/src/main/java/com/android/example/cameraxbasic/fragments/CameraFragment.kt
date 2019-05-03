@@ -59,7 +59,11 @@ import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.MainActivity
 import com.android.example.cameraxbasic.R
-import com.android.example.cameraxbasic.utils.*
+import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
+import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
+import com.android.example.cameraxbasic.utils.AutoFitPreviewBuilder
+import com.android.example.cameraxbasic.utils.ImageUtils
+import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -221,13 +225,6 @@ class CameraFragment : Fragment(), CoroutineScope {
         val filter = IntentFilter().apply { addAction(KEY_EVENT_ACTION) }
         LocalBroadcastManager.getInstance(context!!).registerReceiver(volumeDownReceiver, filter)
 
-        // Setup view finder click listeners to enable auto-focus
-        viewFinder.setOnClickListener {
-
-            // Find coordinates of position on screen
-            // TODO: b/129455282
-        }
-
         // Determine the output directory
         outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
@@ -306,7 +303,7 @@ class CameraFragment : Fragment(), CoroutineScope {
     }
 
     /** Method used to re-draw the camera UI controls, called every time configuration changes */
-    @SuppressLint("RestrictedApi") // TODO b/129910338: We shouldn't use restricted APIs
+    @SuppressLint("RestrictedApi")
     private fun updateCameraUi() {
 
         // Remove previous UI if any
@@ -334,8 +331,6 @@ class CameraFragment : Fragment(), CoroutineScope {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
                 // Display flash animation to indicate that photo was captured
-                // TODO b/129909364: This would be better done immediately after capture finishes
-                // TODO b/128249518: Play a sound to indicate capture succeeded
                 container.postDelayed({
                     container.foreground = ColorDrawable(Color.WHITE)
                     container.postDelayed({ container.foreground = null }, ANIMATION_FAST_MILLIS)
@@ -345,8 +340,11 @@ class CameraFragment : Fragment(), CoroutineScope {
 
         // Listener for button used to switch cameras
         controls.findViewById<ImageButton>(R.id.camera_switch_button).setOnClickListener {
-            lensFacing = if (CameraX.LensFacing.FRONT == lensFacing)
-                CameraX.LensFacing.BACK else CameraX.LensFacing.FRONT
+            lensFacing = if (CameraX.LensFacing.FRONT == lensFacing) {
+                CameraX.LensFacing.BACK
+            } else {
+                CameraX.LensFacing.FRONT
+            }
             try {
                 // Only bind use cases if we can query a camera with this orientation
                 CameraX.getCameraWithLensFacing(lensFacing)

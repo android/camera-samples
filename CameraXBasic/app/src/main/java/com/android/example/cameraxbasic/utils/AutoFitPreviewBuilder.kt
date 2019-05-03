@@ -28,7 +28,6 @@ import android.view.ViewGroup
 import androidx.camera.core.Preview
 import androidx.camera.core.PreviewConfig
 import java.lang.IllegalArgumentException
-import java.lang.RuntimeException
 import java.lang.ref.WeakReference
 import java.util.Objects
 
@@ -85,11 +84,11 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
             val viewFinder =
                     viewFinderRef.get() ?: return@OnPreviewOutputUpdateListener
 
-            // FIXME: Start workaround for b/129998710
+            // To update the SurfaceTexture, we have to remove it and re-add it
             val parent = viewFinder.parent as ViewGroup
             parent.removeView(viewFinder)
             parent.addView(viewFinder, 0)
-            // FIXME: End workaround for b/129998710
+
             viewFinder.surfaceTexture = it.surfaceTexture
             bufferRotation = it.rotationDegrees
             val rotation = getDisplaySurfaceRotation(viewFinder.display)

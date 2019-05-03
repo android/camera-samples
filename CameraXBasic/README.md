@@ -1,6 +1,6 @@
 # CameraXbasic
 
-CameraXbasic aims to demonstrate how to use CameraX APIs written in Kotlin
+CameraXbasic aims to demonstrate how to use CameraX APIs written in Kotlin.
 
 ## Build
 

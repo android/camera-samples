@@ -22,8 +22,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
-import com.android.example.cameraxbasic.MainActivity
-import com.android.example.cameraxbasic.utils.ImageUtils
 import com.bumptech.glide.Glide
 import java.io.File
 
