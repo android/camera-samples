@@ -75,16 +75,16 @@ fun View.padWithDisplayCutout() {
 /** Same as [AlertDialog.show] but setting immersive mode in the dialog's window */
 fun AlertDialog.showImmersive() {
     // Set the dialog to not focusable
-    window.setFlags(
+    window?.setFlags(
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
 
     // Make sure that the dialog's window is in full screen
-    window.decorView.systemUiVisibility = FLAGS_FULLSCREEN
+    window?.decorView?.systemUiVisibility = FLAGS_FULLSCREEN
 
     // Show the dialog while still in immersive mode
     show()
 
     // Set the dialog to focusable again
-    window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+    window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
 }
