@@ -52,14 +52,19 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
     /** Internal variable used to keep track of the view's display */
     private var viewFinderDisplay: Int = -1
 
+    /** Internal reference of the [DisplayManager] */
     private lateinit var displayManager: DisplayManager
-    /** We need a display listener for 180 degree device orientation changes */
+    /**
+     * We need a display listener for orientation changes that do not trigger a configuration
+     * change, for example if we choose to override config change in manifest or for 180-degree
+     * orientation changes.
+     */
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) = Unit
         override fun onDisplayRemoved(displayId: Int) = Unit
         override fun onDisplayChanged(displayId: Int) {
             val viewFinder = viewFinderRef.get() ?: return
-            if (displayId != viewFinderDisplay) {
+            if (displayId == viewFinderDisplay) {
                 val display = displayManager.getDisplay(displayId)
                 val rotation = getDisplaySurfaceRotation(display)
                 updateTransform(viewFinder, rotation, bufferDimens, viewFinderDimens)
@@ -69,8 +74,8 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
 
     init {
         // Make sure that the view finder reference is valid
-        val viewFinder = viewFinderRef.get() ?: throw IllegalArgumentException(
-                "Invalid reference to view finder used")
+        val viewFinder = viewFinderRef.get() ?:
+            throw IllegalArgumentException("Invalid reference to view finder used")
 
         // Initialize the display and rotation from texture view information
         viewFinderDisplay = viewFinder.display.displayId
@@ -113,7 +118,9 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
         // NOTE: Even though using a weak reference should take care of this,
         // we still try to avoid unnecessary calls to the listener this way.
         viewFinder.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(view: View?) = Unit
+            override fun onViewAttachedToWindow(view: View?) {
+                displayManager.registerDisplayListener(displayListener, null)
+            }
             override fun onViewDetachedFromWindow(view: View?) {
                 displayManager.unregisterDisplayListener(displayListener)
             }
@@ -124,7 +131,7 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
     /** Helper function that fits a camera preview into the given [TextureView] */
     private fun updateTransform(textureView: TextureView?, rotation: Int?, newBufferDimens: Size,
                                 newViewFinderDimens: Size) {
-        // This should happen anyway, but now the linter knows
+        // This should not happen anyway, but now the linter knows
         val textureView = textureView ?: return
 
         if (rotation == viewFinderRotation &&

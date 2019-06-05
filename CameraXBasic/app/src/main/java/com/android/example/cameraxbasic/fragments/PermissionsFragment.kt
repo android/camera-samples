@@ -53,14 +53,9 @@ class PermissionsFragment : Fragment() {
 
     }
 
-    private fun hasPermissions(): Boolean {
-        for (permission in PERMISSIONS_REQUIRED) {
-            if (ContextCompat.checkSelfPermission(requireContext(), permission) !=
-                    PackageManager.PERMISSION_GRANTED) {
-                return false
-            }
-        }
-        return true
+    private fun hasPermissions() = PERMISSIONS_REQUIRED.all {
+        ContextCompat.checkSelfPermission(
+                requireContext(), it) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onRequestPermissionsResult(

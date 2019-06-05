@@ -25,6 +25,7 @@ import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.hardware.Camera
+import android.hardware.display.DisplayManager
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -34,7 +35,6 @@ import android.os.HandlerThread
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Rational
-import android.util.Size
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.TextureView
@@ -46,10 +46,11 @@ import androidx.camera.core.CameraX
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageAnalysisConfig
 import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureConfig
 import androidx.camera.core.ImageCapture.CaptureMode
 import androidx.camera.core.ImageCapture.Metadata
+import androidx.camera.core.ImageCaptureConfig
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
 import androidx.camera.core.PreviewConfig
 import androidx.navigation.Navigation
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -102,9 +103,13 @@ class CameraFragment : Fragment(), CoroutineScope {
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: TextureView
     private lateinit var outputDirectory: File
+    private lateinit var broadcastManager: LocalBroadcastManager
 
+    private var displayId = -1
     private var lensFacing = CameraX.LensFacing.BACK
+    private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
+    private var imageAnalyzer: ImageAnalysis? = null
 
     private val job = Job()
     override val coroutineContext: CoroutineContext
@@ -125,6 +130,25 @@ class CameraFragment : Fragment(), CoroutineScope {
         }
     }
 
+    /** Internal reference of the [DisplayManager] */
+    private lateinit var displayManager: DisplayManager
+    /**
+     * We need a display listener for orientation changes that do not trigger a configuration
+     * change, for example if we choose to override config change in manifest or for 180-degree
+     * orientation changes.
+     */
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) = Unit
+        override fun onDisplayChanged(displayId: Int) = view?.let { view ->
+            if (displayId == this@CameraFragment.displayId) {
+                preview?.setTargetRotation(view.display.rotation)
+                imageCapture?.setTargetRotation(view.display.rotation)
+                imageAnalyzer?.setTargetRotation(view.display.rotation)
+            }
+        } ?: Unit
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Mark this as a retain fragment, so the lifecycle does not get restarted on config change
@@ -134,11 +158,9 @@ class CameraFragment : Fragment(), CoroutineScope {
     override fun onDestroyView() {
         super.onDestroyView()
 
-        // Unregister the broadcast receivers
-        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(volumeDownReceiver)
-
-        // Turn off all camera operations when we navigate away
-        CameraX.unbindAll()
+        // Unregister the broadcast receivers and listeners
+        broadcastManager.unregisterReceiver(volumeDownReceiver)
+        displayManager.unregisterDisplayListener(displayListener)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
@@ -220,16 +242,26 @@ class CameraFragment : Fragment(), CoroutineScope {
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
         viewFinder = container.findViewById(R.id.view_finder)
+        broadcastManager = LocalBroadcastManager.getInstance(view.context)
 
         // Set up the intent filter that will receive events from our main activity
         val filter = IntentFilter().apply { addAction(KEY_EVENT_ACTION) }
-        LocalBroadcastManager.getInstance(context!!).registerReceiver(volumeDownReceiver, filter)
+        broadcastManager.registerReceiver(volumeDownReceiver, filter)
+
+        // Every time the orientation of device changes, recompute layout
+        displayManager = viewFinder.context
+                .getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        displayManager.registerDisplayListener(displayListener, null)
 
         // Determine the output directory
         outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
-        // Build UI and bind all camera use cases once the views have been laid out
+        // Wait for the views to be properly laid out
         viewFinder.post {
+            // Keep track of the display in which this view is attached
+            displayId = viewFinder.display.displayId
+
+            // Build UI controls and bind all camera use cases
             updateCameraUi()
             bindCameraUseCases()
 
@@ -249,22 +281,21 @@ class CameraFragment : Fragment(), CoroutineScope {
         CameraX.unbindAll()
 
         val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
-        val screenSize = Size(metrics.widthPixels, metrics.heightPixels)
         val screenAspectRatio = Rational(metrics.widthPixels, metrics.heightPixels)
         Log.d(javaClass.simpleName, "Metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
 
         // Set up the view finder use case to display camera preview
         val viewFinderConfig = PreviewConfig.Builder().apply {
             setLensFacing(lensFacing)
-            // We request a specific resolution matching screen size
-            setTargetResolution(screenSize)
-            // We also provide an aspect ratio in case the exact resolution is not available
+            // We request aspect ratio but no resolution to let CameraX optimize our use cases
             setTargetAspectRatio(screenAspectRatio)
+            // Set initial target rotation, we will have to call this again if rotation changes
+            // during the lifecycle of this use case
             setTargetRotation(viewFinder.display.rotation)
         }.build()
 
         // Use the auto-fit preview builder to automatically handle size and orientation changes
-        val preview = AutoFitPreviewBuilder.build(viewFinderConfig, viewFinder)
+        preview = AutoFitPreviewBuilder.build(viewFinderConfig, viewFinder)
 
         // Set up the capture use case to allow users to take photos
         val imageCaptureConfig = ImageCaptureConfig.Builder().apply {
@@ -273,6 +304,8 @@ class CameraFragment : Fragment(), CoroutineScope {
             // We request aspect ratio but no resolution to match preview config but letting
             // CameraX optimize for whatever specific resolution best fits requested capture mode
             setTargetAspectRatio(screenAspectRatio)
+            // Set initial target rotation, we will have to call this again if rotation changes
+            // during the lifecycle of this use case
             setTargetRotation(viewFinder.display.rotation)
         }.build()
 
@@ -286,9 +319,12 @@ class CameraFragment : Fragment(), CoroutineScope {
             setCallbackHandler(Handler(analyzerThread.looper))
             // In our analysis, we care more about the latest image than analyzing *every* image
             setImageReaderMode(ImageAnalysis.ImageReaderMode.ACQUIRE_LATEST_IMAGE)
+            // Set initial target rotation, we will have to call this again if rotation changes
+            // during the lifecycle of this use case
+            setTargetRotation(viewFinder.display.rotation)
         }.build()
 
-        val imageAnalyzer = ImageAnalysis(analyzerConfig).apply {
+        imageAnalyzer = ImageAnalysis(analyzerConfig).apply {
             analyzer = LuminosityAnalyzer().apply { onFrameAnalyzed { luma ->
                 // Values returned from our analyzer are passed to the attached listener
                 // We log image analysis results here -- you should do something
@@ -316,25 +352,31 @@ class CameraFragment : Fragment(), CoroutineScope {
 
         // Listener for button used to capture photo
         controls.findViewById<ImageButton>(R.id.camera_capture_button).setOnClickListener {
-            val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+            // Get a stable reference of the modifiable image capture use case
+            imageCapture?.let { imageCapture ->
 
-            // Setup image capture metadata
-            val metadata = Metadata().apply {
-                // Mirror image when using the front camera
-                isReversedHorizontal = lensFacing == CameraX.LensFacing.FRONT
-            }
+                // Create output file to hold the image
+                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
 
-            // Setup image capture listener which is triggered after photo has been taken
-            imageCapture?.takePicture(photoFile, imageSavedListener, metadata)
+                // Setup image capture metadata
+                val metadata = Metadata().apply {
+                    // Mirror image when using the front camera
+                    isReversedHorizontal = lensFacing == CameraX.LensFacing.FRONT
+                }
 
-            // We can only change the foreground Drawable using API level 23+ API
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // Setup image capture listener which is triggered after photo has been taken
+                imageCapture.takePicture(photoFile, imageSavedListener, metadata)
 
-                // Display flash animation to indicate that photo was captured
-                container.postDelayed({
-                    container.foreground = ColorDrawable(Color.WHITE)
-                    container.postDelayed({ container.foreground = null }, ANIMATION_FAST_MILLIS)
-                }, ANIMATION_SLOW_MILLIS)
+                // We can only change the foreground Drawable using API level 23+ API
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+                    // Display flash animation to indicate that photo was captured
+                    container.postDelayed({
+                        container.foreground = ColorDrawable(Color.WHITE)
+                        container.postDelayed(
+                                { container.foreground = null }, ANIMATION_FAST_MILLIS)
+                    }, ANIMATION_SLOW_MILLIS)
+                }
             }
         }
 
