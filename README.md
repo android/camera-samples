@@ -10,5 +10,8 @@ started with the [Camera APIs](https://developer.android.com/guide/topics/media/
 
 [Camera2Basics Java](Camera2BasicsJava) - Java version of Camera2Basics.
 
-[CameraXBasics](Camera2Basics) - Demonstrate how to use CameraX APIs written in Kotlin.
+[CameraXBasics](Camera2Basics) - Demonstrates how to use CameraX APIs written in Kotlin.
+
+[Camera2Raw](Camera2Raw) - Demostrates capturing RAW images, i.e. unprocessed pixel data
+directly from the camera sensor
 
