@@ -15,3 +15,5 @@ device, display a camera preview, and take pictures.
 
 [Camera2Raw](Camera2Raw) - Demostrates capturing RAW images, i.e. unprocessed pixel data
 directly from the camera sensor.
+
+[Camera2Video Kotlin](Camera2VideoKotlin) - Demonstrates recording video using the new Camera2 API.

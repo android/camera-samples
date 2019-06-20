@@ -1,0 +1,19 @@
+
+# GOOGLE SAMPLE PACKAGING DATA
+#
+# This file is used by Google as part of our samples packaging process.
+# End users may safely ignore this file. It has no relevance to other systems.
+---
+status:       PUBLISHED
+technologies: [Android]
+categories:   [Media]
+languages:    [Kotlin]
+solutions:    [Mobile]
+github:       android/Camera2VideoKotlin
+level:        ADVANCED
+icon:         screenshots/icon-web.png
+apiRefs:
+    - android:android.hardware.camera2.CameraCaptureSession
+    - android:android.hardware.camera2.CameraDevice
+    - android:android.view.TextureView
+license: apache2
