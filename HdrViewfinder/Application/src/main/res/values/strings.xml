@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+     Copyright (C) 2013 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources>
+
+    <string name="help_button">Help</string>
+
+    <string-array name="mode_label_array">
+        <!-- must be in same order as ViewfinderProcessor.MODE_ ints -->
+        <item>Mode: Normal</item>
+        <item>Mode: Split</item>
+        <item>Mode: HDR</item>
+    </string-array>
+
+    <string name="auto_exposure_label">Auto exp. time:</string>
+    <string name="even_exposure_label">Even exp. time:</string>
+    <string name="odd_exposure_label">Odd exp. time:</string>
+
+    <string name="help_text">
+      <b>HDR Viewfinder Demo:</b>\n\n
+
+      Tap viewfinder to switch modes.\n\n
+
+      <b>Normal:</b> Standard camera preview\n
+      <b>Split:</b> Manual exposure control\n
+      <b>HDR:</b> Fused HDR viewfinder\n\n
+
+      Swipe up/down in Split/HDR modes to change manual exposure
+      values.\n\n
+
+      The left half of the viewfinder controls exposure time for
+      even-numbered frames, and the right half of the viewfinder
+      controls exposure time for odd-numbered frames
+    </string>
+
+    <string name="info">Info</string>
+
+    <string name="camera_permission_rationale">This sample app requires camera access in order to
+        demo the API.</string>
+    <string name="camera_no_good">No back-facing sufficiently capable camera available!</string>
+    <string name="camera_disabled">Camera is disabled by device policy</string>
+    <string name="camera_disconnected">Camera was disconnected before it was opened</string>
+    <string name="camera_error">Camera service reported an error</string>
+    <string name="camera_unknown">Unknown camera error: %s</string>
+    <string name="camera_permission_denied_explanation">You\'ve denied a permission that the app
+        needs for core functionality. If you selected &quot;don\'t ask again&quot; in the past then
+        you need to use Settings to re-enable the permission.</string>
+
+    <string name="ok">OK</string>
+    <string name="settings">Settings</string>
+
+</resources>
