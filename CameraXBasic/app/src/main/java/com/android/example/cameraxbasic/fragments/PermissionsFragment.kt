@@ -36,7 +36,6 @@ private val PERMISSIONS_REQUIRED = arrayOf(
  * camera fragment to the user.
  */
 class PermissionsFragment : Fragment() {
-    val navOptions = NavOptions.Builder().setPopUpTo(R.id.permissionsFragment, true).build()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,11 +45,9 @@ class PermissionsFragment : Fragment() {
             requestPermissions(PERMISSIONS_REQUIRED, PERMISSIONS_REQUEST_CODE)
         } else {
             // If permissions have already been granted, proceed
-            Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                    .navigate(R.id.action_permissions_to_camera, null,
-                            navOptions)
+            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                    PermissionsFragmentDirections.actionPermissionsToCamera())
         }
-
     }
 
     private fun hasPermissions() = PERMISSIONS_REQUIRED.all {
@@ -65,9 +62,8 @@ class PermissionsFragment : Fragment() {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 // Take the user to the success fragment when permission is granted
                 Toast.makeText(context, "Permission request granted", Toast.LENGTH_LONG).show()
-                Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                        .navigate(R.id.action_permissions_to_camera, null,
-                                navOptions)
+                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                        PermissionsFragmentDirections.actionPermissionsToCamera())
             } else {
                 Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()
             }

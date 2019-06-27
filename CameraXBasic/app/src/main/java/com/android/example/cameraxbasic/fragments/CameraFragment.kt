@@ -22,7 +22,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.hardware.Camera
 import android.hardware.display.DisplayManager
@@ -54,7 +53,9 @@ import androidx.camera.core.Preview
 import androidx.camera.core.PreviewConfig
 import androidx.navigation.Navigation
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.setPadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
@@ -63,14 +64,11 @@ import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
 import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
 import com.android.example.cameraxbasic.utils.AutoFitPreviewBuilder
-import com.android.example.cameraxbasic.utils.ImageUtils
 import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
-import kotlinx.coroutines.CoroutineScope
+import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.lang.Exception
 import java.nio.ByteBuffer
@@ -78,19 +76,7 @@ import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.CoroutineContext
 
-
-private const val TAG = "CameraXBasic"
-private const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
-private const val PHOTO_EXTENSION = ".jpg"
-
-
-/** Helper function used to create a timestamped file */
-private fun createFile(baseFolder: File, format: String, extension: String): File {
-    return File(baseFolder,
-            SimpleDateFormat(format, Locale.US).format(System.currentTimeMillis()) + extension)
-}
 
 /**
  * Main fragment for this app. Implements all camera operations including:
@@ -98,7 +84,7 @@ private fun createFile(baseFolder: File, format: String, extension: String): Fil
  * - Photo taking
  * - Image analysis
  */
-class CameraFragment : Fragment(), CoroutineScope {
+class CameraFragment : Fragment() {
 
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: TextureView
@@ -110,10 +96,6 @@ class CameraFragment : Fragment(), CoroutineScope {
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
     private var imageAnalyzer: ImageAnalysis? = null
-
-    private val job = Job()
-    override val coroutineContext: CoroutineContext
-        get() = Dispatchers.Default + job
 
     // Volume down button receiver
     private val volumeDownReceiver = object : BroadcastReceiver() {
@@ -170,34 +152,21 @@ class CameraFragment : Fragment(), CoroutineScope {
         return inflater.inflate(R.layout.fragment_camera, container, false)
     }
 
-    override fun onDestroy() {
-        // Stop the coroutines as the context gets destroyed
-        job.cancel()
-        super.onDestroy()
-    }
-
     private fun setGalleryThumbnail(file: File) {
         // Reference of the view that holds the gallery thumbnail
         val thumbnail = container.findViewById<ImageButton>(R.id.photo_view_button)
 
-        // Use a coroutine to perform thumbnail operations in background
-        launch(coroutineContext) {
+        // Run the operations in the view's thread
+        thumbnail.post {
 
-            // Create thumbnail for this photo
-            val bitmap = ImageUtils.decodeBitmap(file)
+            // Remove thumbnail padding
+            thumbnail.setPadding(resources.getDimension(R.dimen.stroke_small).toInt())
 
-            // Crop the bitmap into a circle for the thumbnail
-            val thumbnailBitmap = ImageUtils.cropCircularThumbnail(bitmap)
-
-            // Set the foreground drawable if we can, fallback using Glide
-            // This must be done in the main thread, so use main thread's context
-            withContext(Dispatchers.Main) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    thumbnail.foreground = BitmapDrawable(resources, thumbnailBitmap)
-                } else {
-                    Glide.with(requireContext()).load(thumbnailBitmap).into(thumbnail)
-                }
-            }
+            // Load thumbnail into circular button using Glide
+            Glide.with(thumbnail)
+                    .load(file)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(thumbnail)
         }
     }
 
@@ -224,7 +193,7 @@ class CameraFragment : Fragment(), CoroutineScope {
             // level >= 24, so if you only target 24+ you can remove this statement
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 requireActivity().sendBroadcast(
-                        Intent(Camera.ACTION_NEW_PICTURE).setData(Uri.fromFile(photoFile)))
+                        Intent(Camera.ACTION_NEW_PICTURE, Uri.fromFile(photoFile)))
             }
 
             // If the folder selected is an external media directory, this is unnecessary
@@ -266,7 +235,7 @@ class CameraFragment : Fragment(), CoroutineScope {
             bindCameraUseCases()
 
             // In the background, load latest photo taken (if any) for gallery thumbnail
-            launch(coroutineContext) {
+            lifecycleScope.launch(Dispatchers.IO) {
                 outputDirectory.listFiles { file ->
                     EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
                 }.sorted().reversed().firstOrNull()?.let { setGalleryThumbnail(it) }
@@ -277,12 +246,10 @@ class CameraFragment : Fragment(), CoroutineScope {
     /** Declare and bind preview, capture and analysis use cases */
     private fun bindCameraUseCases() {
 
-        // Make sure that there are no other use cases bound to CameraX
-        CameraX.unbindAll()
-
+        // Get screen metrics used to setup camera for full screen resolution
         val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
         val screenAspectRatio = Rational(metrics.widthPixels, metrics.heightPixels)
-        Log.d(javaClass.simpleName, "Metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
+        Log.d(TAG, "Screen metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
 
         // Set up the view finder use case to display camera preview
         val viewFinderConfig = PreviewConfig.Builder().apply {
@@ -335,7 +302,7 @@ class CameraFragment : Fragment(), CoroutineScope {
 
         // Apply declared configs to CameraX using the same lifecycle owner
         CameraX.bindToLifecycle(
-                this, preview, imageCapture, imageAnalyzer)
+                viewLifecycleOwner, preview, imageCapture, imageAnalyzer)
     }
 
     /** Method used to re-draw the camera UI controls, called every time configuration changes */
@@ -398,10 +365,8 @@ class CameraFragment : Fragment(), CoroutineScope {
 
         // Listener for button used to view last photo
         controls.findViewById<ImageButton>(R.id.photo_view_button).setOnClickListener {
-            val arguments = Bundle().apply {
-                putString(KEY_ROOT_DIRECTORY, outputDirectory.absolutePath) }
-            Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                    .navigate(R.id.action_camera_to_gallery, arguments)
+            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                    CameraFragmentDirections.actionCameraToGallery(outputDirectory.absolutePath))
         }
     }
 
@@ -483,5 +448,16 @@ class CameraFragment : Fragment(), CoroutineScope {
                 lastAnalyzedTimestamp = frameTimestamps.first
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "CameraXBasic"
+        private const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
+        private const val PHOTO_EXTENSION = ".jpg"
+
+        /** Helper function used to create a timestamped file */
+        private fun createFile(baseFolder: File, format: String, extension: String) =
+                File(baseFolder, SimpleDateFormat(format, Locale.US)
+                        .format(System.currentTimeMillis()) + extension)
     }
 }

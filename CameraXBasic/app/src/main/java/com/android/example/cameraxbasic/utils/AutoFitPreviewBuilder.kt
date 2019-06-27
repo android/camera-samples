@@ -54,6 +54,7 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
 
     /** Internal reference of the [DisplayManager] */
     private lateinit var displayManager: DisplayManager
+
     /**
      * We need a display listener for orientation changes that do not trigger a configuration
      * change, for example if we choose to override config change in manifest or for 180-degree
@@ -94,7 +95,10 @@ class AutoFitPreviewBuilder private constructor(config: PreviewConfig,
             parent.removeView(viewFinder)
             parent.addView(viewFinder, 0)
 
+            // Update internal texture
             viewFinder.surfaceTexture = it.surfaceTexture
+
+            // Apply relevant transformations
             bufferRotation = it.rotationDegrees
             val rotation = getDisplaySurfaceRotation(viewFinder.display)
             updateTransform(viewFinder, rotation, it.textureSize, viewFinderDimens)

@@ -27,6 +27,7 @@ import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.viewpager.widget.ViewPager
 import java.io.File
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.os.Build
 import android.webkit.MimeTypeMap
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -34,18 +35,20 @@ import androidx.core.content.FileProvider
 import com.android.example.cameraxbasic.BuildConfig
 import com.android.example.cameraxbasic.utils.padWithDisplayCutout
 import androidx.appcompat.app.AlertDialog
+import androidx.navigation.fragment.navArgs
 import com.android.example.cameraxbasic.utils.showImmersive
 import com.android.example.cameraxbasic.R
 
 
-const val KEY_ROOT_DIRECTORY = "root_folder"
 val EXTENSION_WHITELIST = arrayOf("JPG")
 
 /** Fragment used to present the user with a gallery of photos taken */
 class GalleryFragment internal constructor() : Fragment() {
-    private lateinit var rootDirectory: File
+
+    /** AndroidX navigation arguments */
+    private val args: GalleryFragmentArgs by navArgs()
+
     private lateinit var mediaList: MutableList<File>
-    private lateinit var mediaViewPager: ViewPager
 
     /** Adapter class used to present a fragment containing one photo or video as a page */
     inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
@@ -54,32 +57,35 @@ class GalleryFragment internal constructor() : Fragment() {
         override fun getItemPosition(obj: Any): Int = POSITION_NONE
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_gallery, container, false)
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
 
         // Mark this as a retain fragment, so the lifecycle does not get restarted on config change
         retainInstance = true
 
-        arguments?.let {
-            rootDirectory = File(it.getString(KEY_ROOT_DIRECTORY))
+        // Get root directory of media from navigation arguments
+        val rootDirectory = File(args.rootDirectory)
 
-            // Walk through all files in the root directory
-            // We reverse the order of the list to present the last photos first
-            mediaList = rootDirectory.listFiles { file ->
-                EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
-            }.sorted().reversed().toMutableList()
+        // Walk through all files in the root directory
+        // We reverse the order of the list to present the last photos first
+        mediaList = rootDirectory.listFiles { file ->
+            EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
+        }.sorted().reversed().toMutableList()
+    }
 
-            // Populate the ViewPager and implement a cache of two media items
-            mediaViewPager = view.findViewById<ViewPager>(R.id.photo_view_pager).apply {
-                offscreenPageLimit = 2
-                adapter = MediaPagerAdapter(childFragmentManager)
-            }
+    override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?
+    ): View? = inflater.inflate(R.layout.fragment_gallery, container, false)
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Populate the ViewPager and implement a cache of two media items
+        val mediaViewPager = view.findViewById<ViewPager>(R.id.photo_view_pager).apply {
+            offscreenPageLimit = 2
+            adapter = MediaPagerAdapter(childFragmentManager)
         }
 
         // Make sure that the cutout "safe area" avoids the screen notch if any
@@ -97,7 +103,6 @@ class GalleryFragment internal constructor() : Fragment() {
         view.findViewById<ImageButton>(R.id.share_button).setOnClickListener {
             // Make sure that we have a file to share
             mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
-                val appContext = requireContext().applicationContext
 
                 // Create a sharing intent
                 val intent = Intent().apply {
@@ -106,7 +111,7 @@ class GalleryFragment internal constructor() : Fragment() {
                             .getMimeTypeFromExtension(mediaFile.extension)
                     // Get URI from our FileProvider implementation
                     val uri = FileProvider.getUriForFile(
-                            appContext, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
+                            view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
                     // Set the appropriate intent extra, type, action and flags
                     putExtra(Intent.EXTRA_STREAM, uri)
                     type = mediaType
@@ -121,8 +126,7 @@ class GalleryFragment internal constructor() : Fragment() {
 
         // Handle delete button press
         view.findViewById<ImageButton>(R.id.delete_button).setOnClickListener {
-            val context = requireContext()
-            AlertDialog.Builder(context, android.R.style.Theme_Material_Dialog)
+            AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
                     .setTitle(getString(R.string.delete_title))
                     .setMessage(getString(R.string.delete_dialog))
                     .setIcon(android.R.drawable.ic_dialog_alert)
@@ -131,6 +135,10 @@ class GalleryFragment internal constructor() : Fragment() {
 
                             // Delete current photo
                             mediaFile.delete()
+
+                            // Send relevant broadcast to notify other apps of deletion
+                            MediaScannerConnection.scanFile(
+                                    view.context, arrayOf(mediaFile.absolutePath), null, null)
 
                             // Notify our view pager
                             mediaList.removeAt(mediaViewPager.currentItem)
