@@ -77,6 +77,8 @@ import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+/** Helper type alias used for analysis use case callbacks */
+typealias LumaListener = (luma: Double) -> Unit
 
 /**
  * Main fragment for this app. Implements all camera operations including:
@@ -114,6 +116,7 @@ class CameraFragment : Fragment() {
 
     /** Internal reference of the [DisplayManager] */
     private lateinit var displayManager: DisplayManager
+
     /**
      * We need a display listener for orientation changes that do not trigger a configuration
      * change, for example if we choose to override config change in manifest or for 180-degree
@@ -124,6 +127,7 @@ class CameraFragment : Fragment() {
         override fun onDisplayRemoved(displayId: Int) = Unit
         override fun onDisplayChanged(displayId: Int) = view?.let { view ->
             if (displayId == this@CameraFragment.displayId) {
+                Log.d(TAG, "Rotation changed: ${view.display.rotation}")
                 preview?.setTargetRotation(view.display.rotation)
                 imageCapture?.setTargetRotation(view.display.rotation)
                 imageAnalyzer?.setTargetRotation(view.display.rotation)
@@ -292,13 +296,14 @@ class CameraFragment : Fragment() {
         }.build()
 
         imageAnalyzer = ImageAnalysis(analyzerConfig).apply {
-            analyzer = LuminosityAnalyzer().apply { onFrameAnalyzed { luma ->
+            analyzer = LuminosityAnalyzer { luma ->
                 // Values returned from our analyzer are passed to the attached listener
-                // We log image analysis results here -- you should do something
-                // useful instead!
+                // We log image analysis results here -- you should do something useful instead!
+                val fps = (analyzer as LuminosityAnalyzer).framesPerSecond
                 Log.d(TAG, "Average luminosity: $luma. " +
-                        "Frames per second: ${"%.01f".format(framesPerSecond)}") }
-            } }
+                        "Frames per second: ${"%.01f".format(fps)}")
+            }
+        }
 
         // Apply declared configs to CameraX using the same lifecycle owner
         CameraX.bindToLifecycle(
@@ -377,10 +382,10 @@ class CameraFragment : Fragment() {
      * <p>All we need to do is override the function `analyze` with our desired operations. Here,
      * we compute the average luminosity of the image by looking at the Y plane of the YUV frame.
      */
-    private class LuminosityAnalyzer : ImageAnalysis.Analyzer {
+    private class LuminosityAnalyzer(listener: LumaListener? = null) : ImageAnalysis.Analyzer {
         private val frameRateWindow = 8
         private val frameTimestamps = ArrayDeque<Long>(5)
-        private val listeners = ArrayList<(luma: Double) -> Unit>()
+        private val listeners = ArrayList<LumaListener>().apply { listener?.let { add(it) } }
         private var lastAnalyzedTimestamp = 0L
         var framesPerSecond: Double = -1.0
             private set
@@ -388,7 +393,7 @@ class CameraFragment : Fragment() {
         /**
          * Used to add listeners that will be called with each luma computed
          */
-        fun onFrameAnalyzed(listener: (luma: Double) -> Unit) = listeners.add(listener)
+        fun onFrameAnalyzed(listener: LumaListener) = listeners.add(listener)
 
         /**
          * Helper extension function used to extract a byte array from an image plane buffer
