@@ -9,7 +9,7 @@ technologies: [Android]
 categories:   [Media, Camera, Camera2]
 languages:    [Kotlin]
 solutions:    [Mobile]
-github:       android-Camera2Basic
+github:       android/camera
 level:        INTERMEDIATE
 icon:         screenshots/icon-web.png
 apiRefs:

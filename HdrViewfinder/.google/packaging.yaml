@@ -9,7 +9,7 @@ technologies: [Android]
 categories:   [Media]
 languages:    [Java]
 solutions:    [Mobile]
-github:       android/camera/HdrViewfinder
+github:       android/camera
 level:        ADVANCED
 icon:         big_icon.png
 apiRefs:

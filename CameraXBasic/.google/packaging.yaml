@@ -6,12 +6,13 @@
 ---
 status:       PUBLISHED
 technologies: [Android]
-categories:   [Media, Camera, Camera2]
-languages:    [Java]
+categories:   [Media, CameraX, Camera, Camera2]
+languages:    [Kotlin]
 solutions:    [Mobile]
 github:       android/camera
 level:        INTERMEDIATE
 icon:         screenshots/icon-web.png
 apiRefs:
-    - android:android.hardware.camera2.DngCreator
+    - androidx.camera:camera-core
+    - androidx.camera:camera-camera2
 license: apache2

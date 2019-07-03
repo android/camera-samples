@@ -9,7 +9,7 @@ technologies: [Android]
 categories:   [Media]
 languages:    [Java]
 solutions:    [Mobile]
-github:       android/camera/Camera2VideoJava
+github:       android/camera
 level:        ADVANCED
 icon:         screenshots/icon-web.png
 apiRefs:

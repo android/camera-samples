@@ -9,7 +9,7 @@ technologies: [Android]
 categories:   [Media]
 languages:    [Kotlin]
 solutions:    [Mobile]
-github:       android/Camera2VideoKotlin
+github:       android/camera
 level:        ADVANCED
 icon:         screenshots/icon-web.png
 apiRefs:
