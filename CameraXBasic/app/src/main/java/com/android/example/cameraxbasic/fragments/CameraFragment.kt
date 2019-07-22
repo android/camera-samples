@@ -34,29 +34,18 @@ import android.os.HandlerThread
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Rational
-import android.view.KeyEvent
-import android.view.LayoutInflater
-import android.view.TextureView
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.webkit.MimeTypeMap
 import android.widget.ImageButton
-import androidx.camera.core.CameraX
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageAnalysisConfig
-import androidx.camera.core.ImageCapture
+import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CaptureMode
 import androidx.camera.core.ImageCapture.Metadata
-import androidx.camera.core.ImageCaptureConfig
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
-import androidx.camera.core.PreviewConfig
-import androidx.navigation.Navigation
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.setPadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.navigation.Navigation
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.MainActivity
@@ -70,12 +59,11 @@ import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
-import java.lang.Exception
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
-import java.util.ArrayDeque
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 /** Helper type alias used for analysis use case callbacks */
 typealias LumaListener = (luma: Double) -> Unit
@@ -305,6 +293,7 @@ class CameraFragment : Fragment() {
             }
         }
 
+        CameraX.unbindAll()
         // Apply declared configs to CameraX using the same lifecycle owner
         CameraX.bindToLifecycle(
                 viewLifecycleOwner, preview, imageCapture, imageAnalyzer)
