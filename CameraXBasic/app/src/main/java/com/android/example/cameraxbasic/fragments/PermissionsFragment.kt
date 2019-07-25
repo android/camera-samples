@@ -17,6 +17,7 @@
 package com.android.example.cameraxbasic.fragments
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
@@ -40,7 +41,7 @@ class PermissionsFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (!hasPermissions()) {
+        if (!hasPermissions(requireContext())) {
             // Request camera-related permissions
             requestPermissions(PERMISSIONS_REQUIRED, PERMISSIONS_REQUEST_CODE)
         } else {
@@ -48,11 +49,6 @@ class PermissionsFragment : Fragment() {
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
                     PermissionsFragmentDirections.actionPermissionsToCamera())
         }
-    }
-
-    private fun hasPermissions() = PERMISSIONS_REQUIRED.all {
-        ContextCompat.checkSelfPermission(
-                requireContext(), it) == PackageManager.PERMISSION_GRANTED
     }
 
     override fun onRequestPermissionsResult(
@@ -67,6 +63,14 @@ class PermissionsFragment : Fragment() {
             } else {
                 Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    companion object {
+
+        /** Convenience method used to check if all permissions required by this app are granted */
+        fun hasPermissions(context: Context) = PERMISSIONS_REQUIRED.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
     }
 }

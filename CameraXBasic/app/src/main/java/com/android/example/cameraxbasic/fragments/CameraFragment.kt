@@ -141,6 +141,17 @@ class CameraFragment : Fragment() {
         retainInstance = true
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Make sure that all permissions are still present, since user could have removed them
+        //  while the app was on paused state
+        if (!PermissionsFragment.hasPermissions(requireContext())) {
+            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                    CameraFragmentDirections.actionCameraToPermissions())
+
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
 
@@ -149,12 +160,11 @@ class CameraFragment : Fragment() {
         displayManager.unregisterDisplayListener(displayListener)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?): View? {
-
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_camera, container, false)
-    }
+    override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?): View? =
+            inflater.inflate(R.layout.fragment_camera, container, false)
 
     private fun setGalleryThumbnail(file: File) {
         // Reference of the view that holds the gallery thumbnail
@@ -362,6 +372,9 @@ class CameraFragment : Fragment() {
             try {
                 // Only bind use cases if we can query a camera with this orientation
                 CameraX.getCameraWithLensFacing(lensFacing)
+
+                // Unbind all use cases and bind them again with the new lens facing configuration
+                CameraX.unbindAll()
                 bindCameraUseCases()
             } catch (exc: Exception) {
                 // Do nothing
@@ -434,14 +447,16 @@ class CameraFragment : Fragment() {
 
             // Calculate the average luma no more often than every second
             if (frameTimestamps.first - lastAnalyzedTimestamp >= TimeUnit.SECONDS.toMillis(1)) {
-                // Since format in ImageAnalysis is YUV, image.planes[0] contains the Y
-                // (luminance) plane
+                lastAnalyzedTimestamp = frameTimestamps.first
+
+                // Since format in ImageAnalysis is YUV, image.planes[0] contains the luminance
+                //  plane
                 val buffer = image.planes[0].buffer
 
                 // Extract image data from callback object
                 val data = buffer.toByteArray()
 
-                // Convert the data into an array of pixel values
+                // Convert the data into an array of pixel values ranging 0-255
                 val pixels = data.map { it.toInt() and 0xFF }
 
                 // Compute average luminance for the image
@@ -449,8 +464,6 @@ class CameraFragment : Fragment() {
 
                 // Call all listeners with new value
                 listeners.forEach { it(luma) }
-
-                lastAnalyzedTimestamp = frameTimestamps.first
             }
         }
     }
