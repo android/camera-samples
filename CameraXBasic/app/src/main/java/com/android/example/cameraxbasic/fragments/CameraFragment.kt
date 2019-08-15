@@ -99,7 +99,7 @@ class CameraFragment : Fragment() {
     private var imageCapture: ImageCapture? = null
     private var imageAnalyzer: ImageAnalysis? = null
 
-    // Volume down button receiver
+    /** Volume down button receiver used to trigger shutter */
     private val volumeDownReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val keyCode = intent.getIntExtra(KEY_EVENT_EXTRA, KeyEvent.KEYCODE_UNKNOWN)
@@ -113,6 +113,9 @@ class CameraFragment : Fragment() {
             }
         }
     }
+
+    /** Declare worker thread at the class level so it can be reused after config changes */
+    private val analyzerThread = HandlerThread("LuminosityAnalysis").apply { start() }
 
     /** Internal reference of the [DisplayManager] */
     private lateinit var displayManager: DisplayManager
@@ -296,7 +299,6 @@ class CameraFragment : Fragment() {
         val analyzerConfig = ImageAnalysisConfig.Builder().apply {
             setLensFacing(lensFacing)
             // Use a worker thread for image analysis to prevent preview glitches
-            val analyzerThread = HandlerThread("LuminosityAnalysis").apply { start() }
             setCallbackHandler(Handler(analyzerThread.looper))
             // In our analysis, we care more about the latest image than analyzing *every* image
             setImageReaderMode(ImageAnalysis.ImageReaderMode.ACQUIRE_LATEST_IMAGE)
