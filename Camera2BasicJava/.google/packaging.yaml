@@ -6,7 +6,7 @@
 ---
 status:       PUBLISHED
 technologies: [Android]
-categories:   [Media, Camera, Camera2]
+categories:   [Camera]
 languages:    [Java]
 solutions:    [Mobile]
 github:       android/camera
