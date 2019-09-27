@@ -630,7 +630,10 @@ public class Camera2RawFragment extends Fragment
     public void onResume() {
         super.onResume();
         startBackgroundThread();
-        openCamera();
+        if (!openCamera()) {
+            Log.e(TAG, "Camera open fail");
+            return;
+        }
 
         // When the screen is turned off and turned back on, the SurfaceTexture is already
         // available, and "onSurfaceTextureAvailable" will not be called. In that case, we should
@@ -765,13 +768,13 @@ public class Camera2RawFragment extends Fragment
      * Opens the camera specified by {@link #mCameraId}.
      */
     @SuppressWarnings("MissingPermission")
-    private void openCamera() {
+    private boolean openCamera() {
         if (!setUpCameraOutputs()) {
-            return;
+            return false;
         }
         if (!hasAllPermissionsGranted()) {
             requestCameraPermissions();
-            return;
+            return false;
         }
 
         Activity activity = getActivity();
@@ -792,11 +795,13 @@ public class Camera2RawFragment extends Fragment
             // Attempt to open the camera. mStateCallback will be called on the background handler's
             // thread when this succeeds or fails.
             manager.openCamera(cameraId, mStateCallback, backgroundHandler);
+            return true;
         } catch (CameraAccessException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while trying to lock camera opening.", e);
         }
+        return false;
     }
 
     /**
