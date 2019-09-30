@@ -54,7 +54,7 @@ android {
         }
     }
 
-    // Necessary for Roboelectric (Unit tests)
+    // Necessary for Robolectric (Unit tests)
     testOptions {
         unitTests {
             includeAndroidResources = true
