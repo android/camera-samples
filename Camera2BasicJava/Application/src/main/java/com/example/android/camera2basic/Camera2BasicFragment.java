@@ -175,21 +175,26 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * A {@link CameraCaptureSession } for camera preview.
+     * 处理对相机预览
      */
     private CameraCaptureSession mCaptureSession;
 
     /**
      * A reference to the opened {@link CameraDevice}.
+     * 一个相机设备的打开
      */
     private CameraDevice mCameraDevice;
 
     /**
      * The {@link android.util.Size} of camera preview.
+     * 相机预览的尺寸
      */
     private Size mPreviewSize;
 
     /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
+     *  开相机的回调  相机状态的回调
+     *
      */
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
@@ -242,11 +247,13 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * An {@link ImageReader} that handles still image capture.
+     * 处理静态图像捕获。
      */
     private ImageReader mImageReader;
 
     /**
      * This is the output file for our picture.
+     * 图片的输出路径
      */
     private File mFile;
 
@@ -625,6 +632,8 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * Opens the camera specified by {@link Camera2BasicFragment#mCameraId}.
+     *
+     * 打开指定ID的相机
      */
     private void openCamera(int width, int height) {
         if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
@@ -633,13 +642,14 @@ public class Camera2BasicFragment extends Fragment
             return;
         }
         setUpCameraOutputs(width, height);//设置与摄像机相关的成员变量
-        configureTransform(width, height);//openCamera
+        configureTransform(width, height);//openCamera  配置转换
         Activity activity = getActivity();
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
+            //这个地方应该就是打开相机
             manager.openCamera(mCameraId, mStateCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -650,6 +660,8 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * Closes the current {@link CameraDevice}.
+     *
+     * 界面失去焦点 关闭相机
      */
     private void closeCamera() {
         try {
@@ -824,8 +836,7 @@ public class Camera2BasicFragment extends Fragment
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             // Tell #mCaptureCallback to wait for the precapture sequence to be set.
             mState = STATE_WAITING_PRECAPTURE;
-            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -904,12 +915,10 @@ public class Camera2BasicFragment extends Fragment
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             setAutoFlash(mPreviewRequestBuilder);
-            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
             // After this, the camera will go back to the normal state of preview.
             mState = STATE_PREVIEW;
-            mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback,
-                    mBackgroundHandler);
+            mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
