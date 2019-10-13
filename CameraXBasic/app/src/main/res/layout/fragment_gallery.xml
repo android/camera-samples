@@ -14,11 +14,13 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:layoutDirection="ltr">
 
     <androidx.viewpager.widget.ViewPager
         android:layout_width="match_parent"
@@ -35,7 +37,7 @@
             android:contentDescription="@string/back_button_alt"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
-            android:layout_marginLeft="@dimen/margin_xsmall"
+            android:layout_marginStart="@dimen/margin_xsmall"
             android:layout_marginTop="@dimen/margin_small"
             android:layout_width="@dimen/round_button_small"
             android:layout_height="@dimen/round_button_small"
@@ -49,7 +51,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            android:layout_marginRight="@dimen/margin_xlarge"
+            android:layout_marginEnd="@dimen/margin_xlarge"
             android:layout_marginBottom="@dimen/margin_small"
             android:layout_width="@dimen/round_button_small"
             android:layout_height="@dimen/round_button_small"
@@ -63,7 +65,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            android:layout_marginLeft="@dimen/margin_xlarge"
+            android:layout_marginStart="@dimen/margin_xlarge"
             android:layout_marginBottom="@dimen/margin_small"
             android:layout_width="@dimen/round_button_small"
             android:layout_height="@dimen/round_button_small"
