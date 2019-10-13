@@ -34,7 +34,8 @@
             android:name=".MainActivity"
             android:clearTaskOnLaunch="true"
             android:theme="@style/AppTheme"
-            android:icon="@mipmap/ic_launcher">
+            android:icon="@mipmap/ic_launcher"
+            android:screenOrientation="fullUser">
 
             <!-- Main app intent filter -->
             <intent-filter>
