@@ -31,6 +31,7 @@ import androidx.camera.core.PreviewConfig
 import java.lang.IllegalArgumentException
 import java.lang.ref.WeakReference
 import java.util.Objects
+import kotlin.math.roundToInt
 
 /**
  * Builder for [Preview] that takes in a [WeakReference] of the view finder and [PreviewConfig],
@@ -205,10 +206,10 @@ class AutoFitPreviewBuilder private constructor(
         // Match longest sides together -- i.e. apply center-crop transformation
         if (viewFinderDimens.width > viewFinderDimens.height) {
             scaledHeight = viewFinderDimens.width
-            scaledWidth = Math.round(viewFinderDimens.width * bufferRatio)
+            scaledWidth = (viewFinderDimens.width * bufferRatio).roundToInt()
         } else {
             scaledHeight = viewFinderDimens.height
-            scaledWidth = Math.round(viewFinderDimens.height * bufferRatio)
+            scaledWidth = (viewFinderDimens.height * bufferRatio).roundToInt()
         }
 
         // Compute the relative scale value
