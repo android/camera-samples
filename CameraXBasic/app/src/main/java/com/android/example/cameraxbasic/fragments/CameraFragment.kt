@@ -29,8 +29,6 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Rational
@@ -102,8 +100,7 @@ class CameraFragment : Fragment() {
     /** Volume down button receiver used to trigger shutter */
     private val volumeDownReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val keyCode = intent.getIntExtra(KEY_EVENT_EXTRA, KeyEvent.KEYCODE_UNKNOWN)
-            when (keyCode) {
+            when (intent.getIntExtra(KEY_EVENT_EXTRA, KeyEvent.KEYCODE_UNKNOWN)) {
                 // When the volume down button is pressed, simulate a shutter button click
                 KeyEvent.KEYCODE_VOLUME_DOWN -> {
                     val shutter = container
@@ -113,9 +110,6 @@ class CameraFragment : Fragment() {
             }
         }
     }
-
-    /** Declare worker thread at the class level so it can be reused after config changes */
-    private val analyzerThread = HandlerThread("LuminosityAnalysis").apply { start() }
 
     /** Internal reference of the [DisplayManager] */
     private lateinit var displayManager: DisplayManager
@@ -190,7 +184,7 @@ class CameraFragment : Fragment() {
     /** Define callback that will be triggered after a photo has been taken and saved to disk */
     private val imageSavedListener = object : ImageCapture.OnImageSavedListener {
         override fun onError(
-                error: ImageCapture.UseCaseError, message: String, exc: Throwable?) {
+                error: ImageCapture.ImageCaptureError, message: String, exc: Throwable?) {
             Log.e(TAG, "Photo capture failed: $message")
             exc?.printStackTrace()
         }
@@ -298,8 +292,6 @@ class CameraFragment : Fragment() {
         // Setup image analysis pipeline that computes average pixel luminance in real time
         val analyzerConfig = ImageAnalysisConfig.Builder().apply {
             setLensFacing(lensFacing)
-            // Use a worker thread for image analysis to prevent preview glitches
-            setCallbackHandler(Handler(analyzerThread.looper))
             // In our analysis, we care more about the latest image than analyzing *every* image
             setImageReaderMode(ImageAnalysis.ImageReaderMode.ACQUIRE_LATEST_IMAGE)
             // Set initial target rotation, we will have to call this again if rotation changes

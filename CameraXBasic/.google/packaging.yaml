@@ -6,7 +6,7 @@
 ---
 status:       PUBLISHED
 technologies: [Android]
-categories:   [Media, CameraX, Camera, Camera2]
+categories:   [Camera]
 languages:    [Kotlin]
 solutions:    [Mobile]
 github:       android/camera
