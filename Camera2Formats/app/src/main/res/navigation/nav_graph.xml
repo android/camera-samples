@@ -22,7 +22,7 @@
 
     <fragment
         android:id="@+id/permissions_fragment"
-        android:name="com.example.android.camera2formats.fragments.PermissionsFragment"
+        android:name="com.example.android.camera2.formats.fragments.PermissionsFragment"
         android:label="Permissions" >
 
         <action
@@ -35,7 +35,7 @@
 
     <fragment
         android:id="@+id/selector_fragment"
-        android:name="com.example.android.camera2formats.fragments.SelectorFragment"
+        android:name="com.example.android.camera2.formats.fragments.SelectorFragment"
         android:label="Selector" >
 
         <action
@@ -47,7 +47,7 @@
 
     <fragment
         android:id="@+id/camera_fragment"
-        android:name="com.example.android.camera2formats.fragments.CameraFragment"
+        android:name="com.example.android.camera2.formats.fragments.CameraFragment"
         android:label="Camera" >
 
         <argument
@@ -75,7 +75,7 @@
 
     <fragment
         android:id="@+id/image_viewer_fragment"
-        android:name="com.example.android.camera2formats.fragments.ImageViewerFragment"
+        android:name="com.example.android.camera2.formats.fragments.ImageViewerFragment"
         android:label="Image Viewer" >
 
         <argument

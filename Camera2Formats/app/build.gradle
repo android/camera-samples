@@ -24,7 +24,7 @@ android {
     compileSdkVersion 29
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        applicationId "com.android.example.camera2formats"
+        applicationId "com.android.example.camera2.formats"
         minSdkVersion 21
         targetSdkVersion 29
         versionCode 1
@@ -58,12 +58,8 @@ android {
         }
     }
 
-    // Necessary for Roboelectric (Unit tests)
-    testOptions {
-        unitTests {
-            includeAndroidResources = true
-        }
-    }
+    // Necessary for Robolectric (Unit tests)
+    testOptions.unitTests.includeAndroidResources = true
 }
 
 dependencies {
@@ -75,21 +71,20 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.0'
 
     // App compat and UI things
-    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.legacy:legacy-support-v13:1.0.0'
-    implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.appcompat:appcompat:1.1.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.2.0-alpha05'
-//    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.2.0-beta01'
 
     // Navigation library
     def nav_version = "2.1.0"
     implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
+    // EXIF Interface
+    implementation 'androidx.exifinterface:exifinterface:1.1.0-rc01'
+
     // Glide
-    implementation 'com.github.bumptech.glide:glide:4.9.0'
-    kapt 'com.github.bumptech.glide:compiler:4.9.0'
+    implementation 'com.github.bumptech.glide:glide:4.10.0'
+    kapt 'com.github.bumptech.glide:compiler:4.10.0'
 
     // Unit testing
     testImplementation 'androidx.test.ext:junit:1.1.1'
@@ -103,5 +98,4 @@ dependencies {
     androidTestImplementation 'androidx.test:rules:1.2.0'
     androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
-    implementation 'androidx.exifinterface:exifinterface:1.0.0'
 }

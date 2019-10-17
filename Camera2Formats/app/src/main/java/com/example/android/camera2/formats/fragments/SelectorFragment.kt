@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-package com.example.android.camera2.slowmo.fragments
+package com.example.android.camera2.formats.fragments
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraMetadata
 import android.os.Bundle
-import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,12 +32,8 @@ import androidx.navigation.Navigation
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.android.camera2.common.GenericListAdapter
-import com.example.android.camera2.slowmo.R
+import com.example.android.camera2.formats.R
 
-/**
- * In this [Fragment] we let users pick a camera, size and FPS to use for high
- * speed video recording
- */
 class SelectorFragment : Fragment() {
 
     override fun onCreateView(
@@ -55,7 +52,7 @@ class SelectorFragment : Fragment() {
             val cameraManager =
                     requireContext().getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
-            val cameraList = enumerateHighSpeedCameras(cameraManager)
+            val cameraList = enumerateCameras(cameraManager)
 
             val layoutId = android.R.layout.simple_list_item_1
             adapter = GenericListAdapter(cameraList, layoutId) { view, item, _ ->
@@ -63,7 +60,7 @@ class SelectorFragment : Fragment() {
                 view.setOnClickListener {
                     Navigation.findNavController(requireActivity(), R.id.fragment_container)
                             .navigate(SelectorFragmentDirections.actionSelectorToCamera(
-                                    item.cameraId, item.size.width, item.size.height, item.fps))
+                                    item.cameraId, item.format))
                 }
             }
         }
@@ -72,13 +69,10 @@ class SelectorFragment : Fragment() {
 
     companion object {
 
-        private data class CameraInfo(
-                val title: String,
-                val cameraId: String,
-                val size: Size,
-                val fps: Int)
+        /** Helper class used as a data holder for each selectable camera format item */
+        private data class FormatItem(val title: String, val cameraId: String, val format: Int)
 
-        /** Converts a lens orientation enum into a human-readable string */
+        /** Helper function used to convert a lens orientation enum into a human-readable string */
         private fun lensOrientationString(value: Int) = when(value) {
             CameraCharacteristics.LENS_FACING_BACK -> "Back"
             CameraCharacteristics.LENS_FACING_FRONT -> "Front"
@@ -86,17 +80,23 @@ class SelectorFragment : Fragment() {
             else -> "Unknown"
         }
 
-        /** Lists all high speed cameras and supported resolution and FPS combinations */
+        /** Helper function used to list all compatible cameras and supported pixel formats */
         @SuppressLint("InlinedApi")
-        private fun enumerateHighSpeedCameras(cameraManager: CameraManager): List<CameraInfo> {
-            val availableCameras: MutableList<CameraInfo> = mutableListOf()
+        private fun enumerateCameras(cameraManager: CameraManager): List<FormatItem> {
+            val availableCameras: MutableList<FormatItem> = mutableListOf()
 
-            // Iterate over the list of cameras and add those with high speed video recording
-            //  capability to our output. This function only returns those cameras that declare
-            //  constrained high speed video recording, but some cameras may be capable of doing
-            //  unconstrained video recording with high enough FPS for some use cases and they will
-            //  not necessarily declare constrained high speed video capability.
-            cameraManager.cameraIdList.forEach { id ->
+            // Get list of all compatible cameras
+            val cameraIds = cameraManager.cameraIdList.filter {
+                val characteristics = cameraManager.getCameraCharacteristics(it)
+                val capabilities = characteristics.get(
+                        CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
+                capabilities?.contains(
+                        CameraMetadata.REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE) ?: false
+            }
+
+
+            // Iterate over the list of cameras and return all the compatible ones
+            cameraIds.forEach { id ->
                 val characteristics = cameraManager.getCameraCharacteristics(id)
                 val orientation = lensOrientationString(
                         characteristics.get(CameraCharacteristics.LENS_FACING)!!)
@@ -104,25 +104,28 @@ class SelectorFragment : Fragment() {
                 // Query the available capabilities and output formats
                 val capabilities = characteristics.get(
                         CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)!!
-                val cameraConfig = characteristics.get(
-                        CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+                val outputFormats = characteristics.get(
+                        CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!.outputFormats
 
-                // Return cameras that support constrained high video capability
-                if (capabilities.contains(CameraCharacteristics
-                                .REQUEST_AVAILABLE_CAPABILITIES_CONSTRAINED_HIGH_SPEED_VIDEO)) {
-                    // For each camera, list its compatible sizes and FPS ranges
-                    cameraConfig.highSpeedVideoSizes.forEach { size ->
-                        cameraConfig.getHighSpeedVideoFpsRangesFor(size).forEach { fpsRange ->
-                            val fps = fpsRange.upper
-                            val info = CameraInfo(
-                                    "$orientation ($id) $size $fps FPS", id, size, fps)
+                // All cameras *must* support JPEG output so we don't need to check characteristics
+                availableCameras.add(FormatItem(
+                        "$orientation JPEG ($id)", id, ImageFormat.JPEG))
 
-                            // Only report the highest FPS in the range, avoid duplicates
-                            if (!availableCameras.contains(info)) availableCameras.add(info)
-                        }
-                    }
+                // Return cameras that support RAW capability
+                if (capabilities.contains(
+                                CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW) &&
+                        outputFormats.contains(ImageFormat.RAW_SENSOR)) {
+                    availableCameras.add(FormatItem(
+                            "$orientation RAW ($id)", id, ImageFormat.RAW_SENSOR))
                 }
 
+                // Return cameras that support JPEG DEPTH capability
+                if (capabilities.contains(
+                            CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_DEPTH_OUTPUT) &&
+                        outputFormats.contains(ImageFormat.DEPTH_JPEG)) {
+                    availableCameras.add(FormatItem(
+                            "$orientation DEPTH ($id)", id, ImageFormat.DEPTH_JPEG))
+                }
             }
 
             return availableCameras

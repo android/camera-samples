@@ -53,9 +53,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
+import com.example.android.camera2.common.AutoFitSurfaceView
+import com.example.android.camera2.common.OrientationLiveData
 import com.example.android.camera2.slowmo.BuildConfig
 import com.example.android.camera2.slowmo.CameraActivity
-import com.example.android.camera2.slowmo.OrientationLiveData
 import com.example.android.camera2.slowmo.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -185,12 +186,12 @@ class CameraFragment : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = SurfaceView(requireContext())
+    ): View? = AutoFitSurfaceView(requireContext())
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewFinder = view as SurfaceView
+        viewFinder = view as AutoFitSurfaceView
 
         viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
@@ -201,8 +202,12 @@ class CameraFragment : Fragment() {
                     height: Int) = Unit
 
             override fun surfaceCreated(holder: SurfaceHolder) {
-                // Uses same size for preview and video recording
-                holder.setFixedSize(args.width, args.height)
+
+                // Selects same preview size as video and configures view finder
+                Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
+                view.holder.setFixedSize(args.width, args.height)
+                view.setAspectRatio(args.width, args.height)
+
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
             }
