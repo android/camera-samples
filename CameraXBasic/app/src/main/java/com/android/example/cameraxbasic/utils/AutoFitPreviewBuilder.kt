@@ -30,7 +30,6 @@ import androidx.camera.core.Preview
 import androidx.camera.core.PreviewConfig
 import java.lang.IllegalArgumentException
 import java.lang.ref.WeakReference
-import java.util.Objects
 import kotlin.math.roundToInt
 
 /**
@@ -151,11 +150,11 @@ class AutoFitPreviewBuilder private constructor(
     private fun updateTransform(textureView: TextureView?, rotation: Int?, newBufferDimens: Size,
                                 newViewFinderDimens: Size) {
         // This should not happen anyway, but now the linter knows
-        val textureView = textureView ?: return
+        textureView ?: return
 
         if (rotation == viewFinderRotation &&
-                Objects.equals(newBufferDimens, bufferDimens) &&
-                Objects.equals(newViewFinderDimens, viewFinderDimens)) {
+                newBufferDimens == bufferDimens &&
+                newViewFinderDimens == viewFinderDimens) {
             // Nothing has changed, no need to transform output again
             return
         }
