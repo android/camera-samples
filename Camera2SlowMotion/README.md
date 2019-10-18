@@ -30,6 +30,7 @@ Screenshots
 -------------
 
 <img src="screenshots/main.png" height="400" alt="Screenshot"/>
+<img src="screenshots/video.gif" height="400" alt="Video"/>
 
 Getting Started
 ---------------
