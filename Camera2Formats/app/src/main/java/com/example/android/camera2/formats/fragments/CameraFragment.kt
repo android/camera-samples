@@ -91,12 +91,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Readers used as buffers for camera still shots */
-    private val imageReader: ImageReader by lazy {
-        val size = characteristics.get(
-                CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-                .getOutputSizes(args.pixelFormat).maxBy { it.height * it.width }!!
-        ImageReader.newInstance(size.width, size.height, args.pixelFormat, IMAGE_BUFFER_SIZE)
-    }
+    private lateinit var imageReader: ImageReader
 
     /** [HandlerThread] where all camera operations run */
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
@@ -248,7 +243,12 @@ class CameraFragment : Fragment() {
      */
     private suspend fun startCaptureSession(device: CameraDevice):
             CameraCaptureSession = suspendCoroutine { cont ->
+        val size = characteristics.get(
+                CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+                .getOutputSizes(args.pixelFormat).maxBy { it.height * it.width }!!
 
+        imageReader =
+            ImageReader.newInstance(size.width, size.height, args.pixelFormat, IMAGE_BUFFER_SIZE)
         // Create list of Surfaces where the camera will output frames
         val targets: MutableList<Surface> =
                 arrayOf(viewFinder.holder.surface, imageReader.surface).toMutableList()
