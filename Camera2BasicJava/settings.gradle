@@ -1,1 +1,8 @@
+pluginManagement {
+    repositories {
+        google()
+        gradlePluginPortal()
+        mavenLocal()
+    }
+}
 include 'Application'

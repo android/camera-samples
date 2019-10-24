@@ -1,15 +1,9 @@
+import com.louiscad.splitties.*
 
-buildscript {
-    repositories {
-        google()
-        jcenter()
-    }
 
-    dependencies {
-        classpath 'com.android.tools.build:gradle:3.3.2'
-    }
+plugins {
+    id("com.louiscad.splitties").version("0.1.3")
 }
-
 apply plugin: 'com.android.application'
 
 repositories {
