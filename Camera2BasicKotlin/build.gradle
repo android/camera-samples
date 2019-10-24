@@ -9,7 +9,9 @@ buildscript {
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
-
+plugins {
+  id("de.fayard.refreshVersions").version("0.8.0")
+}
 allprojects {
   repositories {
     google()
