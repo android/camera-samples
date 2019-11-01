@@ -66,7 +66,7 @@ fun View.padWithDisplayCutout() {
     rootWindowInsets?.displayCutout?.let { doPadding(it) }
 
     // Set a listener for window insets since view.rootWindowInsets may not be ready yet
-    setOnApplyWindowInsetsListener { view, insets ->
+    setOnApplyWindowInsetsListener { _, insets ->
         insets.displayCutout?.let { doPadding(it) }
         insets
     }
