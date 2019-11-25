@@ -323,12 +323,23 @@ class CameraFragment : Fragment() {
                 viewLifecycleOwner, preview, imageCapture, imageAnalyzer)
     }
 
+    /**
+     *  [androidx.camera.core.ImageAnalysisConfig] requires enum value of [androidx.camera.core.AspectRatio].
+     *  Currently it has values of 4:3 & 16:9.
+     *
+     *  Detecting the most suitable ratio for dimensions provided in @params by counting absolute
+     *  of preview ratio to one of the provided values.
+     *
+     *  @param width - preview width
+     *  @param height - preview height
+     *  @return suitable aspect ratio
+     */
     private fun aspectRatio(width: Int, height: Int): AspectRatio {
         val ratio_4_3 = 4.0 / 3.0
         val ratio_16_9 = 16.0 / 9.0
-        val screenRatio = max(width, height).toDouble() / min(width, height)
+        val previewRatio = max(width, height).toDouble() / min(width, height)
 
-        if (abs(screenRatio - ratio_4_3) <= abs(screenRatio - ratio_16_9)) {
+        if (abs(previewRatio - ratio_4_3) <= abs(previewRatio - ratio_16_9)) {
             return AspectRatio.RATIO_4_3
         }
         return AspectRatio.RATIO_16_9
