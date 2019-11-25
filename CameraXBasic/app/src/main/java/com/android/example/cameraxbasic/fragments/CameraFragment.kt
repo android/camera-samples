@@ -31,7 +31,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
-import android.util.Rational
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.TextureView
@@ -39,6 +38,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.ImageButton
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraX
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageAnalysisConfig
@@ -51,6 +51,7 @@ import androidx.camera.core.Preview
 import androidx.camera.core.PreviewConfig
 import androidx.navigation.Navigation
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.core.view.setPadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -73,7 +74,9 @@ import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Locale
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /** Helper type alias used for analysis use case callbacks */
 typealias LumaListener = (luma: Double) -> Unit
@@ -90,6 +93,7 @@ class CameraFragment : Fragment() {
     private lateinit var viewFinder: TextureView
     private lateinit var outputDirectory: File
     private lateinit var broadcastManager: LocalBroadcastManager
+    private lateinit var mainExecutor: Executor
 
     private var displayId = -1
     private var lensFacing = CameraX.LensFacing.BACK
@@ -136,6 +140,7 @@ class CameraFragment : Fragment() {
         super.onCreate(savedInstanceState)
         // Mark this as a retain fragment, so the lifecycle does not get restarted on config change
         retainInstance = true
+        mainExecutor = ContextCompat.getMainExecutor(requireContext())
     }
 
     override fun onResume() {
@@ -259,14 +264,20 @@ class CameraFragment : Fragment() {
 
         // Get screen metrics used to setup camera for full screen resolution
         val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
-        val screenAspectRatio = Rational(metrics.widthPixels, metrics.heightPixels)
+        val screenAspectRatio = metrics.heightPixels * 1.0f / metrics.widthPixels
+        val aspectRatio =
+                if (abs(screenAspectRatio - 16.0/9) - abs(screenAspectRatio - 4.0/3) > 0) {
+                    AspectRatio.RATIO_4_3
+                } else {
+                    AspectRatio.RATIO_16_9
+                }
         Log.d(TAG, "Screen metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
 
         // Set up the view finder use case to display camera preview
         val viewFinderConfig = PreviewConfig.Builder().apply {
             setLensFacing(lensFacing)
             // We request aspect ratio but no resolution to let CameraX optimize our use cases
-            setTargetAspectRatio(screenAspectRatio)
+            setTargetAspectRatio(aspectRatio)
             // Set initial target rotation, we will have to call this again if rotation changes
             // during the lifecycle of this use case
             setTargetRotation(viewFinder.display.rotation)
@@ -281,7 +292,7 @@ class CameraFragment : Fragment() {
             setCaptureMode(CaptureMode.MIN_LATENCY)
             // We request aspect ratio but no resolution to match preview config but letting
             // CameraX optimize for whatever specific resolution best fits requested capture mode
-            setTargetAspectRatio(screenAspectRatio)
+            setTargetAspectRatio(aspectRatio)
             // Set initial target rotation, we will have to call this again if rotation changes
             // during the lifecycle of this use case
             setTargetRotation(viewFinder.display.rotation)
@@ -300,13 +311,15 @@ class CameraFragment : Fragment() {
         }.build()
 
         imageAnalyzer = ImageAnalysis(analyzerConfig).apply {
-            analyzer = LuminosityAnalyzer { luma ->
-                // Values returned from our analyzer are passed to the attached listener
-                // We log image analysis results here -- you should do something useful instead!
-                val fps = (analyzer as LuminosityAnalyzer).framesPerSecond
-                Log.d(TAG, "Average luminosity: $luma. " +
-                        "Frames per second: ${"%.01f".format(fps)}")
-            }
+            setAnalyzer(mainExecutor,
+                    LuminosityAnalyzer { luma ->
+                        // Values returned from our analyzer are passed to the attached listener
+                        // We log image analysis results here --
+                        // you should do something useful instead!
+                        val fps = (analyzer as LuminosityAnalyzer).framesPerSecond
+                        Log.d(TAG, "Average luminosity: $luma. " +
+                                "Frames per second: ${"%.01f".format(fps)}")
+                    })
         }
 
         // Apply declared configs to CameraX using the same lifecycle owner
@@ -341,7 +354,7 @@ class CameraFragment : Fragment() {
                 }
 
                 // Setup image capture listener which is triggered after photo has been taken
-                imageCapture.takePicture(photoFile, imageSavedListener, metadata)
+                imageCapture.takePicture(photoFile, metadata, mainExecutor, imageSavedListener)
 
                 // We can only change the foreground Drawable using API level 23+ API
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
