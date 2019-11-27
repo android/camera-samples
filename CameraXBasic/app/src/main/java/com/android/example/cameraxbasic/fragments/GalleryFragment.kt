@@ -35,6 +35,7 @@ import androidx.core.content.FileProvider
 import com.android.example.cameraxbasic.BuildConfig
 import com.android.example.cameraxbasic.utils.padWithDisplayCutout
 import androidx.appcompat.app.AlertDialog
+import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.android.example.cameraxbasic.utils.showImmersive
 import com.android.example.cameraxbasic.R
@@ -70,7 +71,7 @@ class GalleryFragment internal constructor() : Fragment() {
         // We reverse the order of the list to present the last photos first
         mediaList = rootDirectory.listFiles { file ->
             EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
-        }.sorted().reversed().toMutableList()
+        }?.sortedDescending()?.toMutableList() ?: mutableListOf()
     }
 
     override fun onCreateView(
@@ -96,7 +97,7 @@ class GalleryFragment internal constructor() : Fragment() {
 
         // Handle back button press
         view.findViewById<ImageButton>(R.id.back_button).setOnClickListener {
-            fragmentManager?.popBackStack()
+            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
         }
 
         // Handle share button press

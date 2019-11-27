@@ -254,7 +254,7 @@ class CameraFragment : Fragment() {
             lifecycleScope.launch(Dispatchers.IO) {
                 outputDirectory.listFiles { file ->
                     EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
-                }.sorted().reversed().firstOrNull()?.let { setGalleryThumbnail(it) }
+                }?.sorted()?.lastOrNull()?.let { setGalleryThumbnail(it) }
             }
         }
     }
@@ -445,12 +445,15 @@ class CameraFragment : Fragment() {
             if (listeners.isEmpty()) return
 
             // Keep track of frames analyzed
-            frameTimestamps.push(System.currentTimeMillis())
+            val currentTime = System.currentTimeMillis()
+            frameTimestamps.push(currentTime)
 
             // Compute the FPS using a moving average
             while (frameTimestamps.size >= frameRateWindow) frameTimestamps.removeLast()
-            framesPerSecond = 1.0 / ((frameTimestamps.peekFirst() -
-                    frameTimestamps.peekLast())  / frameTimestamps.size.toDouble()) * 1000.0
+            val timestampFirst = frameTimestamps.peekFirst() ?: currentTime
+            val timestampLast = frameTimestamps.peekLast() ?: currentTime
+            framesPerSecond = 1.0 / ((timestampFirst - timestampLast) /
+                    frameTimestamps.size.coerceAtLeast(1).toDouble()) * 1000.0
 
             // Calculate the average luma no more often than every second
             if (frameTimestamps.first - lastAnalyzedTimestamp >= TimeUnit.SECONDS.toMillis(1)) {
