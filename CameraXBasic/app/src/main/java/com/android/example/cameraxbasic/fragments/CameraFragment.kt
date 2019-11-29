@@ -77,6 +77,8 @@ import java.util.Locale
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /** Helper type alias used for analysis use case callbacks */
 typealias LumaListener = (luma: Double) -> Unit
@@ -264,20 +266,14 @@ class CameraFragment : Fragment() {
 
         // Get screen metrics used to setup camera for full screen resolution
         val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
-        val screenAspectRatio = metrics.heightPixels * 1.0f / metrics.widthPixels
-        val aspectRatio =
-                if (abs(screenAspectRatio - 16.0/9) - abs(screenAspectRatio - 4.0/3) > 0) {
-                    AspectRatio.RATIO_4_3
-                } else {
-                    AspectRatio.RATIO_16_9
-                }
         Log.d(TAG, "Screen metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
-
+        val screenAspectRatio = aspectRatio(metrics.widthPixels, metrics.heightPixels)
+        Log.d(TAG, "Preview aspect ratio: $screenAspectRatio")
         // Set up the view finder use case to display camera preview
         val viewFinderConfig = PreviewConfig.Builder().apply {
             setLensFacing(lensFacing)
             // We request aspect ratio but no resolution to let CameraX optimize our use cases
-            setTargetAspectRatio(aspectRatio)
+            setTargetAspectRatio(screenAspectRatio)
             // Set initial target rotation, we will have to call this again if rotation changes
             // during the lifecycle of this use case
             setTargetRotation(viewFinder.display.rotation)
@@ -292,7 +288,7 @@ class CameraFragment : Fragment() {
             setCaptureMode(CaptureMode.MIN_LATENCY)
             // We request aspect ratio but no resolution to match preview config but letting
             // CameraX optimize for whatever specific resolution best fits requested capture mode
-            setTargetAspectRatio(aspectRatio)
+            setTargetAspectRatio(screenAspectRatio)
             // Set initial target rotation, we will have to call this again if rotation changes
             // during the lifecycle of this use case
             setTargetRotation(viewFinder.display.rotation)
@@ -325,6 +321,26 @@ class CameraFragment : Fragment() {
         // Apply declared configs to CameraX using the same lifecycle owner
         CameraX.bindToLifecycle(
                 viewLifecycleOwner, preview, imageCapture, imageAnalyzer)
+    }
+
+    /**
+     *  [androidx.camera.core.ImageAnalysisConfig] requires enum value of
+     *  [androidx.camera.core.AspectRatio]. Currently it has values of 4:3 & 16:9.
+     *
+     *  Detecting the most suitable ratio for dimensions provided in @params by counting absolute
+     *  of preview ratio to one of the provided values.
+     *
+     *  @param width - preview width
+     *  @param height - preview height
+     *  @return suitable aspect ratio
+     */
+    private fun aspectRatio(width: Int, height: Int): AspectRatio {
+        val previewRatio = max(width, height).toDouble() / min(width, height)
+
+        if (abs(previewRatio - RATIO_4_3_VALUE) <= abs(previewRatio - RATIO_16_9_VALUE)) {
+            return AspectRatio.RATIO_4_3
+        }
+        return AspectRatio.RATIO_16_9
     }
 
     /** Method used to re-draw the camera UI controls, called every time configuration changes */
@@ -482,6 +498,8 @@ class CameraFragment : Fragment() {
         private const val TAG = "CameraXBasic"
         private const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val PHOTO_EXTENSION = ".jpg"
+        private const val RATIO_4_3_VALUE = 4.0 / 3.0
+        private const val RATIO_16_9_VALUE = 16.0 / 9.0
 
         /** Helper function used to create a timestamped file */
         private fun createFile(baseFolder: File, format: String, extension: String) =
