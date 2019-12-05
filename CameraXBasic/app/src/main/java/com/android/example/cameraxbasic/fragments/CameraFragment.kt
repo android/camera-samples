@@ -21,6 +21,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.hardware.Camera
@@ -140,8 +141,6 @@ class CameraFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Mark this as a retain fragment, so the lifecycle does not get restarted on config change
-        retainInstance = true
         mainExecutor = ContextCompat.getMainExecutor(requireContext())
     }
 
@@ -152,7 +151,6 @@ class CameraFragment : Fragment() {
         if (!PermissionsFragment.hasPermissions(requireContext())) {
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
                     CameraFragmentDirections.actionCameraToPermissions())
-
         }
     }
 
@@ -198,7 +196,6 @@ class CameraFragment : Fragment() {
 
         override fun onImageSaved(photoFile: File) {
             Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
-
 
             // We can only change the foreground Drawable using API level 23+ API
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -256,9 +253,22 @@ class CameraFragment : Fragment() {
             lifecycleScope.launch(Dispatchers.IO) {
                 outputDirectory.listFiles { file ->
                     EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
-                }?.sorted()?.lastOrNull()?.let { setGalleryThumbnail(it) }
+                }?.max()?.let { setGalleryThumbnail(it) }
             }
         }
+    }
+
+    /**
+     * Inflate camera controls and update the UI manually upon config changes to avoid removing
+     * and re-adding the view finder from the view hierarchy; this provides a seamless rotation
+     * transition on devices that support it.
+     *
+     * NOTE: The flag is supported starting in Android 8 but there still is a small flash on the
+     * screen for devices that run Android 9 or below.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        updateCameraUi()
     }
 
     /** Declare and bind preview, capture and analysis use cases */

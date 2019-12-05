@@ -17,6 +17,7 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:dist="http://schemas.android.com/apk/distribution"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.android.example.cameraxbasic">
 
     <!-- Enable instant app support -->
@@ -28,13 +29,18 @@
     <!-- Declare permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <application android:label="@string/app_name">
+    <application
+        android:label="@string/app_name"
+        android:allowBackup="true">
         <activity
             android:name=".MainActivity"
             android:clearTaskOnLaunch="true"
             android:theme="@style/AppTheme"
             android:icon="@mipmap/ic_launcher"
-            android:screenOrientation="fullUser">
+            android:screenOrientation="fullUser"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:rotationAnimation="seamless"
+            tools:targetApi="O">
 
             <!-- Main app intent filter -->
             <intent-filter>
