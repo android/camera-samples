@@ -146,8 +146,11 @@ class CameraFragment : Fragment() {
     /** Captures high speed frames from a [CameraDevice] for our slow motion video recording */
     private lateinit var session: CameraConstrainedHighSpeedCaptureSession
 
+    /** The [CameraDevice] that will be opened in this fragment */
+    private lateinit var camera: CameraDevice
+
     /** Requests used for preview only in the [CameraConstrainedHighSpeedCaptureSession] */
-    private val previewRequestList: MutableList<CaptureRequest> by lazy {
+    private val previewRequestList: List<CaptureRequest> by lazy {
         // Capture request holds references to target surfaces
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
             // Add the preview surface target
@@ -162,7 +165,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Requests used for preview and recording in the [CameraConstrainedHighSpeedCaptureSession] */
-    private val recordRequestList: MutableList<CaptureRequest> by lazy {
+    private val recordRequestList: List<CaptureRequest> by lazy {
         // Capture request holds references to target surfaces
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
             // Add the preview and recording surface targets
@@ -213,7 +216,7 @@ class CameraFragment : Fragment() {
             }
         })
 
-        // Used to rotate the output video to match device orientation
+        // Used to rotate the output media to match device orientation
         relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
             observe(this@CameraFragment, Observer {
                 orientation -> Log.d(TAG, "Orientation changed: $orientation")
@@ -242,8 +245,15 @@ class CameraFragment : Fragment() {
      * - Starts the preview by dispatching a repeating burst request
      */
     private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
-        val camera = openCamera()
-        session = createCaptureSession(camera)
+
+        // Open the selected camera
+        camera = openCamera(cameraManager, args.cameraId, cameraHandler)
+
+        // Creates list of Surfaces where the camera will output frames
+        val targets = listOf(viewFinder.holder.surface, recorderSurface)
+
+        // Start a capture session using our open camera and list of Surfaces where frames will go
+        session = createCaptureSession(camera, targets, cameraHandler)
 
         // Ensures the requested size and FPS are compatible with this camera
         val fpsRange = Range(args.fps, args.fps)
@@ -326,9 +336,14 @@ class CameraFragment : Fragment() {
 
     /** Opens the camera and returns the opened device (as the result of the suspend coroutine) */
     @SuppressLint("MissingPermission")
-    private suspend fun openCamera(): CameraDevice = suspendCancellableCoroutine { cont ->
-        val cameraId = args.cameraId
-        cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+    private suspend fun openCamera(
+            manager: CameraManager,
+            cameraId: String,
+            handler: Handler? = null
+    ): CameraDevice = suspendCancellableCoroutine { cont ->
+        manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+            override fun onOpened(device: CameraDevice) = cont.resume(device)
+
             override fun onDisconnected(device: CameraDevice) {
                 Log.w(TAG, "Camera $cameraId has been disconnected")
                 requireActivity().finish()
@@ -347,45 +362,42 @@ class CameraFragment : Fragment() {
                 Log.e(TAG, exc.message, exc)
                 if (cont.isActive) cont.resumeWithException(exc)
             }
-
-            override fun onOpened(device: CameraDevice) = cont.resume(device)
-
-        }, cameraHandler)
+        }, handler)
     }
 
     /**
      * Creates a [CameraCaptureSession] and returns the configured session (as the result of the
      * suspend coroutine)
      */
-    private suspend fun createCaptureSession(device: CameraDevice):
-            CameraConstrainedHighSpeedCaptureSession = suspendCoroutine { cont ->
-
-        // Creates list of Surfaces where the camera will output frames
-        val targets: MutableList<Surface> =
-                arrayOf(viewFinder.holder.surface, recorderSurface).toMutableList()
+    private suspend fun createCaptureSession(
+            device: CameraDevice,
+            targets: List<Surface>,
+            handler: Handler? = null
+    ): CameraConstrainedHighSpeedCaptureSession = suspendCoroutine { cont ->
 
         // Creates a capture session using the predefined targets, and defines a session state
         // callback which resumes the coroutine once the session is configured
         device.createConstrainedHighSpeedCaptureSession(
                 targets, object: CameraCaptureSession.StateCallback() {
 
-            override fun onConfigureFailed(session: CameraCaptureSession) {
-                val exc = RuntimeException(
-                        "Camera ${device.id} session configuration failed, see log for details")
-                Log.e(TAG, exc.message, exc)
-                cont.resumeWithException(exc)
-            }
-
             override fun onConfigured(session: CameraCaptureSession) =
                     cont.resume(session as CameraConstrainedHighSpeedCaptureSession)
 
-        }, cameraHandler)
+            override fun onConfigureFailed(session: CameraCaptureSession) {
+                val exc = RuntimeException("Camera ${device.id} session configuration failed")
+                Log.e(TAG, exc.message, exc)
+                cont.resumeWithException(exc)
+            }
+        }, handler)
     }
 
     override fun onStop() {
         super.onStop()
-        session.close()
-        session.device.close()
+        try {
+            camera.close()
+        } catch (exc: Throwable) {
+            Log.e(TAG, "Error closing camera", exc)
+        }
     }
 
     override fun onDestroy() {

@@ -27,35 +27,29 @@ typealias BindCallback<T> = (view: View, data: T, position: Int) -> Unit
 /** List adapter for generic types, intended used for small-medium lists of data */
 class GenericListAdapter<T>(
         private val dataset: List<T>,
-        private val itemLayoutId: Int,
-        private val header: View? = null,
+        private val itemLayoutId: Int? = null,
+        private val itemViewFactory: (() -> View)? = null,
         private val onBind: BindCallback<T>
 ) : RecyclerView.Adapter<GenericListAdapter.GenericListViewHolder>() {
 
     class GenericListViewHolder(val view: View) : RecyclerView.ViewHolder(view)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GenericListViewHolder {
-        val view = if (header != null && viewType == TYPE_HEADER) {
-            header
-        } else {
-            LayoutInflater.from(parent.context).inflate(itemLayoutId, parent, false)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = GenericListViewHolder(when {
+        itemViewFactory != null -> itemViewFactory.invoke()
+        itemLayoutId != null -> {
+            LayoutInflater.from(parent.context)
+                    .inflate(itemLayoutId, parent, false)
         }
-        return GenericListViewHolder(view)
-    }
-
-    override fun getItemViewType(position: Int) =
-            if (header != null && position == 0) TYPE_HEADER else TYPE_ITEM
+        else -> {
+            throw IllegalStateException(
+                    "Either the layout ID or the view factory need to be non-null")
+        }
+    })
 
     override fun onBindViewHolder(holder: GenericListViewHolder, position: Int) {
-        val truePosition = if (header == null) position else position - 1
-        if (truePosition < 0 || truePosition > dataset.size) return
-        onBind(holder.view, dataset[truePosition], truePosition)
+        if (position < 0 || position > dataset.size) return
+        onBind(holder.view, dataset[position], position)
     }
 
-    override fun getItemCount() = if (header == null) dataset.size else dataset.size + 1
-
-    companion object {
-        const val TYPE_HEADER = 0
-        const val TYPE_ITEM = 1
-    }
+    override fun getItemCount() = dataset.size
 }

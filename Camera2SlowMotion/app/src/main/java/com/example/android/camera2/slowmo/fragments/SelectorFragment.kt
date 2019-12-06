@@ -58,7 +58,7 @@ class SelectorFragment : Fragment() {
             val cameraList = enumerateHighSpeedCameras(cameraManager)
 
             val layoutId = android.R.layout.simple_list_item_1
-            adapter = GenericListAdapter(cameraList, layoutId) { view, item, _ ->
+            adapter = GenericListAdapter(cameraList, itemLayoutId = layoutId) { view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.title
                 view.setOnClickListener {
                     Navigation.findNavController(requireActivity(), R.id.fragment_container)

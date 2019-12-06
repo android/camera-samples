@@ -72,7 +72,7 @@ dependencies {
 
     // App compat and UI things
     implementation 'androidx.appcompat:appcompat:1.1.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.2.0-beta01'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.2.0-rc03'
 
     // Navigation library
     def nav_version = "2.1.0"
@@ -84,7 +84,7 @@ dependencies {
     testImplementation 'androidx.test:rules:1.2.0'
     testImplementation 'androidx.test:runner:1.2.0'
     testImplementation 'androidx.test.espresso:espresso-core:3.2.0'
-    testImplementation "org.robolectric:robolectric:4.3"
+    testImplementation "org.robolectric:robolectric:4.3.1"
 
     // Instrumented testing
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'

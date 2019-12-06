@@ -24,15 +24,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.util.Log
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
-import androidx.viewpager.widget.PagerAdapter
-import androidx.viewpager.widget.ViewPager
+import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
+import com.example.android.camera2.common.GenericListAdapter
 import com.example.android.camera2.common.decodeExifOrientation
-import com.example.android.camera2.formats.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
@@ -65,35 +65,29 @@ class ImageViewerFragment : Fragment() {
     /** Data backing our Bitmap viewpager */
     private val bitmapList: MutableList<Bitmap> = mutableListOf()
 
-    /** Adapter class used to present a view containing one photo or video as a page */
-    inner class BitmapPagerAdapter : PagerAdapter() {
-        override fun getCount(): Int = bitmapList.size
-        override fun instantiateItem(container: ViewGroup, idx: Int): Any {
-            return ImageView(container.context).apply {
-                container.addView(this)
-                Glide.with(this).load(bitmapList[idx]).into(this)
-            }
-        }
-        override fun destroyItem(container: ViewGroup, position: Int, obj: Any) =
-                container.removeView(obj as View)
-        override fun isViewFromObject(view: View, obj: Any): Boolean = view == obj
+    private fun imageViewFactory() = ImageView(requireContext()).apply {
+        layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
     }
 
     override fun onCreateView(
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_viewpager, container, false).apply {
+    ): View? = ViewPager2(requireContext()).apply {
         // Populate the ViewPager and implement a cache of two media items
-        this as ViewPager
         offscreenPageLimit = 2
-        adapter = BitmapPagerAdapter()
+        adapter = GenericListAdapter(
+                bitmapList,
+                itemViewFactory = { imageViewFactory() }) { view, item, _ ->
+            view as ImageView
+            Glide.with(view).load(item).into(view)
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view as ViewPager
+        view as ViewPager2
         lifecycleScope.launch(Dispatchers.IO) {
 
             // Load input image file
@@ -104,9 +98,7 @@ class ImageViewerFragment : Fragment() {
 
             // If we have depth data attached, attempt to load it
             if (isDepth) {
-
                 try {
-
                     val depthStart = findNextJpegEndMarker(inputBuffer, 2)
                     addItemToViewPager(view, decodeBitmap(
                             inputBuffer, depthStart, inputBuffer.size - depthStart))
@@ -119,7 +111,6 @@ class ImageViewerFragment : Fragment() {
                     Log.e(TAG, "Invalid start marker for depth or confidence data")
                 }
             }
-
         }
     }
 
@@ -135,7 +126,7 @@ class ImageViewerFragment : Fragment() {
     }
 
     /** Utility function used to add an item to the viewpager and notify it, in the main thread */
-    private fun addItemToViewPager(view: ViewPager, item: Bitmap) = view.post {
+    private fun addItemToViewPager(view: ViewPager2, item: Bitmap) = view.post {
         bitmapList.add(item)
         view.adapter!!.notifyDataSetChanged()
     }
@@ -160,8 +151,9 @@ class ImageViewerFragment : Fragment() {
         /** These are the magic numbers used to separate the different JPG data chunks */
         private val JPEG_DELIMITER_BYTES = arrayOf(-1, -39)
 
-
-        /** Utility function used to find the markers indicating separation between JPEG data chunks */
+        /**
+         * Utility function used to find the markers indicating separation between JPEG data chunks
+         */
         private fun findNextJpegEndMarker(jpegBuffer: ByteArray, start: Int): Int {
 
             // Sanitize input arguments

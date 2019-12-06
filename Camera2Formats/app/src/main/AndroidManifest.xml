@@ -21,12 +21,13 @@
     <!-- Permission declarations -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- A camera with RAW capability is required to use this application -->
+    <!-- A camera with (optional) RAW capability is required to use this application -->
     <uses-feature android:name="android.hardware.camera.any" />
-    <uses-feature android:name="android.hardware.camera.raw" />
+    <uses-feature android:name="android.hardware.camera.raw" android:required="false" />
 
     <application
         android:allowBackup="true"
+        android:fullBackupContent="true"
         android:label="@string/app_name"
         android:icon="@drawable/ic_launcher"
         tools:ignore="GoogleAppIndexingWarning">
