@@ -28,4 +28,5 @@
     <string name="delete_button_alt">Delete</string>
     <string name="delete_dialog">Delete current photo?</string>
     <string name="delete_title">Confirm</string>
+    <string name="no_photo_available">No photo available</string>
 </resources>
