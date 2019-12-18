@@ -27,12 +27,9 @@
 
     <FrameLayout
         android:id="@+id/control"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
         android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true"
-        android:layout_toRightOf="@id/texture"
         android:background="@color/control_background"
         android:orientation="horizontal">
 
