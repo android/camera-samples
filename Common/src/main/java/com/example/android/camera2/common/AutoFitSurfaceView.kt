@@ -60,12 +60,13 @@ class AutoFitSurfaceView (
             // Performs center-crop transformation of the camera frames
             val newWidth: Int
             val newHeight: Int
-            if (width < height * aspectRatio) {
+            val actualRatio = if (width > height) aspectRatio else 1f / aspectRatio
+            if (width < height * actualRatio) {
                 newHeight = height
-                newWidth = (height / aspectRatio).roundToInt()
+                newWidth = (height * actualRatio).roundToInt()
             } else {
                 newWidth = width
-                newHeight = (width / aspectRatio).roundToInt()
+                newHeight = (width / actualRatio).roundToInt()
             }
 
             Log.d(TAG, "Measured dimensions set: $newWidth x $newHeight")
