@@ -30,6 +30,7 @@ import androidx.camera.core.Preview
 import androidx.camera.core.PreviewConfig
 import java.lang.IllegalArgumentException
 import java.lang.ref.WeakReference
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
@@ -197,23 +198,39 @@ class AutoFitPreviewBuilder private constructor(
         // Correct preview output to account for display rotation
         matrix.postRotate(-viewFinderRotation!!.toFloat(), centerX, centerY)
 
-        // Buffers are rotated relative to the device's 'natural' orientation: swap width and height
-        val bufferRatio = bufferDimens.height / bufferDimens.width.toFloat()
-
-        val scaledWidth: Int
-        val scaledHeight: Int
-        // Match longest sides together -- i.e. apply center-crop transformation
-        if (viewFinderDimens.width > viewFinderDimens.height) {
-            scaledHeight = viewFinderDimens.width
-            scaledWidth = (viewFinderDimens.width * bufferRatio).roundToInt()
+        // Buffers are rotated relative to the device's 'natural' orientation.
+        val isNaturalPortrait = ((viewFinderRotation == 0 || viewFinderRotation == 180) &&
+                viewFinderDimens.width < viewFinderDimens.height)
+          || ((viewFinderRotation == 90 || viewFinderRotation == 270) &&
+                viewFinderDimens.width >= viewFinderDimens.height)
+        val bufferWidth: Int
+        val bufferHeight: Int
+        if (isNaturalPortrait) {
+            bufferWidth = bufferDimens.height
+            bufferHeight = bufferDimens.width
         } else {
-            scaledHeight = viewFinderDimens.height
-            scaledWidth = (viewFinderDimens.height * bufferRatio).roundToInt()
+            bufferWidth = bufferDimens.width
+            bufferHeight = bufferDimens.height
+        }
+        // Scale back the buffers back to the original output buffer dimensions.
+        var xScale = bufferWidth / viewFinderDimens.width.toFloat()
+        var yScale = bufferHeight / viewFinderDimens.height.toFloat()
+
+        val bufferRotatedWidth: Int
+        val bufferRotatedHeight: Int
+        if (viewFinderRotation == 0 || viewFinderRotation == 180) {
+            bufferRotatedWidth = bufferWidth
+            bufferRotatedHeight = bufferHeight
+        } else {
+            bufferRotatedWidth = bufferHeight
+            bufferRotatedHeight = bufferWidth
         }
 
-        // Compute the relative scale value
-        val xScale = scaledWidth / viewFinderDimens.width.toFloat()
-        val yScale = scaledHeight / viewFinderDimens.height.toFloat()
+        // Scale the buffer so that it just covers the viewfinder.
+        val scale = max(viewFinderDimens.width / bufferRotatedWidth.toFloat(),
+                viewFinderDimens.height / bufferRotatedHeight.toFloat())
+        xScale *= scale
+        yScale *= scale
 
         // Scale input buffers to fill the view finder
         matrix.preScale(xScale, yScale, centerX, centerY)
