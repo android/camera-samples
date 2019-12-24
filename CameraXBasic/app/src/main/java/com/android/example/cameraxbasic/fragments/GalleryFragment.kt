@@ -127,12 +127,13 @@ class GalleryFragment internal constructor() : Fragment() {
 
         // Handle delete button press
         view.findViewById<ImageButton>(R.id.delete_button).setOnClickListener {
-            AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
-                    .setTitle(getString(R.string.delete_title))
-                    .setMessage(getString(R.string.delete_dialog))
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .setPositiveButton(android.R.string.yes) { _, _ ->
-                        mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
+            mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
+
+                AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
+                        .setTitle(getString(R.string.delete_title))
+                        .setMessage(getString(R.string.delete_dialog))
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(android.R.string.yes) { _, _ ->
 
                             // Delete current photo
                             mediaFile.delete()
@@ -149,10 +150,13 @@ class GalleryFragment internal constructor() : Fragment() {
                             if (mediaList.isEmpty()) {
                                 fragmentManager?.popBackStack()
                             }
-                        }}
 
-                    .setNegativeButton(android.R.string.no, null)
-                    .create().showImmersive()
+                        }
+
+                        .setNegativeButton(android.R.string.no, null)
+                        .create().showImmersive()
+
+            }
         }
     }
 }
