@@ -57,6 +57,9 @@
         <argument
             android:name="root_directory"
             app:argType="string" />
+        <action
+            android:id="@+id/action_gallery_fragment_to_camera_fragment2"
+            app:destination="@id/camera_fragment" />
     </fragment>
 
 </navigation>

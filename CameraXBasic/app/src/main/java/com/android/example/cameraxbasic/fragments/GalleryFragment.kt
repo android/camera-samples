@@ -149,7 +149,11 @@ class GalleryFragment internal constructor() : Fragment() {
 
                             // If all photos have been deleted, return to camera
                             if (mediaList.isEmpty()) {
-                                fragmentManager?.popBackStack()
+//                                fragmentManager?.popBackStack()
+
+                                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                                        GalleryFragmentDirections.actionGalleryFragmentToCameraFragment2())
+
                             }
 
                         }
