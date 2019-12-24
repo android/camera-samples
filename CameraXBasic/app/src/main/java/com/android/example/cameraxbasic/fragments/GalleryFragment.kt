@@ -30,6 +30,7 @@ import android.content.Intent
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.FileProvider
 import com.android.example.cameraxbasic.BuildConfig
@@ -156,7 +157,7 @@ class GalleryFragment internal constructor() : Fragment() {
                         .setNegativeButton(android.R.string.no, null)
                         .create().showImmersive()
 
-            }
+            } ?: Toast.makeText(activity, "No media file available", Toast.LENGTH_SHORT).show()
         }
     }
 }
