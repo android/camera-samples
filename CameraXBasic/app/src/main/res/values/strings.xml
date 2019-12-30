@@ -28,4 +28,6 @@
     <string name="delete_button_alt">Delete</string>
     <string name="delete_dialog">Delete current photo?</string>
     <string name="delete_title">Confirm</string>
+    <string name="media_error">No media file available</string>
+    <string name="share_error">No media file available to share</string>
 </resources>

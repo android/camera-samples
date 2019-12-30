@@ -123,7 +123,8 @@ class GalleryFragment internal constructor() : Fragment() {
 
                 // Launch the intent letting the user choose which app to share with
                 startActivity(Intent.createChooser(intent, getString(R.string.share_hint)))
-            }
+
+            } ?: Toast.makeText(activity, R.string.share_error, Toast.LENGTH_SHORT).show()
         }
 
         // Handle delete button press
@@ -161,7 +162,7 @@ class GalleryFragment internal constructor() : Fragment() {
                         .setNegativeButton(android.R.string.no, null)
                         .create().showImmersive()
 
-            } ?: Toast.makeText(activity, "No media file available", Toast.LENGTH_SHORT).show()
+            } ?: Toast.makeText(activity, R.string.media_error, Toast.LENGTH_SHORT).show()
         }
     }
 }
