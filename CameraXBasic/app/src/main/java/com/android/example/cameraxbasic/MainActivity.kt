@@ -34,7 +34,8 @@ private const val IMMERSIVE_FLAG_TIMEOUT = 500L
  * Main entry point into our app. This app follows the single-activity pattern, and all
  * functionality is implemented in the form of fragments.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity: AppCompatActivity() {
+
     private lateinit var container: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,9 +71,13 @@ class MainActivity : AppCompatActivity() {
         fun getOutputDirectory(context: Context): File {
             val appContext = context.applicationContext
             val mediaDir = context.externalMediaDirs.firstOrNull()?.let {
-                File(it, appContext.resources.getString(R.string.app_name)).apply { mkdirs() } }
-            return if (mediaDir != null && mediaDir.exists())
-                mediaDir else appContext.filesDir
+                File(it, appContext.resources.getString(R.string.app_name)).apply { mkdirs() }
+            }
+            return if (mediaDir != null && mediaDir.exists()) {
+                mediaDir
+            } else {
+                appContext.filesDir
+            }
         }
     }
 }

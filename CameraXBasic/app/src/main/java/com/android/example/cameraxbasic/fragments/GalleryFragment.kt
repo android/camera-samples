@@ -16,14 +16,13 @@
 
 package com.android.example.cameraxbasic.fragments
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.viewpager.widget.ViewPager
 import java.io.File
 import android.content.Intent
@@ -35,16 +34,17 @@ import androidx.core.content.FileProvider
 import com.android.example.cameraxbasic.BuildConfig
 import com.android.example.cameraxbasic.utils.padWithDisplayCutout
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.AppCompatImageButton
+import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.android.example.cameraxbasic.utils.showImmersive
 import com.android.example.cameraxbasic.R
 
-
 val EXTENSION_WHITELIST = arrayOf("JPG")
 
 /** Fragment used to present the user with a gallery of photos taken */
-class GalleryFragment internal constructor() : Fragment() {
+class GalleryFragment internal constructor(): Fragment() {
 
     /** AndroidX navigation arguments */
     private val args: GalleryFragmentArgs by navArgs()
@@ -52,12 +52,13 @@ class GalleryFragment internal constructor() : Fragment() {
     private lateinit var mediaList: MutableList<File>
 
     /** Adapter class used to present a fragment containing one photo or video as a page */
-    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
+    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
         override fun getCount(): Int = mediaList.size
         override fun getItem(position: Int): Fragment = PhotoFragment.create(mediaList[position])
         override fun getItemPosition(obj: Any): Int = POSITION_NONE
     }
 
+    @SuppressLint("DefaultLocale")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -81,6 +82,7 @@ class GalleryFragment internal constructor() : Fragment() {
     ): View? = inflater.inflate(R.layout.fragment_gallery, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+
         super.onViewCreated(view, savedInstanceState)
 
         // Populate the ViewPager and implement a cache of two media items
@@ -96,12 +98,13 @@ class GalleryFragment internal constructor() : Fragment() {
         }
 
         // Handle back button press
-        view.findViewById<ImageButton>(R.id.back_button).setOnClickListener {
+        view.findViewById<AppCompatImageButton>(R.id.back_button).setOnClickListener {
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
         }
 
         // Handle share button press
-        view.findViewById<ImageButton>(R.id.share_button).setOnClickListener {
+        view.findViewById<AppCompatImageButton>(R.id.share_button).setOnClickListener {
+
             // Make sure that we have a file to share
             mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
 
@@ -126,7 +129,7 @@ class GalleryFragment internal constructor() : Fragment() {
         }
 
         // Handle delete button press
-        view.findViewById<ImageButton>(R.id.delete_button).setOnClickListener {
+        view.findViewById<AppCompatImageButton>(R.id.delete_button).setOnClickListener {
             AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
                     .setTitle(getString(R.string.delete_title))
                     .setMessage(getString(R.string.delete_dialog))
