@@ -6,21 +6,20 @@ import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.nio.ByteBuffer
 
 /**
  * Saves a JPEG [Image] into the specified [File].
  */
 internal class ImageSaver(
-        /**
-         * The JPEG image
-         */
-        private val image: Image,
+    /**
+     * The JPEG image
+     */
+    private val image: Image,
 
-        /**
-         * The file we save the image into.
-         */
-        private val file: File
+    /**
+     * The file we save the image into.
+     */
+    private val file: File
 ) : Runnable {
 
     override fun run() {

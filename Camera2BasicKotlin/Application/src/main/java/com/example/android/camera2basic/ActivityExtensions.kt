@@ -16,9 +16,8 @@
 
 package com.example.android.camera2basic
 
-import android.support.v4.app.FragmentActivity
-import android.support.v4.content.ContextCompat
 import android.widget.Toast
+import androidx.fragment.app.FragmentActivity
 
 /**
  * This file illustrates Kotlin's Extension Functions by extending FragmentActivity.
