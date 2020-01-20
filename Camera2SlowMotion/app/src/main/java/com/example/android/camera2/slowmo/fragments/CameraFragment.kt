@@ -41,7 +41,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
@@ -104,7 +103,6 @@ class CameraFragment : Fragment() {
         // Get a persistent Surface from MediaCodec, don't forget to release when done
         val surface = MediaCodec.createPersistentInputSurface()
 
-
         // Prepare and release a dummy MediaRecorder with our new surface
         // Required to allocate an appropriately sized buffer before passing the Surface as the
         //  output target to the high speed capture session
@@ -129,19 +127,22 @@ class CameraFragment : Fragment() {
     private val animationTask: Runnable by lazy {
         Runnable {
             // Flash white animation
-            viewFinder.foreground = Color.argb(150, 255, 255, 255).toDrawable()
+            overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
-            viewFinder.postDelayed({
+            overlay.postDelayed({
                 // Remove white flash animation
-                viewFinder.foreground = null
+                overlay.foreground = null
                 // Restart animation recursively
-                viewFinder.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
+                overlay.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
             }, CameraActivity.ANIMATION_FAST_MILLIS)
         }
     }
 
     /** Where the camera preview is displayed */
-    private lateinit var viewFinder: SurfaceView
+    private lateinit var viewFinder: AutoFitSurfaceView
+
+    /** Overlay on top of the camera preview */
+    private lateinit var overlay: View
 
     /** Captures high speed frames from a [CameraDevice] for our slow motion video recording */
     private lateinit var session: CameraConstrainedHighSpeedCaptureSession
@@ -189,12 +190,13 @@ class CameraFragment : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = AutoFitSurfaceView(requireContext())
+    ): View? = inflater.inflate(R.layout.fragment_camera, container, false)
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewFinder = view as AutoFitSurfaceView
+        overlay = view.findViewById(R.id.overlay)
+        viewFinder = view.findViewById(R.id.view_finder)
 
         viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
@@ -208,11 +210,11 @@ class CameraFragment : Fragment() {
 
                 // Selects same preview size as video and configures view finder
                 Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
-                view.holder.setFixedSize(args.width, args.height)
-                view.setAspectRatio(args.width, args.height)
+                viewFinder.holder.setFixedSize(args.width, args.height)
+                viewFinder.setAspectRatio(args.width, args.height)
 
                 // To ensure that size is set, initialize camera in the view's thread
-                view.post { initializeCamera() }
+                viewFinder.post { initializeCamera() }
             }
         })
 
@@ -264,7 +266,8 @@ class CameraFragment : Fragment() {
         // session.stopRepeating() is called
         session.setRepeatingBurst(previewRequestList, null, cameraHandler)
 
-        view?.setOnTouchListener { view, event ->
+        // Rather than providing an explicit UI, react when the user touches anywhere on the screen
+        overlay.setOnTouchListener { view, event ->
             when (event.action) {
 
                 MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
@@ -288,7 +291,7 @@ class CameraFragment : Fragment() {
                     Log.d(TAG, "Recording started")
 
                     // Starts recording animation
-                    viewFinder.post(animationTask)
+                    overlay.post(animationTask)
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
@@ -298,16 +301,16 @@ class CameraFragment : Fragment() {
                             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
                     // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
-                    val ellapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
-                    if (ellapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
-                        delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - ellapsedTimeMillis)
+                    val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
+                    if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
+                        delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
                     }
 
                     Log.d(TAG, "Recording stopped. Output file: $outputFile")
                     recorder.stop()
 
                     // Removes recording animation
-                    viewFinder.removeCallbacks(animationTask)
+                    overlay.removeCallbacks(animationTask)
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
