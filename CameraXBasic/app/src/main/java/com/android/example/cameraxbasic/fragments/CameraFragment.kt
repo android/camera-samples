@@ -78,12 +78,10 @@ class CameraFragment : Fragment() {
     private lateinit var container: ConstraintLayout
     private lateinit var broadcastManager: LocalBroadcastManager
     private lateinit var displayManager: DisplayManager
+
+    private lateinit var viewFinder: PreviewView
     private lateinit var outputDirectory: File
     private lateinit var mainExecutor: Executor
-
-    private lateinit var cameraControl: CameraControl
-    private lateinit var cameraInfo: CameraInfo
-    private lateinit var viewFinder: PreviewView
 
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
@@ -116,12 +114,7 @@ class CameraFragment : Fragment() {
         override fun onDisplayRemoved(displayId: Int) = Unit
         override fun onDisplayChanged(displayId: Int) = view?.let { view ->
             if (displayId == this@CameraFragment.displayId) {
-
                 Log.d(TAG, "Rotation changed: ${view.display.rotation}")
-                // preview?.setTargetRotation(view.display.rotation)
-                // capture?.setTargetRotation(view.display.rotation)
-                // analysis?.setTargetRotation(view.display.rotation)
-
             }
         } ?: Unit
     }
@@ -204,13 +197,15 @@ class CameraFragment : Fragment() {
             // level >= 24, so if you only target 24+ you can remove this statement
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 requireActivity().sendBroadcast(
-                        Intent("android.hardware.action.NEW_PICTURE", Uri.fromFile(photoFile)))
+                        Intent("android.hardware.action.NEW_PICTURE", Uri.fromFile(photoFile))
+                )
             }
 
             // If the folder selected is an external media directory, this is unnecessary
             // but otherwise other apps will not be able to access our images unless we
             // scan them using [MediaScannerConnection]
             val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
+            // It prevents a force close, when pressing the back button.
             if(!requireActivity().isFinishing) {
                 MediaScannerConnection.scanFile(
                         context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
@@ -285,7 +280,9 @@ class CameraFragment : Fragment() {
 
             // Preview
             preview = Preview.Builder()
+                // We request aspect ratio but no resolution
                 .setTargetAspectRatio(screenAspectRatio)
+                // Set initial target rotation
                 .setTargetRotation(rotation)
                 .build()
 
@@ -295,17 +292,18 @@ class CameraFragment : Fragment() {
             // ImageCapture
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                // We request aspect ratio but no resolution to match preview config but letting
+                // We request aspect ratio but no resolution to match preview config, but letting
                 // CameraX optimize for whatever specific resolution best fits requested capture mode
                 .setTargetAspectRatio(screenAspectRatio)
-                // Set initial target rotation, we will have to call this again if rotation changes
-                // during the lifecycle of this use case
+                // Set initial target rotation
                 .setTargetRotation(rotation)
                 .build()
 
             // ImageAnalysis
             imageAnalyzer = ImageAnalysis.Builder()
+                // We request aspect ratio but no resolution
                 .setTargetAspectRatio(screenAspectRatio)
+                // Set initial target rotation
                 .setTargetRotation(rotation)
                 .build()
 
@@ -324,8 +322,6 @@ class CameraFragment : Fragment() {
                 val camera = cameraProvider.bindToLifecycle(
                     this as LifecycleOwner, cameraSelector, preview, imageCapture, imageAnalyzer
                 )
-                cameraControl = camera.cameraControl
-                cameraInfo = camera.cameraInfo
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
@@ -415,8 +411,8 @@ class CameraFragment : Fragment() {
                     val dest = CameraFragmentDirections
                             .actionCameraToGallery(outputDirectory.absolutePath)
                     findNavController().navigate(dest)
-                } catch(e: IllegalArgumentException) {
-                    Log.e(TAG, "" + e.message)
+                } catch(exc: IllegalArgumentException) {
+                    Log.e(TAG, "" + exc.message, exc)
                 }
             }
         }
