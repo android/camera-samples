@@ -31,11 +31,19 @@ import android.os.Build
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
-import android.view.*
+import android.view.KeyEvent
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.ImageButton
-import androidx.camera.core.*
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.Metadata
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -51,14 +59,17 @@ import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.MainActivity
 import com.android.example.cameraxbasic.R
-import com.android.example.cameraxbasic.utils.*
+import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
+import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
+import com.android.example.cameraxbasic.utils.LuminosityAnalyzer
+import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 import java.util.concurrent.Executor
 import kotlin.math.abs
 import kotlin.math.max
@@ -83,9 +94,13 @@ class CameraFragment : Fragment() {
     private lateinit var outputDirectory: File
     private lateinit var mainExecutor: Executor
 
+    // The use-cases
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
     private var imageAnalyzer: ImageAnalysis? = null
+
+    // Provides access to CameraControl & CameraInfo
+    private var camera: Camera? = null
 
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
     private var displayId: Int = -1
@@ -143,7 +158,8 @@ class CameraFragment : Fragment() {
         super.onResume()
         if (!PermissionsFragment.hasPermissions(requireContext())) {
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
-                    CameraFragmentDirections.actionCameraToPermissions())
+                    CameraFragmentDirections.actionCameraToPermissions()
+            )
         }
     }
 
@@ -181,7 +197,7 @@ class CameraFragment : Fragment() {
     /** Define callback that will be triggered after a photo has been taken and saved to disk */
     private val imageSavedListener = object : ImageCapture.OnImageSavedCallback {
         override fun onError(imageCaptureError: Int, message: String, cause: Throwable?) {
-            Log.e(TAG, "Photo capture failed: $message")
+            Log.e(TAG, "Photo capture failed: $message", cause)
         }
 
         override fun onImageSaved(photoFile: File) {
@@ -306,20 +322,21 @@ class CameraFragment : Fragment() {
                 // Set initial target rotation
                 .setTargetRotation(rotation)
                 .build()
-
-            val analyzer = LuminosityAnalyzer {luma ->
-                // Values returned from our analyzer are passed to the attached listener
-                // We log image analysis results here - you should do something useful instead!
-                Log.d(TAG, "Average luminosity: $luma")
-            }
-            imageAnalyzer?.setAnalyzer(mainExecutor, analyzer)
+                // The analyzer can then be set for the instance:
+                .also {
+                    it.setAnalyzer(mainExecutor, LuminosityAnalyzer {luma ->
+                        // Values returned from our analyzer are passed to the attached listener
+                        // We log image analysis results here - you should do something useful instead!
+                        Log.d(TAG, "Average luminosity: $luma")
+                    })
+                }
 
             // Must unbind the use-cases before rebinding them.
             cameraProvider.unbindAll()
 
             try {
                 // A variable number of use-cases can be passed here.
-                val camera = cameraProvider.bindToLifecycle(
+                camera = cameraProvider.bindToLifecycle(
                     this as LifecycleOwner, cameraSelector, preview, imageCapture, imageAnalyzer
                 )
             } catch(exc: Exception) {
