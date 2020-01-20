@@ -83,11 +83,11 @@ class CameraFragment : Fragment() {
 
     private lateinit var cameraControl: CameraControl
     private lateinit var cameraInfo: CameraInfo
-    private lateinit var previewView: PreviewView
+    private lateinit var viewFinder: PreviewView
 
     private var preview: Preview? = null
-    private var capture: ImageCapture? = null
-    private var analysis: ImageAnalysis? = null
+    private var imageCapture: ImageCapture? = null
+    private var imageAnalyzer: ImageAnalysis? = null
 
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
     private var displayId: Int = -1
@@ -127,11 +127,8 @@ class CameraFragment : Fragment() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-
         super.onCreate(savedInstanceState)
-
         mainExecutor = ContextCompat.getMainExecutor(requireContext())
-
         // Determine the output directory
         outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
@@ -172,7 +169,7 @@ class CameraFragment : Fragment() {
 
     private fun setGalleryThumbnail(file: File) {
         // Reference of the view that holds the gallery thumbnail
-        val thumbnail = container.findViewById<ImageButton>(R.id.photo_gallery_button)
+        val thumbnail = container.findViewById<ImageButton>(R.id.photo_view_button)
 
         // Run the operations in the view's thread
         thumbnail.post {
@@ -228,13 +225,13 @@ class CameraFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
 
-        previewView = container.findViewById(R.id.previewView)
+        viewFinder = container.findViewById(R.id.view_finder)
 
         // Wait for the views to be properly laid out
-        previewView.post {
+        viewFinder.post {
 
             // Keep track of the display in which this view is attached
-            displayId = previewView.display.displayId
+            displayId = viewFinder.display.displayId
 
             // Build UI controls
             updateCameraUi()
@@ -270,13 +267,13 @@ class CameraFragment : Fragment() {
     private fun bindCameraUseCases() {
 
         // Get screen metrics used to setup camera for full screen resolution
-        val metrics = DisplayMetrics().also { previewView.display.getRealMetrics(it) }
+        val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
         Log.d(TAG, "Screen metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
 
         val screenAspectRatio = aspectRatio(metrics.widthPixels, metrics.heightPixels)
         Log.d(TAG, "Preview aspect ratio: $screenAspectRatio")
 
-        val rotation = previewView.display.rotation
+        val rotation = viewFinder.display.rotation
 
         // Bind the cameraProvider to the LifeCycleOwner
         val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
@@ -288,17 +285,15 @@ class CameraFragment : Fragment() {
 
             // Preview
             preview = Preview.Builder()
-                .setTargetName("Preview")
                 .setTargetAspectRatio(screenAspectRatio)
                 .setTargetRotation(rotation)
                 .build()
 
             // Default PreviewSurfaceProvider
-            preview?.setPreviewSurfaceProvider(previewView.previewSurfaceProvider)
+            preview?.setPreviewSurfaceProvider(viewFinder.previewSurfaceProvider)
 
             // ImageCapture
-            capture = ImageCapture.Builder()
-                .setTargetName("Capture")
+            imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 // We request aspect ratio but no resolution to match preview config but letting
                 // CameraX optimize for whatever specific resolution best fits requested capture mode
@@ -309,8 +304,7 @@ class CameraFragment : Fragment() {
                 .build()
 
             // ImageAnalysis
-            analysis = ImageAnalysis.Builder()
-                .setTargetName("Analysis")
+            imageAnalyzer = ImageAnalysis.Builder()
                 .setTargetAspectRatio(screenAspectRatio)
                 .setTargetRotation(rotation)
                 .build()
@@ -320,7 +314,7 @@ class CameraFragment : Fragment() {
                 // We log image analysis results here - you should do something useful instead!
                 Log.d(TAG, "Average luminosity: $luma")
             }
-            analysis?.setAnalyzer(mainExecutor, analyzer)
+            imageAnalyzer?.setAnalyzer(mainExecutor, analyzer)
 
             // Must unbind the use-cases before rebinding them.
             cameraProvider.unbindAll()
@@ -328,12 +322,12 @@ class CameraFragment : Fragment() {
             try {
                 // A variable number of use-cases can be passed here.
                 val camera = cameraProvider.bindToLifecycle(
-                    this as LifecycleOwner, cameraSelector, preview, capture, analysis
+                    this as LifecycleOwner, cameraSelector, preview, imageCapture, imageAnalyzer
                 )
                 cameraControl = camera.cameraControl
                 cameraInfo = camera.cameraInfo
-            } catch(e: Exception) {
-                Log.e(TAG, "" + e.message)
+            } catch(exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
             }
 
         }, mainExecutor)
@@ -375,7 +369,7 @@ class CameraFragment : Fragment() {
         controls.findViewById<ImageButton>(R.id.camera_capture_button).setOnClickListener {
 
             // Get a stable reference of the modifiable image capture use case
-            capture?.let { imageCapture ->
+            imageCapture?.let { imageCapture ->
 
                 // Create output file to hold the image
                 val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
@@ -414,7 +408,7 @@ class CameraFragment : Fragment() {
         }
 
         // Listener for button used to view the most recent photo
-        controls.findViewById<ImageButton>(R.id.photo_gallery_button).setOnClickListener {
+        controls.findViewById<ImageButton>(R.id.photo_view_button).setOnClickListener {
             // Only navigate when the gallery has photos
             if(outputDirectory.listFiles()?.size!! > 0) {
                 try {
