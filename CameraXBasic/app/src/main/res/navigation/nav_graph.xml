@@ -17,7 +17,6 @@
 <navigation
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     app:startDestination="@id/permissions_fragment"
     android:id="@+id/nav_graph">
 
@@ -37,7 +36,6 @@
     <fragment
         android:id="@+id/camera_fragment"
         android:name="com.android.example.cameraxbasic.fragments.CameraFragment"
-        tools:layout="@layout/camera_ui_container"
         android:label="CameraFragment" >
 
         <action
@@ -55,7 +53,6 @@
     <fragment
         android:id="@+id/gallery_fragment"
         android:name="com.android.example.cameraxbasic.fragments.GalleryFragment"
-        tools:layout="@layout/fragment_gallery"
         android:label="GalleryFragment" >
         <argument
             android:name="root_directory"
