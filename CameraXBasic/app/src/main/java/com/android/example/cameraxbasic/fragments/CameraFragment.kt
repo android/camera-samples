@@ -87,23 +87,18 @@ typealias LumaListener = (luma: Double) -> Unit
 class CameraFragment : Fragment() {
 
     private lateinit var container: ConstraintLayout
-    private lateinit var broadcastManager: LocalBroadcastManager
-    private lateinit var displayManager: DisplayManager
-
     private lateinit var viewFinder: PreviewView
     private lateinit var outputDirectory: File
+    private lateinit var broadcastManager: LocalBroadcastManager
+    private lateinit var displayManager: DisplayManager
     private lateinit var mainExecutor: Executor
 
-    // The use-cases
+    private var displayId: Int = -1
+    private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
     private var imageAnalyzer: ImageAnalysis? = null
-
-    // Provides access to CameraControl & CameraInfo
     private var camera: Camera? = null
-
-    private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
-    private var displayId: Int = -1
 
     /** Volume down button receiver used to trigger shutter */
     private val volumeDownReceiver = object : BroadcastReceiver() {
@@ -335,7 +330,8 @@ class CameraFragment : Fragment() {
             cameraProvider.unbindAll()
 
             try {
-                // A variable number of use-cases can be passed here.
+                // A variable number of use-cases can be passed here -
+                // camera provides access to CameraControl & CameraInfo
                 camera = cameraProvider.bindToLifecycle(
                     this as LifecycleOwner, cameraSelector, preview, imageCapture, imageAnalyzer
                 )
