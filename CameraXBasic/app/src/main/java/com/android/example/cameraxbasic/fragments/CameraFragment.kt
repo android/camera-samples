@@ -172,9 +172,9 @@ class CameraFragment : Fragment() {
 
             // Load thumbnail into circular button using Glide
             Glide.with(thumbnail)
-                .load(file)
-                .apply(RequestOptions.circleCropTransform())
-                .into(thumbnail)
+                    .load(file)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(thumbnail)
         }
     }
 
