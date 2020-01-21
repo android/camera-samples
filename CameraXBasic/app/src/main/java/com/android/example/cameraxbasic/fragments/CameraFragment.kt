@@ -37,12 +37,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.ImageButton
+import androidx.annotation.NonNull
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.Metadata
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -61,16 +63,18 @@ import com.android.example.cameraxbasic.MainActivity
 import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
 import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
-import com.android.example.cameraxbasic.utils.LuminosityAnalyzer
 import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
+import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -132,17 +136,6 @@ class CameraFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mainExecutor = ContextCompat.getMainExecutor(requireContext())
-        // Determine the output directory
-        outputDirectory = MainActivity.getOutputDirectory(requireContext())
-
-        // Every time the orientation of device changes, recompute layout
-        displayManager = requireContext().getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-        displayManager.registerDisplayListener(displayListener, null)
-
-        // Set up the intent filter that will receive events from our main activity
-        val filter = IntentFilter().apply { addAction(KEY_EVENT_ACTION) }
-        broadcastManager = LocalBroadcastManager.getInstance(requireContext())
-        broadcastManager.registerReceiver(volumeDownReceiver, filter)
     }
 
     /**
@@ -227,11 +220,22 @@ class CameraFragment : Fragment() {
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
-
         viewFinder = container.findViewById(R.id.view_finder)
+        broadcastManager = LocalBroadcastManager.getInstance(view.context)
+
+        // Set up the intent filter that will receive events from our main activity
+        val filter = IntentFilter().apply { addAction(KEY_EVENT_ACTION) }
+        broadcastManager.registerReceiver(volumeDownReceiver, filter)
+
+        // Every time the orientation of device changes, recompute layout
+        displayManager = viewFinder.context
+                .getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        displayManager.registerDisplayListener(displayListener, null)
+
+        // Determine the output directory
+        outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
         // Wait for the views to be properly laid out
         viewFinder.post {
@@ -427,6 +431,88 @@ class CameraFragment : Fragment() {
                 } catch(exc: IllegalArgumentException) {
                     Log.e(TAG, "" + exc.message, exc)
                 }
+            }
+        }
+    }
+
+    /**
+     * Our custom image analysis class.
+     *
+     * <p>All we need to do is override the function `analyze` with our desired operations. Here,
+     * we compute the average luminosity of the image by looking at the Y plane of the YUV frame.
+     */
+    private class LuminosityAnalyzer(listener: LumaListener? = null) : ImageAnalysis.Analyzer {
+        private val frameRateWindow = 8
+        private val frameTimestamps = ArrayDeque<Long>(5)
+        private val listeners = ArrayList<LumaListener>().apply { listener?.let { add(it) } }
+        private var lastAnalyzedTimestamp = 0L
+        var framesPerSecond: Double = -1.0
+            private set
+
+        /**
+         * Used to add listeners that will be called with each luma computed
+         */
+        fun onFrameAnalyzed(listener: LumaListener) = listeners.add(listener)
+
+        /**
+         * Helper extension function used to extract a byte array from an image plane buffer
+         */
+        private fun ByteBuffer.toByteArray(): ByteArray {
+            rewind()    // Rewind the buffer to zero
+            val data = ByteArray(remaining())
+            get(data)   // Copy the buffer into a byte array
+            return data // Return the byte array
+        }
+
+        /**
+         * Analyzes an image to produce a result.
+         *
+         * <p>The caller is responsible for ensuring this analysis method can be executed quickly
+         * enough to prevent stalls in the image acquisition pipeline. Otherwise, newly available
+         * images will not be acquired and analyzed.
+         *
+         * <p>The image passed to this method becomes invalid after this method returns. The caller
+         * should not store external references to this image, as these references will become
+         * invalid.
+         *
+         * @param image image being analyzed VERY IMPORTANT: do not close the image, it will be
+         * automatically closed after this method returns
+         * @return the image analysis result
+         */
+        override fun analyze(@NonNull image: ImageProxy) {
+            // If there are no listeners attached, we don't need to perform analysis
+            if (listeners.isEmpty()) return
+
+            // Keep track of frames analyzed
+            val currentTime = System.currentTimeMillis()
+            frameTimestamps.push(currentTime)
+
+            // Compute the FPS using a moving average
+            while (frameTimestamps.size >= frameRateWindow) frameTimestamps.removeLast()
+            val timestampFirst = frameTimestamps.peekFirst() ?: currentTime
+            val timestampLast = frameTimestamps.peekLast() ?: currentTime
+            framesPerSecond = 1.0 / ((timestampFirst - timestampLast) /
+                    frameTimestamps.size.coerceAtLeast(1).toDouble()) * 1000.0
+
+            // Calculate the average luma no more often than every second
+            if (frameTimestamps.first - lastAnalyzedTimestamp >= TimeUnit.SECONDS.toMillis(1)) {
+                lastAnalyzedTimestamp = frameTimestamps.first
+
+                // Since format in ImageAnalysis is YUV, image.planes[0] contains the luminance
+                //  plane
+                val buffer = image.planes[0].buffer
+
+                // Extract image data from callback object
+                val data = buffer.toByteArray()
+
+                // Convert the data into an array of pixel values ranging 0-255
+                val pixels = data.map { it.toInt() and 0xFF }
+
+                // Compute average luminance for the image
+                val luma = pixels.average()
+
+                // Call all listeners with new value
+                listeners.forEach { it(luma) }
             }
         }
     }
