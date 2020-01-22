@@ -71,7 +71,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
+import java.util.ArrayDeque
 import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
@@ -129,6 +130,8 @@ class CameraFragment : Fragment() {
         override fun onDisplayChanged(displayId: Int) = view?.let { view ->
             if (displayId == this@CameraFragment.displayId) {
                 Log.d(TAG, "Rotation changed: ${view.display.rotation}")
+                imageCapture?.setTargetRotation(view.display.rotation)
+                imageAnalyzer?.setTargetRotation(view.display.rotation)
             }
         } ?: Unit
     }
@@ -197,11 +200,11 @@ class CameraFragment : Fragment() {
                 setGalleryThumbnail(photoFile)
             }
 
-            // Implicit broadcasts will be ignored for devices running API
-            // level >= 24, so if you only target 24+ you can remove this statement
+            // Implicit broadcasts will be ignored for devices running API level >= 24
+            // so if you only target API level 24+ you can remove this statement
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 requireActivity().sendBroadcast(
-                        Intent("android.hardware.action.NEW_PICTURE", Uri.fromFile(photoFile))
+                        Intent(android.hardware.Camera.ACTION_NEW_PICTURE, Uri.fromFile(photoFile))
                 )
             }
 
@@ -252,7 +255,7 @@ class CameraFragment : Fragment() {
             // In the background, load latest photo taken (if any) for gallery thumbnail
             lifecycleScope.launch(Dispatchers.IO) {
                 outputDirectory.listFiles { file ->
-                    EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.getDefault()))
+                    EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
                 }?.max()?.let {
                     setGalleryThumbnail(it)
                 }
