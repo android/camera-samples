@@ -212,7 +212,7 @@ class CameraFragment : Fragment() {
             // but otherwise other apps will not be able to access our images unless we
             // scan them using [MediaScannerConnection]
             val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
-            // It prevents a force close, when pressing the back button.
+            // It prevents a force close, when pressing the photo-view button early on.
             if(!requireActivity().isFinishing) {
                 MediaScannerConnection.scanFile(
                         context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
@@ -313,7 +313,8 @@ class CameraFragment : Fragment() {
                 // We request aspect ratio but no resolution to match preview config, but letting
                 // CameraX optimize for whatever specific resolution best fits requested capture mode
                 .setTargetAspectRatio(screenAspectRatio)
-                // Set initial target rotation
+                // Set initial target rotation, we will have to call this again if rotation changes
+                // during the lifecycle of this use case
                 .setTargetRotation(rotation)
                 .build()
 
@@ -321,10 +322,11 @@ class CameraFragment : Fragment() {
             imageAnalyzer = ImageAnalysis.Builder()
                 // We request aspect ratio but no resolution
                 .setTargetAspectRatio(screenAspectRatio)
-                // Set initial target rotation
+                // Set initial target rotation, we will have to call this again if rotation changes
+                // during the lifecycle of this use case
                 .setTargetRotation(rotation)
                 .build()
-                // The analyzer can then be set for the instance:
+                // The analyzer can then be assigned to the instance
                 .also {
                     it.setAnalyzer(mainExecutor, LuminosityAnalyzer {luma ->
                         // Values returned from our analyzer are passed to the attached listener
@@ -406,7 +408,8 @@ class CameraFragment : Fragment() {
                     // Display flash animation to indicate that photo was captured
                     container.postDelayed({
                         container.foreground = ColorDrawable(Color.WHITE)
-                        container.postDelayed({container.foreground = null}, ANIMATION_FAST_MILLIS)
+                        container.postDelayed(
+                                { container.foreground = null }, ANIMATION_FAST_MILLIS)
                     }, ANIMATION_SLOW_MILLIS)
                 }
             }
@@ -432,7 +435,7 @@ class CameraFragment : Fragment() {
                             .actionCameraToGallery(outputDirectory.absolutePath)
                     findNavController().navigate(dest)
                 } catch(exc: IllegalArgumentException) {
-                    Log.e(TAG, "" + exc.message, exc)
+                    Log.e(TAG, exc.message, exc)
                 }
             }
         }
@@ -482,7 +485,7 @@ class CameraFragment : Fragment() {
          * automatically closed after this method returns
          * @return the image analysis result
          */
-        override fun analyze(@NonNull image: ImageProxy) {
+        override fun analyze(image: ImageProxy) {
             // If there are no listeners attached, we don't need to perform analysis
             if (listeners.isEmpty()) return
 
