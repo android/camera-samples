@@ -42,7 +42,6 @@
             android:theme="@style/AppTheme"
             android:icon="@mipmap/ic_launcher"
             android:screenOrientation="fullUser"
-            android:configChanges="orientation|keyboardHidden|screenSize"
             android:rotationAnimation="seamless"
             tools:targetApi="O">
 

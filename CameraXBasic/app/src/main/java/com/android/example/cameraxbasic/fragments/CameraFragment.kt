@@ -140,12 +140,10 @@ class CameraFragment : Fragment() {
         mainExecutor = ContextCompat.getMainExecutor(requireContext())
     }
 
-    /**
-     * Make sure that all permissions are still present, since user
-     * could have removed them while the app was in paused state.
-     */
     override fun onResume() {
         super.onResume()
+        // Make sure that all permissions are still present, since the
+        // user could have removed them while the app was in paused state.
         if (!PermissionsFragment.hasPermissions(requireContext())) {
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
                     CameraFragmentDirections.actionCameraToPermissions()
@@ -428,17 +426,13 @@ class CameraFragment : Fragment() {
         // Listener for button used to view the most recent photo
         controls.findViewById<ImageButton>(R.id.photo_view_button).setOnClickListener {
             // Only navigate when the gallery has photos
-            if(outputDirectory.listFiles()?.size!! > 0) {
-                try {
-                    val dest = CameraFragmentDirections
-                            .actionCameraToGallery(outputDirectory.absolutePath)
-                    findNavController().navigate(dest)
-                } catch(exc: IllegalArgumentException) {
-                    Log.e(TAG, exc.message, exc)
-                }
+            if(true == outputDirectory.listFiles()?.isNotEmpty()) {
+                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                        CameraFragmentDirections.actionCameraToGallery(outputDirectory.absolutePath))
             }
         }
     }
+
 
     /**
      * Our custom image analysis class.
