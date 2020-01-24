@@ -209,12 +209,9 @@ class CameraFragment : Fragment() {
             // but otherwise other apps will not be able to access our images unless we
             // scan them using [MediaScannerConnection]
             val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
-            // It prevents a force close, when pressing the photo-view button early on.
-            if(!requireActivity().isFinishing) {
-                MediaScannerConnection.scanFile(
-                        context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
-                )
-            }
+            MediaScannerConnection.scanFile(
+                    context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
+            )
         }
     }
 
@@ -367,9 +364,7 @@ class CameraFragment : Fragment() {
         return AspectRatio.RATIO_16_9
     }
 
-    /**
-     * Method used to re-draw the camera UI controls, called every time configuration changes.
-     */
+    /** Method used to re-draw the camera UI controls, called every time configuration changes. */
     private fun updateCameraUi() {
 
         // Remove previous UI if any
@@ -426,7 +421,7 @@ class CameraFragment : Fragment() {
         // Listener for button used to view the most recent photo
         controls.findViewById<ImageButton>(R.id.photo_view_button).setOnClickListener {
             // Only navigate when the gallery has photos
-            if(true == outputDirectory.listFiles()?.isNotEmpty()) {
+            if (true == outputDirectory.listFiles()?.isNotEmpty()) {
                 Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
                         CameraFragmentDirections.actionCameraToGallery(outputDirectory.absolutePath))
             }
