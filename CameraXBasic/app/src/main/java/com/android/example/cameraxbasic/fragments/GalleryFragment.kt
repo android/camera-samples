@@ -20,26 +20,26 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.viewpager.widget.ViewPager
 import java.io.File
 import android.content.Intent
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.webkit.MimeTypeMap
+import android.widget.ImageButton
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.FileProvider
 import com.android.example.cameraxbasic.BuildConfig
 import com.android.example.cameraxbasic.utils.padWithDisplayCutout
 import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.android.example.cameraxbasic.utils.showImmersive
 import com.android.example.cameraxbasic.R
-
+import java.util.Locale
 
 val EXTENSION_WHITELIST = arrayOf("JPG")
 
@@ -52,7 +52,7 @@ class GalleryFragment internal constructor() : Fragment() {
     private lateinit var mediaList: MutableList<File>
 
     /** Adapter class used to present a fragment containing one photo or video as a page */
-    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
+    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
         override fun getCount(): Int = mediaList.size
         override fun getItem(position: Int): Fragment = PhotoFragment.create(mediaList[position])
         override fun getItemPosition(obj: Any): Int = POSITION_NONE
@@ -70,7 +70,7 @@ class GalleryFragment internal constructor() : Fragment() {
         // Walk through all files in the root directory
         // We reverse the order of the list to present the last photos first
         mediaList = rootDirectory.listFiles { file ->
-            EXTENSION_WHITELIST.contains(file.extension.toUpperCase())
+            EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
         }?.sortedDescending()?.toMutableList() ?: mutableListOf()
     }
 
