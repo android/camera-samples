@@ -30,15 +30,18 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:name=".CameraXBasic"
         android:label="@string/app_name"
         android:allowBackup="true">
+
         <activity
             android:name=".MainActivity"
             android:clearTaskOnLaunch="true"
             android:theme="@style/AppTheme"
             android:icon="@mipmap/ic_launcher"
             android:screenOrientation="fullUser"
-            android:configChanges="orientation|keyboardHidden|screenSize"
             android:rotationAnimation="seamless"
             tools:targetApi="O">
 
