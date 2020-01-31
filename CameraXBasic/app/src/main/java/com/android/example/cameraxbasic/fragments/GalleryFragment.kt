@@ -152,8 +152,7 @@ class GalleryFragment internal constructor() : Fragment() {
                             if (mediaList.isEmpty()) {
 //                                fragmentManager?.popBackStack()
 
-                                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
-                                        GalleryFragmentDirections.actionGalleryFragmentToCameraFragment2())
+                                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
 
                             }
 
