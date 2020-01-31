@@ -79,7 +79,17 @@ class GalleryFragment internal constructor() : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_gallery, container, false)
+    ): View? {
+        val view = inflater.inflate(R.layout.fragment_gallery, container, false)
+
+        //Checking media files list
+        if (mediaList.size == 0) {
+            view.findViewById<ImageButton>(R.id.delete_button).isEnabled = false
+            view.findViewById<ImageButton>(R.id.share_button).isEnabled = false
+        }
+
+        return view
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -103,65 +113,62 @@ class GalleryFragment internal constructor() : Fragment() {
 
         // Handle share button press
         view.findViewById<ImageButton>(R.id.share_button).setOnClickListener {
-            // Make sure that we have a file to share
-            mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
 
-                // Create a sharing intent
-                val intent = Intent().apply {
-                    // Infer media type from file extension
-                    val mediaType = MimeTypeMap.getSingleton()
-                            .getMimeTypeFromExtension(mediaFile.extension)
-                    // Get URI from our FileProvider implementation
-                    val uri = FileProvider.getUriForFile(
-                            view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
-                    // Set the appropriate intent extra, type, action and flags
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    type = mediaType
-                    action = Intent.ACTION_SEND
-                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-                }
+            val mediaFile = mediaList[(mediaViewPager.currentItem)]
 
-                // Launch the intent letting the user choose which app to share with
-                startActivity(Intent.createChooser(intent, getString(R.string.share_hint)))
+            // Create a sharing intent
+            val intent = Intent().apply {
+                // Infer media type from file extension
+                val mediaType = MimeTypeMap.getSingleton()
+                        .getMimeTypeFromExtension(mediaFile.extension)
+                // Get URI from our FileProvider implementation
+                val uri = FileProvider.getUriForFile(
+                        view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
+                // Set the appropriate intent extra, type, action and flags
+                putExtra(Intent.EXTRA_STREAM, uri)
+                type = mediaType
+                action = Intent.ACTION_SEND
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
 
-            } ?: Toast.makeText(activity, R.string.share_error, Toast.LENGTH_SHORT).show()
+            // Launch the intent letting the user choose which app to share with
+            startActivity(Intent.createChooser(intent, getString(R.string.share_hint)))
         }
 
         // Handle delete button press
         view.findViewById<ImageButton>(R.id.delete_button).setOnClickListener {
-            mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
 
-                AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
-                        .setTitle(getString(R.string.delete_title))
-                        .setMessage(getString(R.string.delete_dialog))
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setPositiveButton(android.R.string.yes) { _, _ ->
+            val mediaFile = mediaList[(mediaViewPager.currentItem)]
 
-                            // Delete current photo
-                            mediaFile.delete()
+            AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
+                    .setTitle(getString(R.string.delete_title))
+                    .setMessage(getString(R.string.delete_dialog))
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .setPositiveButton(android.R.string.yes) { _, _ ->
 
-                            // Send relevant broadcast to notify other apps of deletion
-                            MediaScannerConnection.scanFile(
-                                    view.context, arrayOf(mediaFile.absolutePath), null, null)
+                        // Delete current photo
+                        mediaFile.delete()
 
-                            // Notify our view pager
-                            mediaList.removeAt(mediaViewPager.currentItem)
-                            mediaViewPager.adapter?.notifyDataSetChanged()
+                        // Send relevant broadcast to notify other apps of deletion
+                        MediaScannerConnection.scanFile(
+                                view.context, arrayOf(mediaFile.absolutePath), null, null)
 
-                            // If all photos have been deleted, return to camera
-                            if (mediaList.isEmpty()) {
+                        // Notify our view pager
+                        mediaList.removeAt(mediaViewPager.currentItem)
+                        mediaViewPager.adapter?.notifyDataSetChanged()
+
+                        // If all photos have been deleted, return to camera
+                        if (mediaList.isEmpty()) {
 //                                fragmentManager?.popBackStack()
 
-                                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
-
-                            }
+                            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
 
                         }
 
-                        .setNegativeButton(android.R.string.no, null)
-                        .create().showImmersive()
+                    }
 
-            } ?: Toast.makeText(activity, R.string.media_error, Toast.LENGTH_SHORT).show()
+                    .setNegativeButton(android.R.string.no, null)
+                    .create().showImmersive()
         }
     }
 }
