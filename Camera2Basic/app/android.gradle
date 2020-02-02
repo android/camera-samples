@@ -1,0 +1,47 @@
+/**
+ * We keep the android { ... } block written in Groovy
+ * because there are not Kotlin snippets yet in the Android Gradle Plugin documentation
+ * https://developer.android.com/studio/build
+*/
+
+android {
+  compileSdkVersion 29
+  defaultConfig {
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    applicationId "com.android.example.camera2.basic"
+    minSdkVersion 21
+    targetSdkVersion 29
+    versionCode 1
+    versionName "1.0.0"
+  }
+
+  compileOptions {
+    sourceCompatibility rootProject.ext.java_version
+    targetCompatibility rootProject.ext.java_version
+  }
+
+  kotlinOptions {
+    jvmTarget = "$rootProject.ext.java_version"
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+      proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+    }
+  }
+
+  // Set the source of tests to same for both Unit and Instrumented tests
+  sourceSets {
+    String sharedTestDir = 'src/test/java'
+    test {
+      java.srcDir sharedTestDir
+    }
+    androidTest {
+      java.srcDir sharedTestDir
+    }
+  }
+
+  // Necessary for Robolectric (Unit tests)
+  testOptions.unitTests.includeAndroidResources = true
+}

@@ -18,17 +18,17 @@
 
 buildscript {
     // Top-level variables used for versioning
-    ext.kotlin_version = '+'
-    ext.java_version = JavaVersion.VERSION_1_8
+    val kotlin_version by extra("+")
+    val java_version by extra(JavaVersion.VERSION_1_8)
 
     repositories {
         google()
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.5.3'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "androidx.navigation:navigation-safe-args-gradle-plugin:2.1.0"
+        classpath("com.android.tools.build:gradle:3.5.3")
+        classpath(kotlin("gradle-plugin", version = kotlin_version))
+        classpath("androidx.navigation:navigation-safe-args-gradle-plugin:2.1.0")
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -43,6 +43,6 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+tasks.register<Delete>("clean") {
+    delete(rootProject.buildDir)
 }
