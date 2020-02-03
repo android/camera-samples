@@ -79,20 +79,16 @@ class GalleryFragment internal constructor() : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.fragment_gallery, container, false)
-
-        //Checking media files list
-        if (mediaList.size == 0) {
-            view.findViewById<ImageButton>(R.id.delete_button).isEnabled = false
-            view.findViewById<ImageButton>(R.id.share_button).isEnabled = false
-        }
-
-        return view
-    }
+    ): View? = inflater.inflate(R.layout.fragment_gallery, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        //Checking media files list
+        if (mediaList.isEmpty()) {
+            view.findViewById<ImageButton>(R.id.delete_button).isEnabled = false
+            view.findViewById<ImageButton>(R.id.share_button).isEnabled = false
+        }
 
         // Populate the ViewPager and implement a cache of two media items
         val mediaViewPager = view.findViewById<ViewPager>(R.id.photo_view_pager).apply {
@@ -114,7 +110,7 @@ class GalleryFragment internal constructor() : Fragment() {
         // Handle share button press
         view.findViewById<ImageButton>(R.id.share_button).setOnClickListener {
 
-            val mediaFile = mediaList[(mediaViewPager.currentItem)]
+            val mediaFile = mediaList[mediaViewPager.currentItem]
 
             // Create a sharing intent
             val intent = Intent().apply {
@@ -158,12 +154,8 @@ class GalleryFragment internal constructor() : Fragment() {
                         mediaViewPager.adapter?.notifyDataSetChanged()
 
                         // If all photos have been deleted, return to camera
-                        if (mediaList.isEmpty()) {
-//                                fragmentManager?.popBackStack()
-
+                        if (mediaList.isEmpty())
                             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
-
-                        }
 
                     }
 
