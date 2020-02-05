@@ -55,7 +55,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
-import androidx.navigation.fragment.findNavController
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.MainActivity
@@ -70,11 +69,10 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.ArrayDeque
+import java.util.Locale
 import java.util.concurrent.Executor
-import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
+import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -96,6 +94,7 @@ class CameraFragment : Fragment() {
     private lateinit var broadcastManager: LocalBroadcastManager
     private lateinit var displayManager: DisplayManager
     private lateinit var mainExecutor: Executor
+    private lateinit var analysisExecutor: Executor
 
     private var displayId: Int = -1
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
@@ -138,6 +137,7 @@ class CameraFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mainExecutor = ContextCompat.getMainExecutor(requireContext())
+        analysisExecutor = Executors.newSingleThreadExecutor()
     }
 
     override fun onResume() {
@@ -299,7 +299,7 @@ class CameraFragment : Fragment() {
                 .build()
 
             // Default PreviewSurfaceProvider
-            preview?.setPreviewSurfaceProvider(viewFinder.previewSurfaceProvider)
+            preview?.previewSurfaceProvider = viewFinder.previewSurfaceProvider
 
             // ImageCapture
             imageCapture = ImageCapture.Builder()
@@ -322,7 +322,7 @@ class CameraFragment : Fragment() {
                 .build()
                 // The analyzer can then be assigned to the instance
                 .also {
-                    it.setAnalyzer(mainExecutor, LuminosityAnalyzer {luma ->
+                    it.setAnalyzer(analysisExecutor, LuminosityAnalyzer {luma ->
                         // Values returned from our analyzer are passed to the attached listener
                         // We log image analysis results here - you should do something useful instead!
                         Log.d(TAG, "Average luminosity: $luma")
@@ -469,13 +469,17 @@ class CameraFragment : Fragment() {
          * should not store external references to this image, as these references will become
          * invalid.
          *
-         * @param image image being analyzed VERY IMPORTANT: do not close the image, it will be
-         * automatically closed after this method returns
-         * @return the image analysis result
+         * @param image image being analyzed VERY IMPORTANT: Analyzer method implementation must
+         * call image.close() on received images when finished using them. Otherwise, new images
+         * may not be received or the camera may stall, depending on back pressure setting.
+         *
          */
         override fun analyze(image: ImageProxy) {
             // If there are no listeners attached, we don't need to perform analysis
-            if (listeners.isEmpty()) return
+            if (listeners.isEmpty()) {
+                image.close()
+                return
+            }
 
             // Keep track of frames analyzed
             val currentTime = System.currentTimeMillis()
@@ -488,26 +492,27 @@ class CameraFragment : Fragment() {
             framesPerSecond = 1.0 / ((timestampFirst - timestampLast) /
                     frameTimestamps.size.coerceAtLeast(1).toDouble()) * 1000.0
 
-            // Calculate the average luma no more often than every second
-            if (frameTimestamps.first - lastAnalyzedTimestamp >= TimeUnit.SECONDS.toMillis(1)) {
-                lastAnalyzedTimestamp = frameTimestamps.first
+            // Analysis could take an arbitrarily long amount of time
+            // Since we are running in a different thread, it won't stall other use cases
 
-                // Since format in ImageAnalysis is YUV, image.planes[0] contains the luminance
-                //  plane
-                val buffer = image.planes[0].buffer
+            lastAnalyzedTimestamp = frameTimestamps.first
 
-                // Extract image data from callback object
-                val data = buffer.toByteArray()
+            // Since format in ImageAnalysis is YUV, image.planes[0] contains the luminance plane
+            val buffer = image.planes[0].buffer
 
-                // Convert the data into an array of pixel values ranging 0-255
-                val pixels = data.map { it.toInt() and 0xFF }
+            // Extract image data from callback object
+            val data = buffer.toByteArray()
 
-                // Compute average luminance for the image
-                val luma = pixels.average()
+            // Convert the data into an array of pixel values ranging 0-255
+            val pixels = data.map { it.toInt() and 0xFF }
 
-                // Call all listeners with new value
-                listeners.forEach { it(luma) }
-            }
+            // Compute average luminance for the image
+            val luma = pixels.average()
+
+            // Call all listeners with new value
+            listeners.forEach { it(luma) }
+
+            image.close()
         }
     }
 
