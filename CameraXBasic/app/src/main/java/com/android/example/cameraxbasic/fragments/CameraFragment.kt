@@ -65,8 +65,6 @@ import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
 import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
 import com.android.example.cameraxbasic.utils.simulateClick
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
@@ -181,10 +179,12 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
             thumbnail.setPadding(resources.getDimension(R.dimen.stroke_small).toInt())
 
             // Load thumbnail into circular button using Glide
+            /*
             Glide.with(thumbnail)
                     .load(file)
                     .apply(RequestOptions.circleCropTransform())
                     .into(thumbnail)
+            */
         }
     }
 
@@ -221,11 +221,13 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
 
             // In the background, load latest photo taken (if any) for gallery thumbnail
             lifecycleScope.launch(Dispatchers.IO) {
+
                 outputDirectory.listFiles { file ->
                     EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
                 }?.max()?.let {
                     setGalleryThumbnail(it)
                 }
+
             }
         }
     }
@@ -354,10 +356,10 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
             // Get a stable reference of the modifiable image capture use case
             imageCapture?.let { imageCapture ->
 
-                val saveCollection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                val fileName = getFileName();
 
                 val contentValues = ContentValues()
-                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, getFileName())
+                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
 
                 // Setup image capture metadata
@@ -369,7 +371,7 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
 
                 // Setup image capture output options
                 val outputOptions = ImageCapture.OutputFileOptions
-                        .Builder(requireContext().contentResolver, saveCollection, contentValues)
+                        .Builder(requireContext().contentResolver, getFileCollection(), contentValues)
                         .setMetadata(metadata)
                         .build()
 
@@ -547,5 +549,9 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
         /** Helper function used to create a timestamped file-name */
         private fun getFileName() = SimpleDateFormat(FILENAME, Locale.ROOT)
                 .format(System.currentTimeMillis()) + PHOTO_EXTENSION
+
+        private fun getFileCollection(): Uri {
+            return MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
     }
 }
