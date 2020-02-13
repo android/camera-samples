@@ -358,12 +358,12 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
-                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+                // val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
                 // val collectionUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
                 val collectionUri = Uri.fromFile(outputDirectory)
 
                 val contentValues = ContentValues()
-                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, photoFile.name);
+                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, getFileName());
                 contentValues.put(MediaStore.MediaColumns.MIME_TYPE, PHOTO_EXTENSION);
 
                 val outputOptions = ImageCapture.OutputFileOptions
@@ -542,9 +542,8 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
         private const val RATIO_4_3_VALUE = 4.0 / 3.0
         private const val RATIO_16_9_VALUE = 16.0 / 9.0
 
-        /** Helper function used to create a timestamped file */
-        private fun createFile(baseFolder: File, format: String, extension: String) =
-                File(baseFolder, SimpleDateFormat(format, Locale.ROOT)
-                        .format(System.currentTimeMillis()) + extension)
+        /** Helper function used to create a timestamped file-name */
+        private fun getFileName() = SimpleDateFormat(FILENAME, Locale.ROOT)
+                .format(System.currentTimeMillis()) + PHOTO_EXTENSION
     }
 }
