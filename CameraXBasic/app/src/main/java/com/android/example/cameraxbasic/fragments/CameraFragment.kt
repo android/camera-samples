@@ -75,6 +75,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.ArrayDeque
 import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 import kotlin.math.abs
@@ -98,6 +99,7 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
     private lateinit var broadcastManager: LocalBroadcastManager
     private lateinit var displayManager: DisplayManager
     private lateinit var mainExecutor: Executor
+    private lateinit var analysisExecutor: Executor
 
     private var displayId: Int = -1
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
@@ -140,6 +142,7 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mainExecutor = ContextCompat.getMainExecutor(requireContext())
+        analysisExecutor = Executors.newSingleThreadExecutor()
     }
 
     override fun onResume() {
@@ -292,7 +295,7 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                 .build()
                 // The analyzer can then be assigned to the instance
                 .also {
-                    it.setAnalyzer(mainExecutor, LuminosityAnalyzer {luma ->
+                    it.setAnalyzer(analysisExecutor, LuminosityAnalyzer {luma ->
                         // Values returned from our analyzer are passed to the attached listener
                         // We log image analysis results - you should do something useful instead!
                         Log.d(TAG, "Average luminosity: $luma")
@@ -351,6 +354,12 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
             // Get a stable reference of the modifiable image capture use case
             imageCapture?.let { imageCapture ->
 
+                val saveCollection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+                val contentValues = ContentValues()
+                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, getFileName())
+                contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+
                 // Setup image capture metadata
                 val metadata = Metadata().apply {
 
@@ -358,16 +367,9 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
-                // val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
-                // val collectionUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                val collectionUri = Uri.fromFile(outputDirectory)
-
-                val contentValues = ContentValues()
-                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, getFileName());
-                contentValues.put(MediaStore.MediaColumns.MIME_TYPE, PHOTO_EXTENSION);
-
+                // Setup image capture output options
                 val outputOptions = ImageCapture.OutputFileOptions
-                        .Builder(requireContext().contentResolver, collectionUri, contentValues)
+                        .Builder(requireContext().contentResolver, saveCollection, contentValues)
                         .setMetadata(metadata)
                         .build()
 
