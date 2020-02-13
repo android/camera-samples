@@ -30,6 +30,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent
@@ -350,10 +351,6 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
             // Get a stable reference of the modifiable image capture use case
             imageCapture?.let { imageCapture ->
 
-                // Create output file to hold the image
-                // val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
-                val collectionUri = Uri.fromFile(outputDirectory);
-
                 // Setup image capture metadata
                 val metadata = Metadata().apply {
 
@@ -361,8 +358,16 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
+                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+                // val collectionUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                val collectionUri = Uri.fromFile(outputDirectory)
+
+                val contentValues = ContentValues()
+                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, photoFile.name);
+                contentValues.put(MediaStore.MediaColumns.MIME_TYPE, PHOTO_EXTENSION);
+
                 val outputOptions = ImageCapture.OutputFileOptions
-                        .Builder(requireContext().contentResolver, collectionUri, ContentValues())
+                        .Builder(requireContext().contentResolver, collectionUri, contentValues)
                         .setMetadata(metadata)
                         .build()
 
@@ -402,6 +407,49 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                 )
             }
         }
+    }
+
+    /**
+     * Implicit broadcasts will be ignored for devices running API level >= 24
+     * so if you only target API level 24+ you can remove this method
+     */
+    @SuppressWarnings("Deprecation")
+    private fun broadcastNewPicture(uri: Uri) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            requireActivity().sendBroadcast(Intent(android.hardware.Camera.ACTION_NEW_PICTURE, uri))
+        }
+    }
+
+    /** Define callback that will be triggered after a photo has been taken and saved to disk */
+    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+
+        val savedUri: Uri? = outputFileResults.savedUri
+        val photoFile = File(savedUri.toString())
+
+        Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
+
+        // We can only change the foreground Drawable using API level 23+ API
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Update the gallery thumbnail with latest picture taken
+            setGalleryThumbnail(photoFile)
+        }
+
+        // Implicit broadcasts will be ignored for devices running API level >= 24
+        // so if you only target API level 24+ you can remove this statement
+        if (savedUri != null) {broadcastNewPicture(savedUri)}
+
+        // If the folder selected is an external media directory, this is unnecessary
+        // but otherwise other apps will not be able to access our images unless we
+        // scan them using [MediaScannerConnection]
+        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
+        MediaScannerConnection.scanFile(
+                context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
+        )
+    }
+
+    /** Define callback that will be triggered after a photo has been taken and saved to disk */
+    override fun onError(exception: ImageCaptureException) {
+        Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
     }
 
     /**
@@ -486,49 +534,6 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
         }
     }
 
-    /** Define callback that will be triggered after a photo has been taken and saved to disk */
-    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-
-        val savedUri: Uri? = outputFileResults.savedUri
-        val photoFile = File(savedUri.toString())
-
-        Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
-
-        // We can only change the foreground Drawable using API level 23+ API
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Update the gallery thumbnail with latest picture taken
-            setGalleryThumbnail(photoFile)
-        }
-
-        // Implicit broadcasts will be ignored for devices running API level >= 24
-        // so if you only target API level 24+ you can remove this statement
-        if (savedUri != null) {broadcastNewPicture(savedUri)}
-
-        // If the folder selected is an external media directory, this is unnecessary
-        // but otherwise other apps will not be able to access our images unless we
-        // scan them using [MediaScannerConnection]
-        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
-        MediaScannerConnection.scanFile(
-                context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
-        )
-    }
-
-    /**
-     * Implicit broadcasts will be ignored for devices running API level >= 24
-     * so if you only target API level 24+ you can remove this method
-     */
-    @SuppressWarnings("Deprecation")
-    private fun broadcastNewPicture(uri: Uri) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-            requireActivity().sendBroadcast(Intent(android.hardware.Camera.ACTION_NEW_PICTURE, uri))
-        }
-    }
-
-    /** Define callback that will be triggered after a photo has been taken and saved to disk */
-    override fun onError(exception: ImageCaptureException) {
-        Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
-    }
-
     companion object {
 
         private const val TAG = "CameraXBasic"
@@ -539,7 +544,7 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
 
         /** Helper function used to create a timestamped file */
         private fun createFile(baseFolder: File, format: String, extension: String) =
-                File(baseFolder, SimpleDateFormat(format, Locale.US)
+                File(baseFolder, SimpleDateFormat(format, Locale.ROOT)
                         .format(System.currentTimeMillis()) + extension)
     }
 }
