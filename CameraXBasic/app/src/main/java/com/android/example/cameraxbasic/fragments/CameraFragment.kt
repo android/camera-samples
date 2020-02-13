@@ -18,6 +18,7 @@ package com.android.example.cameraxbasic.fragments
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -43,6 +44,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.Metadata
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -55,7 +57,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
-import androidx.navigation.fragment.findNavController
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.MainActivity
@@ -88,7 +89,7 @@ typealias LumaListener = (luma: Double) -> Unit
  * - Photo taking
  * - Image analysis
  */
-class CameraFragment : Fragment() {
+class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
 
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
@@ -165,6 +166,7 @@ class CameraFragment : Fragment() {
             inflater.inflate(R.layout.fragment_camera, container, false)
 
     private fun setGalleryThumbnail(file: File) {
+
         // Reference of the view that holds the gallery thumbnail
         val thumbnail = container.findViewById<ImageButton>(R.id.photo_view_button)
 
@@ -179,39 +181,6 @@ class CameraFragment : Fragment() {
                     .load(file)
                     .apply(RequestOptions.circleCropTransform())
                     .into(thumbnail)
-        }
-    }
-
-    /** Define callback that will be triggered after a photo has been taken and saved to disk */
-    private val imageSavedListener = object : ImageCapture.OnImageSavedCallback {
-        override fun onError(imageCaptureError: Int, message: String, cause: Throwable?) {
-            Log.e(TAG, "Photo capture failed: $message", cause)
-        }
-
-        override fun onImageSaved(photoFile: File) {
-            Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
-
-            // We can only change the foreground Drawable using API level 23+ API
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                // Update the gallery thumbnail with latest picture taken
-                setGalleryThumbnail(photoFile)
-            }
-
-            // Implicit broadcasts will be ignored for devices running API level >= 24
-            // so if you only target API level 24+ you can remove this statement
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-                requireActivity().sendBroadcast(
-                        Intent(android.hardware.Camera.ACTION_NEW_PICTURE, Uri.fromFile(photoFile))
-                )
-            }
-
-            // If the folder selected is an external media directory, this is unnecessary
-            // but otherwise other apps will not be able to access our images unless we
-            // scan them using [MediaScannerConnection]
-            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
-            MediaScannerConnection.scanFile(
-                    context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
-            )
         }
     }
 
@@ -299,7 +268,7 @@ class CameraFragment : Fragment() {
                 .build()
 
             // Default PreviewSurfaceProvider
-            preview?.setPreviewSurfaceProvider(viewFinder.previewSurfaceProvider)
+            preview!!.setSurfaceProvider(viewFinder.previewSurfaceProvider)
 
             // ImageCapture
             imageCapture = ImageCapture.Builder()
@@ -324,7 +293,7 @@ class CameraFragment : Fragment() {
                 .also {
                     it.setAnalyzer(mainExecutor, LuminosityAnalyzer {luma ->
                         // Values returned from our analyzer are passed to the attached listener
-                        // We log image analysis results here - you should do something useful instead!
+                        // We log image analysis results - you should do something useful instead!
                         Log.d(TAG, "Average luminosity: $luma")
                     })
                 }
@@ -382,7 +351,8 @@ class CameraFragment : Fragment() {
             imageCapture?.let { imageCapture ->
 
                 // Create output file to hold the image
-                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+                // val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+                val collectionUri = Uri.fromFile(outputDirectory);
 
                 // Setup image capture metadata
                 val metadata = Metadata().apply {
@@ -391,8 +361,13 @@ class CameraFragment : Fragment() {
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
-                // Setup image capture listener which is triggered after photo has been taken
-                imageCapture.takePicture(photoFile, metadata, mainExecutor, imageSavedListener)
+                val outputOptions = ImageCapture.OutputFileOptions
+                        .Builder(requireContext().contentResolver, collectionUri, ContentValues())
+                        .setMetadata(metadata)
+                        .build()
+
+                // Setup image-save callback, which is triggered after photo has been taken
+                imageCapture.takePicture(outputOptions, mainExecutor, this)
 
                 // We can only change the foreground Drawable using API level 23+ API
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -423,11 +398,11 @@ class CameraFragment : Fragment() {
             // Only navigate when the gallery has photos
             if (true == outputDirectory.listFiles()?.isNotEmpty()) {
                 Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
-                        CameraFragmentDirections.actionCameraToGallery(outputDirectory.absolutePath))
+                        CameraFragmentDirections.actionCameraToGallery(outputDirectory.absolutePath)
+                )
             }
         }
     }
-
 
     /**
      * Our custom image analysis class.
@@ -509,6 +484,49 @@ class CameraFragment : Fragment() {
                 listeners.forEach { it(luma) }
             }
         }
+    }
+
+    /** Define callback that will be triggered after a photo has been taken and saved to disk */
+    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+
+        val savedUri: Uri? = outputFileResults.savedUri
+        val photoFile = File(savedUri.toString())
+
+        Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
+
+        // We can only change the foreground Drawable using API level 23+ API
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Update the gallery thumbnail with latest picture taken
+            setGalleryThumbnail(photoFile)
+        }
+
+        // Implicit broadcasts will be ignored for devices running API level >= 24
+        // so if you only target API level 24+ you can remove this statement
+        if (savedUri != null) {broadcastNewPicture(savedUri)}
+
+        // If the folder selected is an external media directory, this is unnecessary
+        // but otherwise other apps will not be able to access our images unless we
+        // scan them using [MediaScannerConnection]
+        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
+        MediaScannerConnection.scanFile(
+                context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
+        )
+    }
+
+    /**
+     * Implicit broadcasts will be ignored for devices running API level >= 24
+     * so if you only target API level 24+ you can remove this method
+     */
+    @SuppressWarnings("Deprecation")
+    private fun broadcastNewPicture(uri: Uri) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            requireActivity().sendBroadcast(Intent(android.hardware.Camera.ACTION_NEW_PICTURE, uri))
+        }
+    }
+
+    /** Define callback that will be triggered after a photo has been taken and saved to disk */
+    override fun onError(exception: ImageCaptureException) {
+        Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
     }
 
     companion object {

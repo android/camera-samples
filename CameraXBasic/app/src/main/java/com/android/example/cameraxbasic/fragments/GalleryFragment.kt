@@ -111,8 +111,8 @@ class GalleryFragment internal constructor() : Fragment() {
                     val mediaType = MimeTypeMap.getSingleton()
                             .getMimeTypeFromExtension(mediaFile.extension)
                     // Get URI from our FileProvider implementation
-                    val uri = FileProvider.getUriForFile(
-                            view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
+                    val uri = FileProvider.getUriForFile(view.context,
+                            BuildConfig.APPLICATION_ID + ".provider", mediaFile)
                     // Set the appropriate intent extra, type, action and flags
                     putExtra(Intent.EXTRA_STREAM, uri)
                     type = mediaType
@@ -138,8 +138,8 @@ class GalleryFragment internal constructor() : Fragment() {
                             mediaFile.delete()
 
                             // Send relevant broadcast to notify other apps of deletion
-                            MediaScannerConnection.scanFile(
-                                    view.context, arrayOf(mediaFile.absolutePath), null, null)
+                            MediaScannerConnection.scanFile(view.context,
+                                    arrayOf(mediaFile.absolutePath), null, null)
 
                             // Notify our view pager
                             mediaList.removeAt(mediaViewPager.currentItem)
@@ -147,10 +147,10 @@ class GalleryFragment internal constructor() : Fragment() {
 
                             // If all photos have been deleted, return to camera
                             if (mediaList.isEmpty()) {
-                                fragmentManager?.popBackStack()
+                                Navigation.findNavController(requireActivity(),
+                                        R.id.fragment_container).navigateUp()
                             }
                         }}
-
                     .setNegativeButton(android.R.string.no, null)
                     .create().showImmersive()
         }
