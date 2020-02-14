@@ -65,6 +65,8 @@ import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
 import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
 import com.android.example.cameraxbasic.utils.simulateClick
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
@@ -179,12 +181,14 @@ class CameraFragment : Fragment() {
             thumbnail.setPadding(resources.getDimension(R.dimen.stroke_small).toInt())
 
             // Load thumbnail into circular button using Glide
-            /*
-            Glide.with(thumbnail)
-                    .load(file)
-                    .apply(RequestOptions.circleCropTransform())
-                    .into(thumbnail)
-            */
+            if(! USE_CONTENT_PROVIDER) {
+                Glide.with(thumbnail)
+                        .load(file)
+                        .apply(RequestOptions.circleCropTransform())
+                        .into(thumbnail)
+            } else {
+                /* TODO: show latest item from ContentProvider */
+            }
         }
     }
 
@@ -194,8 +198,13 @@ class CameraFragment : Fragment() {
         /** Define callback that will be triggered after a photo has been taken and saved to disk */
         override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
 
-            val savedUri: Uri? = outputFileResults.savedUri
-            val photoFile = File(savedUri.toString())
+            var savedUri: Uri? = outputFileResults.savedUri
+            var photoFile = File(savedUri.toString())
+
+            if (! USE_CONTENT_PROVIDER || savedUri == null) {
+                photoFile = outputDirectory.listFiles()!!.get(0)
+                savedUri = Uri.fromFile(photoFile)
+            }
 
             Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
 
@@ -218,7 +227,7 @@ class CameraFragment : Fragment() {
             )
         }
 
-        /** Define callback that will be triggered after a photo has been taken and saved to disk */
+        /** Define callback that will be triggered on error */
         override fun onError(exception: ImageCaptureException) {
             Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
         }
@@ -257,13 +266,11 @@ class CameraFragment : Fragment() {
 
             // In the background, load latest photo taken (if any) for gallery thumbnail
             lifecycleScope.launch(Dispatchers.IO) {
-
                 outputDirectory.listFiles { file ->
                     EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
                 }?.max()?.let {
                     setGalleryThumbnail(it)
                 }
-
             }
         }
     }
@@ -392,25 +399,31 @@ class CameraFragment : Fragment() {
             // Get a stable reference of the modifiable image capture use case
             imageCapture?.let { imageCapture ->
 
-                val fileName = getFileName();
-
-                val contentValues = ContentValues()
-                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+                val fileName = getFileName()
 
                 // Setup image capture metadata
                 val metadata = Metadata().apply {
-
                     // Mirror image when using the front camera
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
                 // Setup image capture output options
-                val outputOptions = ImageCapture.OutputFileOptions
-                        .Builder(requireContext().contentResolver, getFileCollection(), contentValues)
-                        .setMetadata(metadata)
-                        .build()
-
+                val outputOptions: ImageCapture.OutputFileOptions
+                if(USE_CONTENT_PROVIDER) {
+                    val contentValues = ContentValues()
+                    contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+                    outputOptions = ImageCapture.OutputFileOptions
+                            .Builder(requireContext().contentResolver,
+                                    getContentUri(requireContext()), contentValues)
+                            .setMetadata(metadata)
+                            .build()
+                } else {
+                    outputOptions = ImageCapture.OutputFileOptions
+                            .Builder(File(outputDirectory, fileName))
+                            .setMetadata(metadata)
+                            .build()
+                }
                 // Setup image-save callback, which is triggered after photo has been taken
                 imageCapture.takePicture(outputOptions, mainExecutor, imageSavedListener)
 
@@ -549,13 +562,18 @@ class CameraFragment : Fragment() {
         private const val PHOTO_EXTENSION = ".jpg"
         private const val RATIO_4_3_VALUE = 4.0 / 3.0
         private const val RATIO_16_9_VALUE = 16.0 / 9.0
+        private const val USE_CONTENT_PROVIDER = false
 
         /** Helper function used to create a timestamped file-name */
         private fun getFileName() = SimpleDateFormat(FILENAME, Locale.ROOT)
                 .format(System.currentTimeMillis()) + PHOTO_EXTENSION
 
-        private fun getFileCollection(): Uri {
-            return MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        private fun getContentUri(context: Context): Uri {
+            if(USE_CONTENT_PROVIDER) {
+                return MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            } else {
+                return Uri.fromFile(MainActivity.getOutputDirectory(context))
+            }
         }
     }
 }
