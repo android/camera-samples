@@ -89,7 +89,7 @@ typealias LumaListener = (luma: Double) -> Unit
  * - Photo taking
  * - Image analysis
  */
-class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
+class CameraFragment : Fragment() {
 
     private lateinit var container: ConstraintLayout
     private lateinit var viewFinder: PreviewView
@@ -185,6 +185,42 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                     .apply(RequestOptions.circleCropTransform())
                     .into(thumbnail)
             */
+        }
+    }
+
+    /** Define callback that will be triggered after a photo has been taken and saved to disk */
+    private val imageSavedListener = object : ImageCapture.OnImageSavedCallback {
+
+        /** Define callback that will be triggered after a photo has been taken and saved to disk */
+        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+
+            val savedUri: Uri? = outputFileResults.savedUri
+            val photoFile = File(savedUri.toString())
+
+            Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
+
+            // We can only change the foreground Drawable using API level 23+ API
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // Update the gallery thumbnail with latest picture taken
+                setGalleryThumbnail(photoFile)
+            }
+
+            // Implicit broadcasts will be ignored for devices running API level >= 24
+            // so if you only target API level 24+ you can remove this statement
+            if (savedUri != null) {broadcastNewPicture(savedUri)}
+
+            // If the folder selected is an external media directory, this is unnecessary
+            // but otherwise other apps will not be able to access our images unless we
+            // scan them using [MediaScannerConnection]
+            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
+            MediaScannerConnection.scanFile(
+                    context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
+            )
+        }
+
+        /** Define callback that will be triggered after a photo has been taken and saved to disk */
+        override fun onError(exception: ImageCaptureException) {
+            Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
         }
     }
 
@@ -376,7 +412,7 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
                         .build()
 
                 // Setup image-save callback, which is triggered after photo has been taken
-                imageCapture.takePicture(outputOptions, mainExecutor, this)
+                imageCapture.takePicture(outputOptions, mainExecutor, imageSavedListener)
 
                 // We can only change the foreground Drawable using API level 23+ API
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -422,38 +458,6 @@ class CameraFragment : Fragment(), ImageCapture.OnImageSavedCallback {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
             requireActivity().sendBroadcast(Intent(android.hardware.Camera.ACTION_NEW_PICTURE, uri))
         }
-    }
-
-    /** Define callback that will be triggered after a photo has been taken and saved to disk */
-    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-
-        val savedUri: Uri? = outputFileResults.savedUri
-        val photoFile = File(savedUri.toString())
-
-        Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
-
-        // We can only change the foreground Drawable using API level 23+ API
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Update the gallery thumbnail with latest picture taken
-            setGalleryThumbnail(photoFile)
-        }
-
-        // Implicit broadcasts will be ignored for devices running API level >= 24
-        // so if you only target API level 24+ you can remove this statement
-        if (savedUri != null) {broadcastNewPicture(savedUri)}
-
-        // If the folder selected is an external media directory, this is unnecessary
-        // but otherwise other apps will not be able to access our images unless we
-        // scan them using [MediaScannerConnection]
-        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(photoFile.extension)
-        MediaScannerConnection.scanFile(
-                context, arrayOf(photoFile.absolutePath), arrayOf(mimeType), null
-        )
-    }
-
-    /** Define callback that will be triggered after a photo has been taken and saved to disk */
-    override fun onError(exception: ImageCaptureException) {
-        Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
     }
 
     /**
