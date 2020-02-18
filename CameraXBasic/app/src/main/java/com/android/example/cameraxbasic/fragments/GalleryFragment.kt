@@ -110,57 +110,59 @@ class GalleryFragment internal constructor() : Fragment() {
         // Handle share button press
         view.findViewById<ImageButton>(R.id.share_button).setOnClickListener {
 
-            val mediaFile = mediaList[mediaViewPager.currentItem]
+            mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
 
-            // Create a sharing intent
-            val intent = Intent().apply {
-                // Infer media type from file extension
-                val mediaType = MimeTypeMap.getSingleton()
-                        .getMimeTypeFromExtension(mediaFile.extension)
-                // Get URI from our FileProvider implementation
-                val uri = FileProvider.getUriForFile(
-                        view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
-                // Set the appropriate intent extra, type, action and flags
-                putExtra(Intent.EXTRA_STREAM, uri)
-                type = mediaType
-                action = Intent.ACTION_SEND
-                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                // Create a sharing intent
+                val intent = Intent().apply {
+                    // Infer media type from file extension
+                    val mediaType = MimeTypeMap.getSingleton()
+                            .getMimeTypeFromExtension(mediaFile.extension)
+                    // Get URI from our FileProvider implementation
+                    val uri = FileProvider.getUriForFile(
+                            view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
+                    // Set the appropriate intent extra, type, action and flags
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    type = mediaType
+                    action = Intent.ACTION_SEND
+                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                }
+
+                // Launch the intent letting the user choose which app to share with
+                startActivity(Intent.createChooser(intent, getString(R.string.share_hint)))
             }
-
-            // Launch the intent letting the user choose which app to share with
-            startActivity(Intent.createChooser(intent, getString(R.string.share_hint)))
         }
 
         // Handle delete button press
         view.findViewById<ImageButton>(R.id.delete_button).setOnClickListener {
 
-            val mediaFile = mediaList[(mediaViewPager.currentItem)]
+            mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
 
-            AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
-                    .setTitle(getString(R.string.delete_title))
-                    .setMessage(getString(R.string.delete_dialog))
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .setPositiveButton(android.R.string.yes) { _, _ ->
+                AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
+                        .setTitle(getString(R.string.delete_title))
+                        .setMessage(getString(R.string.delete_dialog))
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(android.R.string.yes) { _, _ ->
 
-                        // Delete current photo
-                        mediaFile.delete()
+                            // Delete current photo
+                            mediaFile.delete()
 
-                        // Send relevant broadcast to notify other apps of deletion
-                        MediaScannerConnection.scanFile(
-                                view.context, arrayOf(mediaFile.absolutePath), null, null)
+                            // Send relevant broadcast to notify other apps of deletion
+                            MediaScannerConnection.scanFile(
+                                    view.context, arrayOf(mediaFile.absolutePath), null, null)
 
-                        // Notify our view pager
-                        mediaList.removeAt(mediaViewPager.currentItem)
-                        mediaViewPager.adapter?.notifyDataSetChanged()
+                            // Notify our view pager
+                            mediaList.removeAt(mediaViewPager.currentItem)
+                            mediaViewPager.adapter?.notifyDataSetChanged()
 
-                        // If all photos have been deleted, return to camera
-                        if (mediaList.isEmpty())
-                            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
+                            // If all photos have been deleted, return to camera
+                            if (mediaList.isEmpty())
+                                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
 
-                    }
+                        }
 
-                    .setNegativeButton(android.R.string.no, null)
-                    .create().showImmersive()
+                        .setNegativeButton(android.R.string.no, null)
+                        .create().showImmersive()
+            }
         }
     }
 }
