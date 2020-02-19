@@ -30,7 +30,6 @@ import android.content.Intent
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.webkit.MimeTypeMap
-import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.FileProvider
 import com.android.example.cameraxbasic.BuildConfig
@@ -155,8 +154,9 @@ class GalleryFragment internal constructor() : Fragment() {
                             mediaViewPager.adapter?.notifyDataSetChanged()
 
                             // If all photos have been deleted, return to camera
-                            if (mediaList.isEmpty())
+                            if (mediaList.isEmpty()) {
                                 Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
+                            }
 
                         }
 
