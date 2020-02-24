@@ -52,7 +52,8 @@ class GalleryFragment internal constructor() : Fragment() {
     private lateinit var mediaList: MutableList<File>
 
     /** Adapter class used to present a fragment containing one photo or video as a page */
-    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
+    inner class MediaPagerAdapter(fm: FragmentManager) :
+            FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
         override fun getCount(): Int = mediaList.size
         override fun getItem(position: Int): Fragment = PhotoFragment.create(mediaList[position])
         override fun getItemPosition(obj: Any): Int = POSITION_NONE
@@ -111,8 +112,8 @@ class GalleryFragment internal constructor() : Fragment() {
                     val mediaType = MimeTypeMap.getSingleton()
                             .getMimeTypeFromExtension(mediaFile.extension)
                     // Get URI from our FileProvider implementation
-                    val uri = FileProvider.getUriForFile(
-                            view.context, BuildConfig.APPLICATION_ID + ".provider", mediaFile)
+                    val uri = FileProvider.getUriForFile(view.context,
+                            BuildConfig.APPLICATION_ID + ".provider", mediaFile)
                     // Set the appropriate intent extra, type, action and flags
                     putExtra(Intent.EXTRA_STREAM, uri)
                     type = mediaType
@@ -138,8 +139,8 @@ class GalleryFragment internal constructor() : Fragment() {
                             mediaFile.delete()
 
                             // Send relevant broadcast to notify other apps of deletion
-                            MediaScannerConnection.scanFile(
-                                    view.context, arrayOf(mediaFile.absolutePath), null, null)
+                            MediaScannerConnection.scanFile(view.context,
+                                    arrayOf(mediaFile.absolutePath), null, null)
 
                             // Notify our view pager
                             mediaList.removeAt(mediaViewPager.currentItem)
