@@ -43,6 +43,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.Metadata
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -183,12 +184,18 @@ class CameraFragment : Fragment() {
     }
 
     /** Define callback that will be triggered after a photo has been taken and saved to disk */
-    private val imageSavedListener = object : ImageCapture.OnImageSavedCallback {
-        override fun onError(imageCaptureError: Int, message: String, cause: Throwable?) {
-            Log.e(TAG, "Photo capture failed: $message", cause)
+    private val imageSavedListener: ImageCapture.OnImageSavedCallback = object : ImageCapture.OnImageSavedCallback {
+        override fun onError(exception: ImageCaptureException) {
+            Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
         }
-
-        override fun onImageSaved(photoFile: File) {
+        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+            var photoFile: File;
+            if (outputFileResults.savedUri == null) {
+                photoFile = outputDirectory.listFiles()!!.get(0)
+            } else {
+                photoFile = File(outputFileResults.savedUri.toString())
+            }
+            var savedUri: Uri = Uri.fromFile(photoFile)
             Log.d(TAG, "Photo capture succeeded: ${photoFile.absolutePath}")
 
             // We can only change the foreground Drawable using API level 23+ API
@@ -201,10 +208,9 @@ class CameraFragment : Fragment() {
             // so if you only target API level 24+ you can remove this statement
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
                 requireActivity().sendBroadcast(
-                        Intent(android.hardware.Camera.ACTION_NEW_PICTURE, Uri.fromFile(photoFile))
+                        Intent(android.hardware.Camera.ACTION_NEW_PICTURE, savedUri)
                 )
             }
-
             // If the folder selected is an external media directory, this is unnecessary
             // but otherwise other apps will not be able to access our images unless we
             // scan them using [MediaScannerConnection]
@@ -299,7 +305,7 @@ class CameraFragment : Fragment() {
                 .build()
 
             // Default PreviewSurfaceProvider
-            preview?.previewSurfaceProvider = viewFinder.previewSurfaceProvider
+            preview?.setSurfaceProvider(viewFinder.previewSurfaceProvider)
 
             // ImageCapture
             imageCapture = ImageCapture.Builder()
@@ -382,17 +388,23 @@ class CameraFragment : Fragment() {
             imageCapture?.let { imageCapture ->
 
                 // Create output file to hold the image
-                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
+                val photoFile: File = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
 
                 // Setup image capture metadata
                 val metadata = Metadata().apply {
-
                     // Mirror image when using the front camera
                     isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
                 }
 
-                // Setup image capture listener which is triggered after photo has been taken
-                imageCapture.takePicture(photoFile, metadata, mainExecutor, imageSavedListener)
+                // Setup ImageCapture output options
+                // For saving to ContentProvider, it's Builder(ContentResolver, Uri, ContentValues)
+                val outputOptions: ImageCapture.OutputFileOptions = ImageCapture.OutputFileOptions
+                        .Builder(photoFile)
+                        .setMetadata(metadata)
+                        .build()
+
+                // Setup image-save callback, which is triggered after photo has been taken
+                imageCapture.takePicture(outputOptions, mainExecutor, imageSavedListener)
 
                 // We can only change the foreground Drawable using API level 23+ API
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
