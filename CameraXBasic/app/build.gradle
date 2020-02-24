@@ -47,17 +47,6 @@ android {
        }
     }
 
-    // Set the source of tests to same for both Unit and Instrumented tests
-    sourceSets {
-        String sharedTestDir = 'src/test/java'
-        test {
-            java.srcDir sharedTestDir
-        }
-        androidTest {
-            java.srcDir sharedTestDir
-        }
-    }
-
     // Necessary for Robolectric (Unit tests)
     testOptions {
         unitTests {
