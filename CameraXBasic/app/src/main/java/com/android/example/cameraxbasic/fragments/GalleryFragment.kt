@@ -83,6 +83,12 @@ class GalleryFragment internal constructor() : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        //Checking media files list
+        if (mediaList.isEmpty()) {
+            view.findViewById<ImageButton>(R.id.delete_button).isEnabled = false
+            view.findViewById<ImageButton>(R.id.share_button).isEnabled = false
+        }
+
         // Populate the ViewPager and implement a cache of two media items
         val mediaViewPager = view.findViewById<ViewPager>(R.id.photo_view_pager).apply {
             offscreenPageLimit = 2
@@ -102,7 +108,7 @@ class GalleryFragment internal constructor() : Fragment() {
 
         // Handle share button press
         view.findViewById<ImageButton>(R.id.share_button).setOnClickListener {
-            // Make sure that we have a file to share
+
             mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
 
                 // Create a sharing intent
@@ -127,12 +133,14 @@ class GalleryFragment internal constructor() : Fragment() {
 
         // Handle delete button press
         view.findViewById<ImageButton>(R.id.delete_button).setOnClickListener {
-            AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
-                    .setTitle(getString(R.string.delete_title))
-                    .setMessage(getString(R.string.delete_dialog))
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .setPositiveButton(android.R.string.yes) { _, _ ->
-                        mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
+
+            mediaList.getOrNull(mediaViewPager.currentItem)?.let { mediaFile ->
+
+                AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
+                        .setTitle(getString(R.string.delete_title))
+                        .setMessage(getString(R.string.delete_dialog))
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(android.R.string.yes) { _, _ ->
 
                             // Delete current photo
                             mediaFile.delete()
@@ -147,12 +155,14 @@ class GalleryFragment internal constructor() : Fragment() {
 
                             // If all photos have been deleted, return to camera
                             if (mediaList.isEmpty()) {
-                                fragmentManager?.popBackStack()
+                                Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
                             }
-                        }}
 
-                    .setNegativeButton(android.R.string.no, null)
-                    .create().showImmersive()
+                        }
+
+                        .setNegativeButton(android.R.string.no, null)
+                        .create().showImmersive()
+            }
         }
     }
 }
