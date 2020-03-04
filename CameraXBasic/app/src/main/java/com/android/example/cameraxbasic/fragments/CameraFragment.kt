@@ -72,7 +72,6 @@ import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Locale
-import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -154,10 +153,7 @@ class CameraFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?): View? {
-        cameraExecutor = Executors.newSingleThreadExecutor()
-        return inflater.inflate(R.layout.fragment_camera, container, false)
-    }
+        savedInstanceState: Bundle?): View = inflater.inflate(R.layout.fragment_camera, container, false)
 
     override fun onDestroyView() {
         super.onDestroyView()
@@ -193,6 +189,10 @@ class CameraFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
         viewFinder = container.findViewById(R.id.view_finder)
+
+        // Initialize our background executor
+        cameraExecutor = Executors.newSingleThreadExecutor()
+
         broadcastManager = LocalBroadcastManager.getInstance(view.context)
 
         // Set up the intent filter that will receive events from our main activity
