@@ -150,11 +150,6 @@ class CameraFragment : Fragment() {
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?): View = inflater.inflate(R.layout.fragment_camera, container, false)
-
     override fun onDestroyView() {
         super.onDestroyView()
 
@@ -165,6 +160,12 @@ class CameraFragment : Fragment() {
         broadcastManager.unregisterReceiver(volumeDownReceiver)
         displayManager.unregisterDisplayListener(displayListener)
     }
+
+    override fun onCreateView(
+            inflater: LayoutInflater,
+            container: ViewGroup?,
+            savedInstanceState: Bundle?): View? =
+            inflater.inflate(R.layout.fragment_camera, container, false)
 
     private fun setGalleryThumbnail(uri: Uri) {
         // Reference of the view that holds the gallery thumbnail
