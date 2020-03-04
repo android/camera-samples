@@ -72,6 +72,7 @@ import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Locale
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.max
@@ -105,7 +106,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Blocking camera operations are performed using this executor */
-    private val cameraExecutor = Executors.newSingleThreadExecutor()
+    private lateinit var cameraExecutor: ExecutorService
 
     /** Volume down button receiver used to trigger shutter */
     private val volumeDownReceiver = object : BroadcastReceiver() {
@@ -189,6 +190,10 @@ class CameraFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
         viewFinder = container.findViewById(R.id.view_finder)
+
+        // Initialize our background executor
+        cameraExecutor = Executors.newSingleThreadExecutor()
+
         broadcastManager = LocalBroadcastManager.getInstance(view.context)
 
         // Set up the intent filter that will receive events from our main activity
