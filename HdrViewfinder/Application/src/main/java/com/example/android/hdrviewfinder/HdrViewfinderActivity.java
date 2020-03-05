@@ -648,7 +648,7 @@ public class HdrViewfinderActivity extends AppCompatActivity implements
                 .show(getSupportFragmentManager(), FRAGMENT_DIALOG);
     }
 
-    @SuppressLint("SwitchIntDef")
+    @SuppressLint({"SwitchIntDef", "StringFormatMatches"})
     @Override
     public String getErrorString(CameraAccessException e) {
         String errorMessage;
