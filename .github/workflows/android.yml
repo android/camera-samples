@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  test:
+  build:
     name: Run Unit Tests
     runs-on: ubuntu-latest
 
@@ -18,17 +18,19 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - name: Unit tests
+      - name: Assemble
         run: .github/scripts/gradlew_subprojects.sh test
       - name: Zip reports
+        if: always()
         run: zip -r reports.zip . -i '**/reports/*.xml' '**/reports/*.hml'
       - name: Upload reports
+        if: always()
         uses: actions/upload-artifact@v1
         with:
           name: reports
           path: reports.zip
 
-  apk:
+  artifacts:
     name: Build Artifacts
     runs-on: ubuntu-18.04
 
