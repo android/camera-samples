@@ -20,6 +20,12 @@ jobs:
           java-version: 1.8
       - name: Unit tests
         run: .github/scripts/unit_test.sh
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v1
+        with:
+          name: reports
+          path: "**/reports/*"
 
   apk:
     name: Generate APK
