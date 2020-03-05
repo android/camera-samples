@@ -8,5 +8,5 @@ for SAMPLE in */ ; do
     [ ! -f "${SAMPLE}gradlew" ] && continue
     echo "Running unit tests for $SAMPLE"
     # Tell Gradle that this is a CI environment and disable parallel compilation
-    bash "${SAMPLE}gradlew" -p "$SAMPLE" -Pci --no-parallel check --stacktrace
+    bash "${SAMPLE}gradlew" -p "$SAMPLE" -Pci --no-parallel --stacktrace $@
 done

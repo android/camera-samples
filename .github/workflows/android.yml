@@ -19,17 +19,17 @@ jobs:
         with:
           java-version: 1.8
       - name: Unit tests
-        run: .github/scripts/unit_test.sh
+        run: .github/scripts/gradlew_subprojects.sh test
+      - name: Zip reports
+        run: zip -r reports.zip . -i '**/reports/*.xml' '**/reports/*.hml'
       - name: Upload reports
-        if: failure()
         uses: actions/upload-artifact@v1
         with:
           name: reports
-          path: "**/reports/*"
-	  file_glob: true
+          path: reports.zip
 
   apk:
-    name: Generate APK
+    name: Build Artifacts
     runs-on: ubuntu-18.04
 
     steps:
@@ -38,11 +38,12 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - name: Build debug APK
-        run: .github/scripts/build_apk.sh
-      - name: Upload APK
+      - name: Build artifacts
+        run: .github/scripts/gradlew_subprojects.sh assembleDebug
+      - name: Zip artifacts
+        run: zip -r artifacts.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
         uses: actions/upload-artifact@v1
         with:
-          name: app
-          path: "**/*.apk"
-	  file_glob: true
+          name: artifacts
+          path: artifacts.zip
