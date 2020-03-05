@@ -26,6 +26,7 @@ jobs:
         with:
           name: reports
           path: "**/reports/*"
+	  file_glob: true
 
   apk:
     name: Generate APK
@@ -44,3 +45,4 @@ jobs:
         with:
           name: app
           path: "**/*.apk"
+	  file_glob: true
