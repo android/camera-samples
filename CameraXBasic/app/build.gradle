@@ -47,17 +47,6 @@ android {
        }
     }
 
-    // Set the source of tests to same for both Unit and Instrumented tests
-    sourceSets {
-        String sharedTestDir = 'src/test/java'
-        test {
-            java.srcDir sharedTestDir
-        }
-        androidTest {
-            java.srcDir sharedTestDir
-        }
-    }
-
     // Necessary for Robolectric (Unit tests)
     testOptions {
         unitTests {
@@ -100,14 +89,14 @@ dependencies {
 
     // Glide
     implementation 'com.github.bumptech.glide:glide:4.11.0'
-    kapt 'com.github.bumptech.glide:compiler:4.10.0'
+    kapt 'com.github.bumptech.glide:compiler:4.11.0'
 
     // Unit testing
     testImplementation 'androidx.test.ext:junit:1.1.1'
     testImplementation 'androidx.test:rules:1.2.0'
     testImplementation 'androidx.test:runner:1.2.0'
     testImplementation 'androidx.test.espresso:espresso-core:3.2.0'
-    testImplementation "org.robolectric:robolectric:4.3.1"
+    testImplementation 'org.robolectric:robolectric:4.3.1'
 
     // Instrumented testing
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'

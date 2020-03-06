@@ -32,9 +32,9 @@
     <application
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:name=".CameraXBasic"
         android:label="@string/app_name"
-        android:allowBackup="true">
+        android:allowBackup="true"
+        tools:ignore="AllowBackup">
 
         <activity
             android:name=".MainActivity"

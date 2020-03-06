@@ -220,7 +220,7 @@ class CameraFragment : Fragment() {
 
         // Used to rotate the output media to match device orientation
         relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
-            observe(this@CameraFragment, Observer {
+            observe(viewLifecycleOwner, Observer {
                 orientation -> Log.d(TAG, "Orientation changed: $orientation")
             })
         }
