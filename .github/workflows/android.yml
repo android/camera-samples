@@ -1,0 +1,73 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up JDK 9
+        uses: actions/setup-java@v1
+        with:
+          java-version: 9
+      - name: Run unit tests
+        run: .github/scripts/gradlew_recursive.sh test
+      - name: Zip reports
+        if: always()
+        run: zip -r reports.zip . -i '**/reports/*.xml' '**/reports/*.html'
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: unit_test_reports
+          path: reports.zip
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Run linter
+        run: .github/scripts/gradlew_recursive.sh lint
+      - name: Zip reports
+        if: always()
+        run: zip -r reports.zip . -i '**/reports/*.xml' '**/reports/*.html'
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: lint_reports
+          path: reports.zip
+
+  build:
+    name: Build
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Build project
+        run: .github/scripts/gradlew_recursive.sh assembleDebug
+      - name: Zip artifacts
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: assemble
+          path: assemble.zip
