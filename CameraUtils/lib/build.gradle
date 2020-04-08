@@ -76,3 +76,8 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 }
+
+// Used for Maven
+apply plugin: 'com.github.dcendents.android-maven'
+group = 'com.github.android.camera'
+version = '1.0.0'

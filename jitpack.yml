@@ -1,0 +1,4 @@
+jdk:
+  - openjdk8
+install:
+  - ./CameraUtils/gradlew -p CameraUtils clean install
