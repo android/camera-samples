@@ -15,9 +15,6 @@
  */
 
 include 'app'
-<<<<<<< Updated upstream
 include ':utils'
 
 project(':utils').projectDir = new File('../CameraUtils/lib')
-=======
->>>>>>> Stashed changes
