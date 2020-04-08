@@ -52,7 +52,11 @@ android {
 }
 
 dependencies {
+<<<<<<< Updated upstream
     implementation project(':utils')
+=======
+    implementation 'com.github.android:camera-samples:library-SNAPSHOT'
+>>>>>>> Stashed changes
 
     // Kotlin lang
     implementation 'androidx.core:core-ktx:1.2.0'
