@@ -90,7 +90,7 @@ typealias LumaListener = (luma: Double) -> Unit
 class CameraFragment : Fragment() {
 
     private lateinit var container: ConstraintLayout
-    private lateinit var previewView: PreviewView
+    private lateinit var viewFinder: PreviewView
     private lateinit var outputDirectory: File
     private lateinit var broadcastManager: LocalBroadcastManager
 
@@ -189,7 +189,7 @@ class CameraFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         container = view as ConstraintLayout
-        previewView = container.findViewById(R.id.view_finder)
+        viewFinder = container.findViewById(R.id.view_finder)
 
         // Initialize our background executor
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -207,10 +207,10 @@ class CameraFragment : Fragment() {
         outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
         // Wait for the views to be properly laid out
-        previewView.post {
+        viewFinder.post {
 
             // Keep track of the display in which this view is attached
-            displayId = previewView.display.displayId
+            displayId = viewFinder.display.displayId
 
             // Build UI controls
             updateCameraUi()
@@ -237,13 +237,13 @@ class CameraFragment : Fragment() {
     private fun bindCameraUseCases() {
 
         // Get screen metrics used to setup camera for full screen resolution
-        val metrics = DisplayMetrics().also { previewView.display.getRealMetrics(it) }
+        val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
         Log.d(TAG, "Screen metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
 
         val screenAspectRatio = aspectRatio(metrics.widthPixels, metrics.heightPixels)
         Log.d(TAG, "Preview aspect ratio: $screenAspectRatio")
 
-        val rotation = previewView.display.rotation
+        val rotation = viewFinder.display.rotation
 
         // Bind the CameraProvider to the LifeCycleOwner
         val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
@@ -300,8 +300,7 @@ class CameraFragment : Fragment() {
                         this, cameraSelector, preview, imageCapture, imageAnalyzer)
 
                 // Attach the viewfinder's surface provider to preview use case
-                previewView.preferredImplementationMode = PreviewView.ImplementationMode.TEXTURE_VIEW
-                preview?.setSurfaceProvider(previewView.createSurfaceProvider(camera?.cameraInfo))
+                preview?.setSurfaceProvider(viewFinder.createSurfaceProvider(camera?.cameraInfo))
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
