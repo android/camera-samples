@@ -73,6 +73,7 @@ dependencies {
     // App compat and UI things
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.2.0'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
 
     // Navigation library
     def nav_version = "2.2.1"

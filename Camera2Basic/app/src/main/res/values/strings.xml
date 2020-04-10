@@ -15,4 +15,5 @@
 -->
 <resources>
     <string name="app_name">Camera2Basic</string>
+    <string name="capture">Capture</string>
 </resources>

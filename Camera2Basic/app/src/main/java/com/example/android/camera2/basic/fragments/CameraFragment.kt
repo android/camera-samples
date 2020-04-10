@@ -18,6 +18,7 @@ package com.example.android.camera2.basic.fragments
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Color
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -37,9 +38,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.Surface
 import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.graphics.drawable.toDrawable
 import androidx.exifinterface.media.ExifInterface
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -51,7 +52,9 @@ import com.example.android.camera.utils.computeExifOrientation
 import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
+import com.example.android.camera2.basic.CameraActivity
 import com.example.android.camera2.basic.R
+import kotlinx.android.synthetic.main.fragment_camera.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -99,6 +102,19 @@ class CameraFragment : Fragment() {
     /** [Handler] corresponding to [cameraThread] */
     private val cameraHandler = Handler(cameraThread.looper)
 
+    /** Performs recording animation of flashing screen */
+    private val animationTask: Runnable by lazy {
+        Runnable {
+            // Flash white animation
+            overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
+            // Wait for ANIMATION_FAST_MILLIS
+            overlay.postDelayed({
+                // Remove white flash animation
+                overlay.background = null
+            }, CameraActivity.ANIMATION_FAST_MILLIS)
+        }
+    }
+
     /** [HandlerThread] where all buffer reading operations run */
     private val imageReaderThread = HandlerThread("imageReaderThread").apply { start() }
 
@@ -106,7 +122,10 @@ class CameraFragment : Fragment() {
     private val imageReaderHandler = Handler(imageReaderThread.looper)
 
     /** Where the camera preview is displayed */
-    private lateinit var viewFinder: SurfaceView
+    private lateinit var viewFinder: AutoFitSurfaceView
+
+    /** Overlay on top of the camera preview */
+    private lateinit var overlay: View
 
     /** The [CameraDevice] that will be opened in this fragment */
     private lateinit var camera: CameraDevice
@@ -121,14 +140,15 @@ class CameraFragment : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = AutoFitSurfaceView(requireContext())
+    ): View? = inflater.inflate(R.layout.fragment_camera, container, false)
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewFinder = view as AutoFitSurfaceView
+        overlay = view.findViewById(R.id.overlay)
+        viewFinder = view.findViewById(R.id.view_finder)
 
-        view.holder.addCallback(object : SurfaceHolder.Callback {
+        viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
 
             override fun surfaceChanged(
@@ -144,8 +164,7 @@ class CameraFragment : Fragment() {
                         viewFinder.display, characteristics, SurfaceHolder::class.java)
                 Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
-                view.holder.setFixedSize(previewSize.width, previewSize.height)
-                view.setAspectRatio(previewSize.width, previewSize.height)
+                viewFinder.setAspectRatio(previewSize.width, previewSize.height)
 
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
@@ -191,7 +210,8 @@ class CameraFragment : Fragment() {
         // session is torn down or session.stopRepeating() is called
         session.setRepeatingRequest(captureRequest.build(), null, cameraHandler)
 
-        view?.setOnClickListener {
+        // Listen to the capture button
+        capture_button.setOnClickListener {
 
             // Disable click listener to prevent multiple requests simultaneously in flight
             it.isEnabled = false
@@ -308,6 +328,16 @@ class CameraFragment : Fragment() {
         val captureRequest = session.device.createCaptureRequest(
                 CameraDevice.TEMPLATE_STILL_CAPTURE).apply { addTarget(imageReader.surface) }
         session.capture(captureRequest.build(), object : CameraCaptureSession.CaptureCallback() {
+
+            override fun onCaptureStarted(
+                    session: CameraCaptureSession,
+                    request: CaptureRequest,
+                    timestamp: Long,
+                    frameNumber: Long) {
+                super.onCaptureStarted(session, request, timestamp, frameNumber)
+                viewFinder.post(animationTask)
+            }
+
             override fun onCaptureCompleted(
                     session: CameraCaptureSession,
                     request: CaptureRequest,

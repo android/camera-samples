@@ -54,9 +54,11 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
+import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.slowmo.BuildConfig
 import com.example.android.camera2.slowmo.CameraActivity
 import com.example.android.camera2.slowmo.R
+import kotlinx.android.synthetic.main.fragment_camera.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -208,10 +210,12 @@ class CameraFragment : Fragment() {
 
             override fun surfaceCreated(holder: SurfaceHolder) {
 
-                // Selects same preview size as video and configures view finder
+                // Selects appropriate preview size and configures view finder
+                val previewSize = getPreviewOutputSize(
+                        viewFinder.display, characteristics, SurfaceHolder::class.java)
                 Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
-                viewFinder.holder.setFixedSize(args.width, args.height)
-                viewFinder.setAspectRatio(args.width, args.height)
+                Log.d(TAG, "Selected preview size: $previewSize")
+                viewFinder.setAspectRatio(previewSize.width, previewSize.height)
 
                 // To ensure that size is set, initialize camera in the view's thread
                 viewFinder.post { initializeCamera() }
@@ -266,8 +270,8 @@ class CameraFragment : Fragment() {
         // session.stopRepeating() is called
         session.setRepeatingBurst(previewRequestList, null, cameraHandler)
 
-        // Rather than providing an explicit UI, react when the user touches anywhere on the screen
-        overlay.setOnTouchListener { view, event ->
+        // Listen to the capture button
+        capture_button.setOnTouchListener { view, event ->
             when (event.action) {
 
                 MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
