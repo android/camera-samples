@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright 2020 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/permissions_fragment">
+
+    <fragment
+        android:id="@+id/permissions_fragment"
+        android:name="com.example.android.camera2.video.fragments.PermissionsFragment"
+        android:label="Permissions" >
+
+        <action
+            android:id="@+id/action_permissions_to_selector"
+            app:destination="@id/selector_fragment"
+            app:popUpTo="@id/permissions_fragment"
+            app:popUpToInclusive="true" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/selector_fragment"
+        android:name="com.example.android.camera2.video.fragments.SelectorFragment"
+        android:label="Selector" >
+
+        <action
+            android:id="@+id/action_selector_to_camera"
+            app:launchSingleTop="true"
+            app:destination="@id/camera_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/camera_fragment"
+        android:name="com.example.android.camera2.video.fragments.CameraFragment"
+        android:label="Camera" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <action
+            android:id="@+id/action_camera_to_permissions"
+            app:destination="@id/permissions_fragment"
+            app:popUpTo="@id/camera_fragment"
+            app:popUpToInclusive="true"/>
+
+    </fragment>
+
+</navigation>

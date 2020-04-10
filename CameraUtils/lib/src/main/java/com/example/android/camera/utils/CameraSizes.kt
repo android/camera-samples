@@ -44,7 +44,8 @@ fun getDisplaySmartSize(display: Display): SmartSize {
 
 /**
  * Returns the largest available PREVIEW size. For more information, see:
- * https://d.android.com/reference/android/hardware/camera2/CameraDevice
+ * https://d.android.com/reference/android/hardware/camera2/CameraDevice and
+ * https://developer.android.com/reference/android/hardware/camera2/params/StreamConfigurationMap
  */
 fun <T>getPreviewOutputSize(
         display: Display,
