@@ -400,7 +400,7 @@ class CameraFragment : Fragment() {
                                 .getMimeTypeFromExtension(savedUri.toFile().extension)
                         MediaScannerConnection.scanFile(
                                 context,
-                                arrayOf(savedUri.toString()),
+                                arrayOf(savedUri.toFile().absolutePath),
                                 arrayOf(mimeType)
                         ) { _, uri ->
                             Log.d(TAG, "Image capture scanned into media store: $uri")

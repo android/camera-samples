@@ -67,12 +67,12 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
 
     // Navigation library
-    def nav_version = "2.2.1"
+    def nav_version = "2.2.2"
     implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
     // CameraX core library
-    def camerax_version = '1.0.0-beta02'
+    def camerax_version = '1.0.0-beta03'
     implementation "androidx.camera:camera-core:$camerax_version"
 
     // CameraX Camera2 extensions
@@ -82,7 +82,7 @@ dependencies {
     implementation "androidx.camera:camera-lifecycle:$camerax_version"
 
     // CameraX View class
-    implementation 'androidx.camera:camera-view:1.0.0-alpha09'
+    implementation 'androidx.camera:camera-view:1.0.0-alpha10'
 
     // CameraX Extensions library
     // implementation "androidx.camera:camera-extensions:1.0.0-alpha09"
