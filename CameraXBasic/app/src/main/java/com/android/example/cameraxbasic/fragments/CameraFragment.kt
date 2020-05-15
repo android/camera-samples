@@ -39,6 +39,7 @@ import android.webkit.MimeTypeMap
 import android.widget.ImageButton
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraInfoUnavailableException
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
@@ -74,6 +75,7 @@ import java.util.ArrayDeque
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -100,6 +102,7 @@ class CameraFragment : Fragment() {
     private var imageCapture: ImageCapture? = null
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
+    private var cameraProvider: ProcessCameraProvider? = null
 
     private val displayManager by lazy {
         requireContext().getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
@@ -215,8 +218,8 @@ class CameraFragment : Fragment() {
             // Build UI controls
             updateCameraUi()
 
-            // Bind use cases
-            bindCameraUseCases()
+            // Set up the camera and its use cases
+            setUpCamera()
         }
     }
 
@@ -230,7 +233,35 @@ class CameraFragment : Fragment() {
      */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+
+        // Redraw the camera UI controls
         updateCameraUi()
+
+        // Enable or disable switching between cameras
+        updateCameraSwitchButton()
+    }
+
+    /** Initialize CameraX, and prepare to bind the camera use cases  */
+    private fun setUpCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener(Runnable {
+
+            // CameraProvider
+            cameraProvider = cameraProviderFuture.get()
+
+            // Select lensFacing depending on the available cameras
+            lensFacing = when {
+                hasBackCamera() -> CameraSelector.LENS_FACING_BACK
+                hasFrontCamera() -> CameraSelector.LENS_FACING_FRONT
+                else -> throw IllegalStateException("Back and front camera are unavailable")
+            }
+
+            // Enable or disable switching between cameras
+            updateCameraSwitchButton()
+
+            // Build and bind the camera use cases
+            bindCameraUseCases()
+        }, ContextCompat.getMainExecutor(requireContext()))
     }
 
     /** Declare and bind preview, capture and analysis use cases */
@@ -245,24 +276,23 @@ class CameraFragment : Fragment() {
 
         val rotation = viewFinder.display.rotation
 
-        // Bind the CameraProvider to the LifeCycleOwner
+        // CameraProvider
+        val cameraProvider = cameraProvider
+                ?: throw IllegalStateException("Camera initialization failed.")
+
+        // CameraSelector
         val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-        cameraProviderFuture.addListener(Runnable {
 
-            // CameraProvider
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-
-            // Preview
-            preview = Preview.Builder()
+        // Preview
+        preview = Preview.Builder()
                 // We request aspect ratio but no resolution
                 .setTargetAspectRatio(screenAspectRatio)
                 // Set initial target rotation
                 .setTargetRotation(rotation)
                 .build()
 
-            // ImageCapture
-            imageCapture = ImageCapture.Builder()
+        // ImageCapture
+        imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 // We request aspect ratio but no resolution to match preview config, but letting
                 // CameraX optimize for whatever specific resolution best fits our use cases
@@ -272,8 +302,8 @@ class CameraFragment : Fragment() {
                 .setTargetRotation(rotation)
                 .build()
 
-            // ImageAnalysis
-            imageAnalyzer = ImageAnalysis.Builder()
+        // ImageAnalysis
+        imageAnalyzer = ImageAnalysis.Builder()
                 // We request aspect ratio but no resolution
                 .setTargetAspectRatio(screenAspectRatio)
                 // Set initial target rotation, we will have to call this again if rotation changes
@@ -290,22 +320,20 @@ class CameraFragment : Fragment() {
                     })
                 }
 
-            // Must unbind the use-cases before rebinding them
-            cameraProvider.unbindAll()
+        // Must unbind the use-cases before rebinding them
+        cameraProvider.unbindAll()
 
-            try {
-                // A variable number of use-cases can be passed here -
-                // camera provides access to CameraControl & CameraInfo
-                camera = cameraProvider.bindToLifecycle(
-                        this, cameraSelector, preview, imageCapture, imageAnalyzer)
+        try {
+            // A variable number of use-cases can be passed here -
+            // camera provides access to CameraControl & CameraInfo
+            camera = cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, imageCapture, imageAnalyzer)
 
-                // Attach the viewfinder's surface provider to preview use case
-                preview?.setSurfaceProvider(viewFinder.createSurfaceProvider(camera?.cameraInfo))
-            } catch(exc: Exception) {
-                Log.e(TAG, "Use case binding failed", exc)
-            }
-
-        }, ContextCompat.getMainExecutor(requireContext()))
+            // Attach the viewfinder's surface provider to preview use case
+            preview?.setSurfaceProvider(viewFinder.createSurfaceProvider(camera?.cameraInfo))
+        } catch (exc: Exception) {
+            Log.e(TAG, "Use case binding failed", exc)
+        }
     }
 
     /**
@@ -421,15 +449,22 @@ class CameraFragment : Fragment() {
             }
         }
 
-        // Listener for button used to switch cameras
-        controls.findViewById<ImageButton>(R.id.camera_switch_button).setOnClickListener {
-            lensFacing = if (CameraSelector.LENS_FACING_FRONT == lensFacing) {
-                CameraSelector.LENS_FACING_BACK
-            } else {
-                CameraSelector.LENS_FACING_FRONT
+        // Setup for button used to switch cameras
+        controls.findViewById<ImageButton>(R.id.camera_switch_button).let {
+
+            // Disable the button until the camera is set up
+            it.isEnabled = false
+
+            // Listener for button used to switch cameras. Only called if the button is enabled
+            it.setOnClickListener {
+                lensFacing = if (CameraSelector.LENS_FACING_FRONT == lensFacing) {
+                    CameraSelector.LENS_FACING_BACK
+                } else {
+                    CameraSelector.LENS_FACING_FRONT
+                }
+                // Re-bind use cases to update selected camera
+                bindCameraUseCases()
             }
-            // Re-bind use cases to update selected camera
-            bindCameraUseCases()
         }
 
         // Listener for button used to view the most recent photo
@@ -444,6 +479,25 @@ class CameraFragment : Fragment() {
         }
     }
 
+    /** Enabled or disabled a button to switch cameras depending on the available cameras */
+    private fun updateCameraSwitchButton() {
+        val switchCamerasButton = container.findViewById<ImageButton>(R.id.camera_switch_button)
+        try {
+            switchCamerasButton.isEnabled = hasBackCamera() && hasFrontCamera()
+        } catch (exception: CameraInfoUnavailableException) {
+            switchCamerasButton.isEnabled = false
+        }
+    }
+
+    /** Returns true if the device has an available back camera. False otherwise */
+    private fun hasBackCamera(): Boolean {
+        return cameraProvider?.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) ?: false
+    }
+
+    /** Returns true if the device has an available front camera. False otherwise */
+    private fun hasFrontCamera(): Boolean {
+        return cameraProvider?.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) ?: false
+    }
 
     /**
      * Our custom image analysis class.
