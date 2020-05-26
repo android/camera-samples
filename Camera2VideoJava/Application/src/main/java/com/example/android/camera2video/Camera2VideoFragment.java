@@ -442,6 +442,7 @@ public class Camera2VideoFragment extends Fragment
             mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
                     width, height, mVideoSize);
 
+            Log.d(TAG, "mVideoSize " + mVideoSize + " mPreviewSize " + mPreviewSize);
             int orientation = getResources().getConfiguration().orientation;
             if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
                 mTextureView.setAspectRatio(mPreviewSize.getWidth(), mPreviewSize.getHeight());
@@ -589,6 +590,7 @@ public class Camera2VideoFragment extends Fragment
         mMediaRecorder.setVideoEncodingBitRate(10000000);
         mMediaRecorder.setVideoFrameRate(30);
         mMediaRecorder.setVideoSize(mVideoSize.getWidth(), mVideoSize.getHeight());
+        Log.e(TAG, "mVideoSize.getWidth()" + mVideoSize.getWidth() + "mVideoSize.getHeight()" + mVideoSize.getHeight());
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();

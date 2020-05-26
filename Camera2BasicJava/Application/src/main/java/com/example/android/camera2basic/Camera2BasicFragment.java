@@ -906,8 +906,7 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
-     * Unlock the focus. This method should be called when still image capture sequence is
-     * finished.
+     * Unlock the focus. This method should be called when still image capture sequence is finished.
      */
     private void unlockFocus() {
         try {
