@@ -37,12 +37,7 @@ import android.os.HandlerThread
 import android.util.Log
 import android.util.Range
 import android.util.Size
-import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toDrawable
@@ -54,6 +49,9 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
+import com.example.android.camera.utils.SIZE_1080P
+import com.example.android.camera.utils.SmartSize
+import com.example.android.camera.utils.getDisplaySmartSize
 import com.example.android.camera2.slowmo.BuildConfig
 import com.example.android.camera2.slowmo.CameraActivity
 import com.example.android.camera2.slowmo.R
