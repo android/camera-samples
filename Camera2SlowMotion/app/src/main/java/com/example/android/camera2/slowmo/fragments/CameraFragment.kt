@@ -54,7 +54,6 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
-import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.slowmo.BuildConfig
 import com.example.android.camera2.slowmo.CameraActivity
 import com.example.android.camera2.slowmo.R
@@ -211,7 +210,7 @@ class CameraFragment : Fragment() {
             override fun surfaceCreated(holder: SurfaceHolder) {
 
                 // Selects appropriate preview size and configures view finder
-                val previewSize = getPreviewOutputSize(
+                val previewSize = getConstrainedPreviewOutputSize(
                         viewFinder.display, characteristics, SurfaceHolder::class.java)
                 Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
@@ -245,11 +244,53 @@ class CameraFragment : Fragment() {
     }
 
     /**
+     * Preview size is subject to the same rules compared to a normal capture session with the
+     * additional constraint that the selected size must also be available as one of possible
+     * constrained high-speed session sizes.
+     */
+    private fun <T>getConstrainedPreviewOutputSize(
+            display: Display,
+            characteristics: CameraCharacteristics,
+            targetClass: Class<T>,
+            format: Int? = null
+    ): Size {
+
+        // Find which is smaller: screen or 1080p
+        val screenSize = getDisplaySmartSize(display)
+        val hdScreen = screenSize.long >= SIZE_1080P.long || screenSize.short >= SIZE_1080P.short
+        val maxSize = if (hdScreen) SIZE_1080P else screenSize
+
+        // If image format is provided, use it to determine supported sizes; else use target class
+        val config = characteristics.get(
+                CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+        if (format == null) {
+            assert(StreamConfigurationMap.isOutputSupportedFor(targetClass))
+        } else {
+            assert(config.isOutputSupportedFor(format))
+        }
+
+        val allSizes = if (format == null)
+            config.getOutputSizes(targetClass) else config.getOutputSizes(format)
+
+        // Get a list of potential high speed video sizes for the selected FPS
+        val highSpeedSizes = config.getHighSpeedVideoSizesFor(Range(args.fps, args.fps))
+
+        // Filter sizes which are part of the high speed constrained session
+        val validSizes = allSizes
+                .filter { highSpeedSizes.contains(it) }
+                .sortedWith(compareBy { it.height * it.width })
+                .map { SmartSize(it.width, it.height) }.reversed()
+
+        // Then, get the largest output size that is smaller or equal than our max size
+        return validSizes.first { it.long <= maxSize.long && it.short <= maxSize.short }.size
+    }
+    /**
      * Begin all camera operations in a coroutine in the main thread. This function:
      * - Opens the camera
      * - Configures the camera session
      * - Starts the preview by dispatching a repeating burst request
      */
+    @SuppressLint("ClickableViewAccessibility")
     private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
 
         // Open the selected camera
