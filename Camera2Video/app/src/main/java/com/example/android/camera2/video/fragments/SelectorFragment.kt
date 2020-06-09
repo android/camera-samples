@@ -18,14 +18,12 @@ package com.example.android.camera2.video.fragments
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Size
 import android.view.LayoutInflater
-import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -81,7 +79,7 @@ class SelectorFragment : Fragment() {
                 val fps: Int)
 
         /** Converts a lens orientation enum into a human-readable string */
-        private fun lensOrientationString(value: Int) = when(value) {
+        private fun lensOrientationString(value: Int) = when (value) {
             CameraCharacteristics.LENS_FACING_BACK -> "Back"
             CameraCharacteristics.LENS_FACING_FRONT -> "Front"
             CameraCharacteristics.LENS_FACING_EXTERNAL -> "External"
@@ -118,9 +116,12 @@ class SelectorFragment : Fragment() {
 
                     // For each size, list the expected FPS
                     cameraConfig.getOutputSizes(targetClass).forEach { size ->
-                        // Output frame duration is nanoseconds per frame so FPS is 1E9 / X
-                        val fps = (1_000_000_000.0 /
-                                cameraConfig.getOutputMinFrameDuration(targetClass, size)).toInt()
+                        // Get the number of seconds that each frame will take to process
+                        val secondsPerFrame =
+                                cameraConfig.getOutputMinFrameDuration(targetClass, size) /
+                                        1_000_000_000.0
+                        // Compute the frames per second to let user select a configuration
+                        val fps = if (secondsPerFrame > 0) (1.0 / secondsPerFrame).toInt() else 0
                         val fpsLabel = if (fps > 0) "$fps" else "N/A"
                         availableCameras.add(CameraInfo(
                                 "$orientation ($id) $size $fpsLabel FPS", id, size, fps))

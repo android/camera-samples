@@ -237,6 +237,7 @@ class CameraFragment : Fragment() {
      * - Configures the camera session
      * - Starts the preview by dispatching a repeating request
      */
+    @SuppressLint("ClickableViewAccessibility")
     private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
 
         // Open the selected camera
