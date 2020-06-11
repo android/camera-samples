@@ -63,6 +63,7 @@ import com.android.example.cameraxbasic.MainActivity
 import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
 import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
+import com.android.example.cameraxbasic.utils.setThrottleOnClickListener
 import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
@@ -456,7 +457,7 @@ class CameraFragment : Fragment() {
             it.isEnabled = false
 
             // Listener for button used to switch cameras. Only called if the button is enabled
-            it.setOnClickListener {
+            it.setThrottleOnClickListener {
                 lensFacing = if (CameraSelector.LENS_FACING_FRONT == lensFacing) {
                     CameraSelector.LENS_FACING_BACK
                 } else {

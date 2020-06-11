@@ -88,3 +88,24 @@ fun AlertDialog.showImmersive() {
     // Set the dialog to focusable again
     window?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
 }
+
+/**
+ * A throttle click listener for preventing from triggering click event listener rapidly
+ * @param throttle - default is one second
+ */
+class ThrottleClickListener(private val throttle: Long, val block: (View) -> Unit) : View.OnClickListener {
+    private var lastClickTime: Long = 0L
+
+    override fun onClick(v: View) {
+        val currentTime = System.currentTimeMillis()
+        val duration = currentTime - lastClickTime
+        if (duration > throttle || lastClickTime == 0L) {
+            lastClickTime = currentTime
+            block(v)
+        }
+    }
+}
+
+fun View.setThrottleOnClickListener(throttle: Long = 1000L, block: (View) -> Unit) {
+    setOnClickListener(ThrottleClickListener(throttle, block))
+}
