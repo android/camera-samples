@@ -7,7 +7,8 @@ started with the [Camera APIs](https://developer.android.com/guide/topics/media/
 
 | Sample                                    | Description  |
 | ----------------------------------------- | ------------ |
-| [CameraXBasic](CameraXBasic)              | Demonstrates how to use CameraX APIs written in Kotlin. |
+| [CameraXBasic](CameraXBasic)              | Demonstrates how to use CameraX APIs. |
+| [CameraXTfLite](CameraXTfLite)            | Demonstrates how to use TfLite with CameraX APIs. |
 | [Camera2Basic](Camera2Basic)              | Demostrates capturing JPEG, RAW and DEPTH images, e.g. unprocessed pixel data directly from the camera sensor. |
 | [Camera2SlowMotion](Camera2SlowMotion)    | Demostrates capturing high-speed video in a constrained camera capture session. |
 | [Camera2Video](Camera2Video)              | Demonstrates recording video using the Camera2 API and MediaRecorder. |
