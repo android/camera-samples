@@ -71,6 +71,8 @@ import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
 
+    private var isRecording = false
+
     /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
 
@@ -176,9 +178,9 @@ class CameraFragment : Fragment() {
     private lateinit var relativeOrientation: OrientationLiveData
 
     override fun onCreateView(
-            inflater: LayoutInflater,
-            container: ViewGroup?,
-            savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View? = inflater.inflate(R.layout.fragment_camera, container, false)
 
     @SuppressLint("MissingPermission")
@@ -190,10 +192,10 @@ class CameraFragment : Fragment() {
         viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
             override fun surfaceChanged(
-                    holder: SurfaceHolder,
-                    format: Int,
-                    width: Int,
-                    height: Int) = Unit
+                holder: SurfaceHolder,
+                format: Int,
+                width: Int,
+                height: Int) = Unit
 
             override fun surfaceCreated(holder: SurfaceHolder) {
 
@@ -254,11 +256,11 @@ class CameraFragment : Fragment() {
         session.setRepeatingRequest(previewRequest, null, cameraHandler)
 
         // React to user touching the capture button
-        capture_button.setOnTouchListener { view, event ->
-            when (event.action) {
-
-                MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
-
+        capture_button.setOnClickListener { view ->
+            lifecycleScope.launch(Dispatchers.IO) {
+                Log.d(TAG, "inomata onclick isrecording=$isRecording")
+                if (!isRecording) {
+                    isRecording = true
                     // Prevents screen rotation during the video recording
                     requireActivity().requestedOrientation =
                             ActivityInfo.SCREEN_ORIENTATION_LOCKED
@@ -269,6 +271,7 @@ class CameraFragment : Fragment() {
 
                     // Finalizes recorder setup and starts recording
                     recorder.apply {
+                        Log.d(TAG, "inomata Recorder started.")
                         // Sets output orientation based on current sensor value at start time
                         relativeOrientation.value?.let { setOrientationHint(it) }
                         prepare()
@@ -279,57 +282,55 @@ class CameraFragment : Fragment() {
 
                     // Starts recording animation
                     overlay.post(animationTask)
+                    return@launch
                 }
 
-                MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                isRecording = false
 
-                    // Unlocks screen rotation after recording finished
-                    requireActivity().requestedOrientation =
-                            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                // Unlocks screen rotation after recording finished
+                requireActivity().requestedOrientation =
+                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
-                    // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
-                    val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
-                    if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
-                        delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
-                    }
-
-                    Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                    recorder.stop()
-
-                    // Removes recording animation
-                    overlay.removeCallbacks(animationTask)
-
-                    // Broadcasts the media file to the rest of the system
-                    MediaScannerConnection.scanFile(
-                            view.context, arrayOf(outputFile.absolutePath), null, null)
-
-                    // Launch external activity via intent to play video recorded using our provider
-                    startActivity(Intent().apply {
-                        action = Intent.ACTION_VIEW
-                        type = MimeTypeMap.getSingleton()
-                                .getMimeTypeFromExtension(outputFile.extension)
-                        val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                        data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    })
-
-                    // Finishes our current camera screen
-                    delay(CameraActivity.ANIMATION_SLOW_MILLIS)
-                    navController.popBackStack()
+                // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
+                val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
+                if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
+                    delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
                 }
+
+                Log.d(TAG, "Recording stopped. Output file: $outputFile")
+                recorder.stop()
+
+                // Removes recording animation
+                overlay.removeCallbacks(animationTask)
+
+                // Broadcasts the media file to the rest of the system
+                MediaScannerConnection.scanFile(
+                        view.context, arrayOf(outputFile.absolutePath), null, null)
+
+                // Launch external activity via intent to play video recorded using our provider
+                startActivity(Intent().apply {
+                    action = Intent.ACTION_VIEW
+                    type = MimeTypeMap.getSingleton()
+                            .getMimeTypeFromExtension(outputFile.extension)
+                    val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                    data = FileProvider.getUriForFile(view.context, authority, outputFile)
+                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP
+                })
+
+                // Finishes our current camera screen
+                delay(CameraActivity.ANIMATION_SLOW_MILLIS)
+                navController.popBackStack()
             }
-
-            true
         }
     }
 
     /** Opens the camera and returns the opened device (as the result of the suspend coroutine) */
     @SuppressLint("MissingPermission")
     private suspend fun openCamera(
-            manager: CameraManager,
-            cameraId: String,
-            handler: Handler? = null
+        manager: CameraManager,
+        cameraId: String,
+        handler: Handler? = null
     ): CameraDevice = suspendCancellableCoroutine { cont ->
         manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(device: CameraDevice) = cont.resume(device)
@@ -360,9 +361,9 @@ class CameraFragment : Fragment() {
      * suspend coroutine)
      */
     private suspend fun createCaptureSession(
-            device: CameraDevice,
-            targets: List<Surface>,
-            handler: Handler? = null
+        device: CameraDevice,
+        targets: List<Surface>,
+        handler: Handler? = null
     ): CameraCaptureSession = suspendCoroutine { cont ->
 
         // Creates a capture session using the predefined targets, and defines a session state
@@ -399,7 +400,7 @@ class CameraFragment : Fragment() {
         private val TAG = CameraFragment::class.java.simpleName
 
         private const val RECORDER_VIDEO_BITRATE: Int = 10_000_000
-        private const val MIN_REQUIRED_RECORDING_TIME_MILLIS: Long = 1000L
+        private const val MIN_REQUIRED_RECORDING_TIME_MILLIS: Long = 5000L
 
         /** Creates a [File] named with the current date and time */
         private fun createFile(context: Context, extension: String): File {
