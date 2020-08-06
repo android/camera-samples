@@ -51,10 +51,11 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
-import com.example.android.camera.utils.getPreviewOutputSize
+import com.example.android.camera2.video.recorder.getPreviewOutputSize
 import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
 import com.example.android.camera2.video.R
+import com.example.android.camera2.video.recorder.VideoRecorder
 import kotlinx.android.synthetic.main.fragment_camera.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -70,6 +71,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
+    private val videoRecorder by lazy { VideoRecorder(requireContext()) }
 
     private var isRecording = false
 
@@ -261,68 +263,76 @@ class CameraFragment : Fragment() {
                 Log.d(TAG, "inomata onclick isrecording=$isRecording")
                 if (!isRecording) {
                     isRecording = true
-                    // Prevents screen rotation during the video recording
-                    requireActivity().requestedOrientation =
-                            ActivityInfo.SCREEN_ORIENTATION_LOCKED
-
-                    // Start recording repeating requests, which will stop the ongoing preview
-                    //  repeating requests without having to explicitly call `session.stopRepeating`
-                    session.setRepeatingRequest(recordRequest, null, cameraHandler)
-
-                    // Finalizes recorder setup and starts recording
-                    recorder.apply {
-                        Log.d(TAG, "inomata Recorder started.")
-                        // Sets output orientation based on current sensor value at start time
-                        relativeOrientation.value?.let { setOrientationHint(it) }
-                        prepare()
-                        start()
-                    }
-                    recordingStartMillis = System.currentTimeMillis()
-                    Log.d(TAG, "Recording started")
-
-                    // Starts recording animation
-                    overlay.post(animationTask)
+                    startRecording()
                     return@launch
                 }
 
                 isRecording = false
 
-                // Unlocks screen rotation after recording finished
-                requireActivity().requestedOrientation =
-                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-
-                // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
-                val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
-                if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
-                    delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
-                }
-
-                Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                recorder.stop()
-
-                // Removes recording animation
-                overlay.removeCallbacks(animationTask)
-
-                // Broadcasts the media file to the rest of the system
-                MediaScannerConnection.scanFile(
-                        view.context, arrayOf(outputFile.absolutePath), null, null)
-
-                // Launch external activity via intent to play video recorded using our provider
-                startActivity(Intent().apply {
-                    action = Intent.ACTION_VIEW
-                    type = MimeTypeMap.getSingleton()
-                            .getMimeTypeFromExtension(outputFile.extension)
-                    val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                    data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP
-                })
-
-                // Finishes our current camera screen
-                delay(CameraActivity.ANIMATION_SLOW_MILLIS)
+                stopRecording(view.context)
                 navController.popBackStack()
             }
         }
+    }
+
+    private suspend fun stopRecording(context: Context) {
+        // Unlocks screen rotation after recording finished
+        requireActivity().requestedOrientation =
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+
+        // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
+        val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
+        if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
+            delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
+        }
+
+        Log.d(TAG, "Recording stopped. Output file: $outputFile")
+        recorder.stop()
+
+        // Removes recording animation
+        overlay.removeCallbacks(animationTask)
+
+        // Broadcasts the media file to the rest of the system
+        MediaScannerConnection.scanFile(
+                context, arrayOf(outputFile.absolutePath), null, null)
+
+        // Launch external activity via intent to play video recorded using our provider
+        startActivity(Intent().apply {
+            action = Intent.ACTION_VIEW
+            type = MimeTypeMap.getSingleton()
+                    .getMimeTypeFromExtension(outputFile.extension)
+            val authority = "${BuildConfig.APPLICATION_ID}.provider"
+            data = FileProvider.getUriForFile(context, authority, outputFile)
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+        })
+
+        // Finishes our current camera screen
+        delay(CameraActivity.ANIMATION_SLOW_MILLIS)
+    }
+
+    private fun startRecording() {
+        // Prevents screen rotation during the video recording
+        requireActivity().requestedOrientation =
+                ActivityInfo.SCREEN_ORIENTATION_LOCKED
+
+        // Start recording repeating requests, which will stop the ongoing preview
+        //  repeating requests without having to explicitly call `session.stopRepeating`
+        session.setRepeatingRequest(recordRequest, null, cameraHandler)
+
+        // Finalizes recorder setup and starts recording
+        recorder.apply {
+            Log.d(TAG, "inomata Recorder started.")
+            // Sets output orientation based on current sensor value at start time
+            relativeOrientation.value?.let { setOrientationHint(it) }
+            prepare()
+            start()
+        }
+        recordingStartMillis = System.currentTimeMillis()
+        Log.d(TAG, "Recording started")
+
+        // Starts recording animation
+        overlay.post(animationTask)
     }
 
     /** Opens the camera and returns the opened device (as the result of the suspend coroutine) */
