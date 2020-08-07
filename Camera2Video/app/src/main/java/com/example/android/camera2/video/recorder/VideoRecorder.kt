@@ -108,11 +108,7 @@ class VideoRecorder(
         }
     }
 
-    fun startRecording(activity: Activity) {
-        // Prevents screen rotation during the video recording
-        activity.requestedOrientation =
-                ActivityInfo.SCREEN_ORIENTATION_LOCKED
-
+    fun startRecording() {
         // Start recording repeating requests, which will stop the ongoing preview
         //  repeating requests without having to explicitly call `session.stopRepeating`
         session.setRepeatingRequest(recordRequest, null, handler)
@@ -129,11 +125,7 @@ class VideoRecorder(
         Log.d(TAG, "Recording started")
     }
 
-    suspend fun stopRecording(activity: Activity) {
-        // Unlocks screen rotation after recording finished
-        activity.requestedOrientation =
-                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-
+    suspend fun stopRecording() {
         // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
         val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
         if (elapsedTimeMillis < VideoRecorder.MIN_REQUIRED_RECORDING_TIME_MILLIS) {

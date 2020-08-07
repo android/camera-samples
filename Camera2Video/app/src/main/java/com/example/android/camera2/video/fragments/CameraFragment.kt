@@ -17,6 +17,7 @@
 package com.example.android.camera2.video.fragments
 
 import android.annotation.SuppressLint
+import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -194,7 +195,11 @@ class CameraFragment : Fragment() {
                 Log.d(TAG, "inomata onclick isrecording=$isRecording")
                 if (!isRecording) {
                     isRecording = true
-                    videoRecorder.startRecording(requireActivity())
+                    // Prevents screen rotation during the video recording
+                    requireActivity().requestedOrientation =
+                            ActivityInfo.SCREEN_ORIENTATION_LOCKED
+
+                    videoRecorder.startRecording()
 
                     // Starts recording animation
                     overlay.post(animationTask)
@@ -203,7 +208,14 @@ class CameraFragment : Fragment() {
 
                 isRecording = false
 
-                videoRecorder.stopRecording(requireActivity())
+                try {
+                    videoRecorder.stopRecording()
+                } finally {
+                    // Unlocks screen rotation after recording finished
+                    requireActivity().requestedOrientation =
+                            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+
                 // Removes recording animation
                 overlay.removeCallbacks(animationTask)
                 // Finishes our current camera screen
