@@ -125,7 +125,7 @@ class VideoRecorder(
         Log.d(TAG, "Recording started")
     }
 
-    suspend fun stopRecording() {
+    suspend fun stopRecording(): File {
         // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
         val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
         if (elapsedTimeMillis < VideoRecorder.MIN_REQUIRED_RECORDING_TIME_MILLIS) {
@@ -139,17 +139,7 @@ class VideoRecorder(
         MediaScannerConnection.scanFile(
                 context, arrayOf(outputFile.absolutePath), null, null)
 
-        // Launch external activity via intent to play video recorded using our provider
-        context.startActivity(Intent().apply {
-            action = Intent.ACTION_VIEW
-            type = MimeTypeMap.getSingleton()
-                    .getMimeTypeFromExtension(outputFile.extension)
-            val authority = "${BuildConfig.APPLICATION_ID}.provider"
-            data = FileProvider.getUriForFile(context, authority, outputFile)
-            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP
-        })
-
+        return outputFile
     }
 
     fun release() {

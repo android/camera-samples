@@ -17,6 +17,7 @@
 package com.example.android.camera2.video.fragments
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.hardware.camera2.CameraCaptureSession
@@ -34,6 +35,8 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.MimeTypeMap
+import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -43,6 +46,7 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
+import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
 import com.example.android.camera2.video.R
 import com.example.android.camera2.video.recorder.VideoRecorder
@@ -52,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -208,16 +213,29 @@ class CameraFragment : Fragment() {
 
                 isRecording = false
 
+                val outputFile: File
                 try {
-                    videoRecorder.stopRecording()
+                    outputFile = videoRecorder.stopRecording()
                 } finally {
                     // Unlocks screen rotation after recording finished
                     requireActivity().requestedOrientation =
                             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    // Removes recording animation
+                    overlay.removeCallbacks(animationTask)
                 }
 
-                // Removes recording animation
-                overlay.removeCallbacks(animationTask)
+                // Launch external activity via intent to play video recorded using our provider
+                requireActivity().startActivity(Intent().apply {
+                    action = Intent.ACTION_VIEW
+                    type = MimeTypeMap.getSingleton()
+                            .getMimeTypeFromExtension(outputFile.extension)
+                    val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                    data = FileProvider.getUriForFile(requireContext(), authority, outputFile)
+                    flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP
+                })
+
+
                 // Finishes our current camera screen
                 delay(CameraActivity.ANIMATION_SLOW_MILLIS)
                 navController.popBackStack()
