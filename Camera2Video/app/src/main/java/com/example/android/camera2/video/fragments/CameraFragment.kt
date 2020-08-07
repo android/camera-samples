@@ -154,12 +154,15 @@ class CameraFragment : Fragment() {
         })
 
         // Used to rotate the output media to match device orientation
-        videoRecorder.relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
+        relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
             observe(viewLifecycleOwner, Observer {
                 orientation -> Log.d(TAG, "Orientation changed: $orientation")
             })
         }
     }
+
+    /** Live data listener for changes in the device orientation relative to the camera */
+    lateinit var relativeOrientation: OrientationLiveData
 
     /**
      * Begin all camera operations in a coroutine in the main thread. This function:
@@ -183,7 +186,7 @@ class CameraFragment : Fragment() {
         //  session.stopRepeating() is called
         session.setRepeatingRequest(previewRequest, null, cameraHandler)
 
-        videoRecorder.previewSurface = viewFinder.holder.surface
+        videoRecorder.prepare(session, viewFinder.holder.surface, relativeOrientation)
 
         // React to user touching the capture button
         capture_button.setOnClickListener { _ ->
@@ -208,8 +211,6 @@ class CameraFragment : Fragment() {
                 navController.popBackStack()
             }
         }
-
-        videoRecorder.session = session
     }
 
     /** Opens the camera and returns the opened device (as the result of the suspend coroutine) */

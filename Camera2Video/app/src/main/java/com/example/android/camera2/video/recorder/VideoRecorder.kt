@@ -32,8 +32,11 @@ class VideoRecorder(
     private val videoSize: Size,
     private val videoFps: Int
 ) {
-    lateinit var session: CameraCaptureSession
-    lateinit var previewSurface: Surface
+    private lateinit var session: CameraCaptureSession
+    private lateinit var previewSurface: Surface
+    /** Live data listener for changes in the device orientation relative to the camera */
+    private lateinit var relativeOrientation: OrientationLiveData
+
 
     /**
      * Setup a persistent [Surface] for the recorder so we can use it as an output target for the
@@ -74,10 +77,6 @@ class VideoRecorder(
 
     /** File where the recording will be saved */
     private val outputFile: File by lazy { createFile(context, "mp4") }
-
-    /** Live data listener for changes in the device orientation relative to the camera */
-    lateinit var relativeOrientation: OrientationLiveData
-
 
     /** Requests used for preview and recording in the [CameraCaptureSession] */
     private val recordRequest: CaptureRequest by lazy {
@@ -164,6 +163,12 @@ class VideoRecorder(
     fun release() {
         recorder.release()
         recorderSurface.release()
+    }
+
+    fun prepare(session: CameraCaptureSession, previewSurface: Surface, relativeOrientation: OrientationLiveData) {
+        this.previewSurface = previewSurface
+        this.session = session
+        this.relativeOrientation = relativeOrientation
     }
 
     companion object {
