@@ -83,12 +83,13 @@ class VideoRecorder(
         }.build()
     }
     /** Creates a [MediaRecorder] instance using the provided [Surface] as input */
-    fun createRecorder(surface: Surface, dummy: Boolean = false) = MediaRecorder().apply {
+    private fun createRecorder(surface: Surface, dummy: Boolean = false) = MediaRecorder().apply {
         setAudioSource(MediaRecorder.AudioSource.MIC)
         setVideoSource(MediaRecorder.VideoSource.SURFACE)
         setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
         setOutputFile(outputFile.absolutePath)
-        setVideoEncodingBitRate(VideoRecorder.RECORDER_VIDEO_BITRATE)
+        setAudioSamplingRate(AUDIO_SAMPLING_RATE)
+        setVideoEncodingBitRate(VideoRecorder.VIDEO_BITRATE)
         if (videoFps > 0) setVideoFrameRate(videoFps)
         setVideoSize(videoSize.width, videoSize.height)
         setVideoEncoder(MediaRecorder.VideoEncoder.H264)
@@ -153,7 +154,8 @@ class VideoRecorder(
     }
 
     companion object {
-        const val RECORDER_VIDEO_BITRATE: Int = 10_000_000
+        const val VIDEO_BITRATE: Int = 10_000_000
+        const val AUDIO_SAMPLING_RATE: Int = 16_000
         const val MIN_REQUIRED_RECORDING_TIME_MILLIS: Long = 5000L
 
         /** Creates a [File] named with the current date and time */
