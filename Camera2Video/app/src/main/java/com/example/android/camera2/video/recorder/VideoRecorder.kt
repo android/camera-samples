@@ -27,8 +27,9 @@ class VideoRecorder(
     /** 出力ファイルパス。省略時は自動で生成します。 */
     outputFile: File? = null
 ) {
+    /** 利用側でプレビューなどに使うsurface群 */
+    private var extraSurfaces = ArrayList<Surface>()
     private lateinit var session: CameraCaptureSession
-    private lateinit var previewSurface: Surface
     /** Live data listener for changes in the device orientation relative to the camera */
     private lateinit var relativeOrientation: OrientationLiveData
 
@@ -75,8 +76,8 @@ class VideoRecorder(
     private val recordRequest: CaptureRequest by lazy {
         // Capture request holds references to target surfaces
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-            // Add the preview and recording surface targets
-            addTarget(previewSurface)
+            // Add the recording surface and extra surfaces targets
+            extraSurfaces.forEach { addTarget(it) }
             addTarget(recorderSurface)
             // Sets user requested FPS for all targets
             set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(videoFps, videoFps))
@@ -147,8 +148,8 @@ class VideoRecorder(
         recorderSurface.release()
     }
 
-    fun prepare(session: CameraCaptureSession, previewSurface: Surface, relativeOrientation: OrientationLiveData) {
-        this.previewSurface = previewSurface
+    fun prepare(session: CameraCaptureSession, extraSurfaces: List<Surface> = emptyList(), relativeOrientation: OrientationLiveData) {
+        this.extraSurfaces = ArrayList(extraSurfaces)
         this.session = session
         this.relativeOrientation = relativeOrientation
     }

@@ -192,7 +192,7 @@ class CameraFragment : Fragment() {
         //  session.stopRepeating() is called
         session.setRepeatingRequest(previewRequest, null, cameraHandler)
 
-        videoRecorder.prepare(session, viewFinder.holder.surface, relativeOrientation)
+        videoRecorder.prepare(session, listOf(viewFinder.holder.surface), relativeOrientation)
 
         // React to user touching the capture button
         capture_button.setOnClickListener { _ ->
