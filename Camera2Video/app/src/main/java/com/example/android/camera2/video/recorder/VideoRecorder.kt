@@ -1,9 +1,6 @@
 package com.example.android.camera2.video.recorder
 
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
@@ -12,15 +9,11 @@ import android.media.MediaCodec
 import android.media.MediaRecorder
 import android.media.MediaScannerConnection
 import android.net.Uri
-import android.os.Handler
 import android.util.Log
 import android.util.Range
 import android.util.Size
 import android.view.Surface
-import android.webkit.MimeTypeMap
-import androidx.core.content.FileProvider
 import com.example.android.camera.utils.OrientationLiveData
-import com.example.android.camera2.video.BuildConfig
 import kotlinx.coroutines.delay
 import java.io.File
 import java.text.SimpleDateFormat
@@ -28,15 +21,19 @@ import java.util.*
 
 class VideoRecorder(
     private val context: Context,
-    private val handler: Handler,
+    /** ビデオ録画サイズ */
     private val videoSize: Size,
-    private val videoFps: Int
+    /** ビデオ録画FPS */
+    private val videoFps: Int,
+    /** 出力ファイルパス。省略時は自動で生成します。 */
+    outputFile: File? = null
 ) {
     private lateinit var session: CameraCaptureSession
     private lateinit var previewSurface: Surface
     /** Live data listener for changes in the device orientation relative to the camera */
     private lateinit var relativeOrientation: OrientationLiveData
 
+    private val outputFile: File = outputFile ?: createFile(context)
 
     /**
      * Setup a persistent [Surface] for the recorder so we can use it as an output target for the
@@ -75,9 +72,6 @@ class VideoRecorder(
 
     private val recorder: MediaRecorder by lazy { createRecorder(recorderSurface) }
 
-    /** File where the recording will be saved */
-    private val outputFile: File by lazy { createFile(context, "mp4") }
-
     /** Requests used for preview and recording in the [CameraCaptureSession] */
     private val recordRequest: CaptureRequest by lazy {
         // Capture request holds references to target surfaces
@@ -109,9 +103,14 @@ class VideoRecorder(
     }
 
     fun startRecording() {
+        // camera-samples サンプルでは setRepeatingRequest は listener=nullでもhandlerを指定していますが、
+        // ドキュメントからもAOSPソースからもhandlerはlistenerの反応スレッドを制御するためだけに使われるようなので、handlerは使わないことにしました。
+        // 参考: https://github.com/android/camera-samples/blob/master/Camera2Video/app/src/main/java/com/example/android/camera2/video/fragments/CameraFragment.kt#L254
+        // 参考: http://gerrit.aospextended.com/plugins/gitiles/AospExtended/platform_frameworks_base/+/25df673b849de374cf1de40250dfd8a48b7ac28b/core/java/android/hardware/camera2/impl/CameraDevice.java#269
         // Start recording repeating requests, which will stop the ongoing preview
-        //  repeating requests without having to explicitly call `session.stopRepeating`
-        session.setRepeatingRequest(recordRequest, null, handler)
+        // repeating requests without having to explicitly call `session.stopRepeating`
+        // session.setRepeatingRequest(recordRequest, null, handler)
+        session.setRepeatingRequest(recordRequest, null, null)
 
         // Finalizes recorder setup and starts recording
         recorder.apply {
@@ -125,6 +124,10 @@ class VideoRecorder(
         Log.d(TAG, "Recording started")
     }
 
+    /**
+     * レコーディングを停止して、出力ファイルを返す。
+     * インスタンスあたりのoutputFileは固定(コンストラクタでの指定またはインスタンス化時の自動生成)なので、このメソッドは常に同一ファイルインスタンスを返します。
+     */
     suspend fun stopRecording(): File {
         // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
         val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
@@ -159,9 +162,15 @@ class VideoRecorder(
         const val MIN_REQUIRED_RECORDING_TIME_MILLIS: Long = 5000L
 
         /** Creates a [File] named with the current date and time */
-        private fun createFile(context: Context, extension: String): File {
+        fun createFile(context: Context): File {
             val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
-            return File(context.filesDir, "VID_${sdf.format(Date())}.$extension")
+            return File(context.filesDir, "VID_${sdf.format(Date())}.$FILE_EXT")
         }
+
+        /**
+         * outputFile で使う拡張子。
+         */
+        @SuppressWarnings
+        const val FILE_EXT = "mp4"
     }
 }
