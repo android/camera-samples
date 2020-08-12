@@ -62,7 +62,7 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
-    private val videoRecorder by lazy { VideoRecorder(requireContext(), cameraHandler, Size(args.width, args.height), args.fps) }
+    private val videoRecorder by lazy { VideoRecorder(requireContext(), Size(args.width, args.height), args.fps) }
 
     private var isRecording = false
 
@@ -205,6 +205,7 @@ class CameraFragment : Fragment() {
                             ActivityInfo.SCREEN_ORIENTATION_LOCKED
 
                     videoRecorder.startRecording()
+                    Log.d(TAG, "Recording started")
 
                     // Starts recording animation
                     overlay.post(animationTask)
@@ -216,6 +217,7 @@ class CameraFragment : Fragment() {
                 val outputFile: File
                 try {
                     outputFile = videoRecorder.stopRecording()
+                    Log.d(TAG, "Recording stopped. Output file: $outputFile")
                 } finally {
                     // Unlocks screen rotation after recording finished
                     requireActivity().requestedOrientation =

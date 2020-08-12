@@ -9,7 +9,6 @@ import android.media.MediaCodec
 import android.media.MediaRecorder
 import android.media.MediaScannerConnection
 import android.net.Uri
-import android.util.Log
 import android.util.Range
 import android.util.Size
 import android.view.Surface
@@ -114,14 +113,12 @@ class VideoRecorder(
 
         // Finalizes recorder setup and starts recording
         recorder.apply {
-            Log.d(TAG, "inomata Recorder started.")
             // Sets output orientation based on current sensor value at start time
             relativeOrientation.value?.let { setOrientationHint(it) }
             prepare()
             start()
         }
         recordingStartMillis = System.currentTimeMillis()
-        Log.d(TAG, "Recording started")
     }
 
     /**
@@ -135,7 +132,6 @@ class VideoRecorder(
             delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
         }
 
-        Log.d(TAG, "Recording stopped. Output file: $outputFile")
         recorder.stop()
 
         // Broadcasts the media file to the rest of the system
@@ -157,7 +153,6 @@ class VideoRecorder(
     }
 
     companion object {
-        val TAG = VideoRecorder::class.java.simpleName
         const val RECORDER_VIDEO_BITRATE: Int = 10_000_000
         const val MIN_REQUIRED_RECORDING_TIME_MILLIS: Long = 5000L
 
