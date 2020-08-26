@@ -106,7 +106,11 @@ class CameraFragment : Fragment() {
         // Required to allocate an appropriately sized buffer before passing the Surface as the
         //  output target to the capture session
         createRecorder(surface).apply {
-            prepare()
+            try {
+                prepare()
+            } catch (e: Throwable) {
+                Log.d(TAG, "Ignore error on preparing dummy", e)
+            }
             release()
         }
 
