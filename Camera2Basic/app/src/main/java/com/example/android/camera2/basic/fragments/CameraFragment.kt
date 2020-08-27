@@ -208,7 +208,7 @@ class CameraFragment : Fragment() {
 
         // This will keep sending the capture request as frequently as possible until the
         // session is torn down or session.stopRepeating() is called
-        session.setRepeatingRequest(captureRequest.build(), null, cameraHandler)
+        session.setRepeatingRequest(captureRequest.build(), null, null)
 
         // Listen to the capture button
         capture_button.setOnClickListener {

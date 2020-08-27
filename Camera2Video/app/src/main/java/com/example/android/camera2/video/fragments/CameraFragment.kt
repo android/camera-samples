@@ -251,7 +251,7 @@ class CameraFragment : Fragment() {
 
         // Sends the capture request as frequently as possible until the session is torn down or
         //  session.stopRepeating() is called
-        session.setRepeatingRequest(previewRequest, null, cameraHandler)
+        session.setRepeatingRequest(previewRequest, null, null)
 
         // React to user touching the capture button
         capture_button.setOnTouchListener { view, event ->
@@ -265,7 +265,7 @@ class CameraFragment : Fragment() {
 
                     // Start recording repeating requests, which will stop the ongoing preview
                     //  repeating requests without having to explicitly call `session.stopRepeating`
-                    session.setRepeatingRequest(recordRequest, null, cameraHandler)
+                    session.setRepeatingRequest(recordRequest, null, null)
 
                     // Finalizes recorder setup and starts recording
                     recorder.apply {
