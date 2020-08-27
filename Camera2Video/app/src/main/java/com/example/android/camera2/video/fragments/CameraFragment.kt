@@ -123,9 +123,17 @@ class CameraFragment : Fragment() {
     /** [Handler] corresponding to [cameraThread] */
     private val cameraHandler = Handler(cameraThread.looper)
 
+    /** Return true if the recording animation is active */
+    private var isRecordingAnimationActive = false
+
     /** Performs recording animation of flashing screen */
     private val animationTask: Runnable by lazy {
         Runnable {
+            if (!isRecordingAnimationActive) {
+                // Remove white flash animation then stop next animation.
+                overlay.foreground = null
+                return@Runnable
+            }
             // Flash white animation
             overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
@@ -136,6 +144,21 @@ class CameraFragment : Fragment() {
                 overlay.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
             }, CameraActivity.ANIMATION_FAST_MILLIS)
         }
+    }
+
+    /**
+     * Starts recording animation
+     */
+    private fun startRecordingAnimation() {
+        isRecordingAnimationActive = true
+        overlay.post(animationTask)
+    }
+
+    /**
+     * Stops recording animation
+     */
+    private fun stopRecordingAnimation() {
+        isRecordingAnimationActive = false
     }
 
     /** Where the camera preview is displayed */
@@ -234,7 +257,7 @@ class CameraFragment : Fragment() {
         setInputSurface(surface)
     }
 
-    /**
+   /**
      * Begin all camera operations in a coroutine in the main thread. This function:
      * - Opens the camera
      * - Configures the camera session
@@ -286,8 +309,7 @@ class CameraFragment : Fragment() {
                         recordingStartMillis = System.currentTimeMillis()
                         Log.d(TAG, "Recording started")
 
-                        // Starts recording animation
-                        overlay.post(animationTask)
+                        startRecordingAnimation()
                     }
                 }
 
@@ -311,8 +333,7 @@ class CameraFragment : Fragment() {
                                 Log.d(TAG, "Recording stopped. Output file: $outputFile")
                                 recorder?.stop()
 
-                                // Removes recording animation
-                                overlay.removeCallbacks(animationTask)
+                                stopRecordingAnimation()
 
                                 // Broadcasts the media file to the rest of the system
                                 MediaScannerConnection.scanFile(
