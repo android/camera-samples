@@ -46,6 +46,7 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.whenResumed
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
@@ -56,7 +57,6 @@ import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
 import com.example.android.camera2.video.R
 import kotlinx.android.synthetic.main.fragment_camera.*
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -65,9 +65,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.RuntimeException
+import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -117,7 +115,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Saves the video recording */
-    private val recorder: MediaRecorder by lazy { createRecorder(recorderSurface) }
+    private var recorder: MediaRecorder? = null
 
     /** [HandlerThread] where all camera operations run */
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
@@ -263,6 +261,13 @@ class CameraFragment : Fragment() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
                     mutex.withLock {
+                        // (Re)Initialize MediaRecorder.
+                        // After stop MediaRecorder, the recorder becomes initial state.
+                        // To restart recording again, the recorder must be reinitialize
+                        // profile(like setVideoSource()) and call prepare() again.
+                        recorder?.release()
+                        recorder = createRecorder(recorderSurface)
+
                         // Prevents screen rotation during the video recording
                         requireActivity().requestedOrientation =
                                 ActivityInfo.SCREEN_ORIENTATION_LOCKED
@@ -272,7 +277,7 @@ class CameraFragment : Fragment() {
                         session.setRepeatingRequest(recordRequest, null, cameraHandler)
 
                         // Finalizes recorder setup and starts recording
-                        recorder.apply {
+                        recorder?.apply {
                             // Sets output orientation based on current sensor value at start time
                             relativeOrientation.value?.let { setOrientationHint(it) }
                             prepare()
@@ -292,40 +297,50 @@ class CameraFragment : Fragment() {
 
                     lifecycleScope.launch(Dispatchers.IO) {
                         mutex.withLock {
-                            // Unlocks screen rotation after recording finished
-                            requireActivity().requestedOrientation =
-                                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            try {
+                                // Unlocks screen rotation after recording finished
+                                requireActivity().requestedOrientation =
+                                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
-                            // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
-                            val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
-                            if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
-                                delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
+                                // Requires recording of at least MIN_REQUIRED_RECORDING_TIME_MILLIS
+                                val elapsedTimeMillis = System.currentTimeMillis() - recordingStartMillis
+                                if (elapsedTimeMillis < MIN_REQUIRED_RECORDING_TIME_MILLIS) {
+                                    delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
+                                }
+
+                                Log.d(TAG, "Recording stopped. Output file: $outputFile")
+                                recorder?.stop()
+
+                                // Removes recording animation
+                                overlay.removeCallbacks(animationTask)
+
+                                // Broadcasts the media file to the rest of the system
+                                MediaScannerConnection.scanFile(
+                                        view.context, arrayOf(outputFile.absolutePath), null, null)
+
+                                // Launch external activity via intent to play video recorded using our provider
+                                whenResumed {
+                                    startActivity(Intent().apply {
+                                        action = Intent.ACTION_VIEW
+                                        type = MimeTypeMap.getSingleton()
+                                                .getMimeTypeFromExtension(outputFile.extension)
+                                        val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                                        data = FileProvider.getUriForFile(view.context, authority, outputFile)
+                                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                    })
+                                }
+
+                                // Finishes our current camera screen
+                                delay(CameraActivity.ANIMATION_SLOW_MILLIS)
+                                whenResumed {
+                                    navController.popBackStack()
+                                }
+                            } finally {
+                                whenResumed {
+                                    capture_button.visibility = View.VISIBLE
+                                }
                             }
-
-                            Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                            recorder.stop()
-
-                            // Removes recording animation
-                            overlay.removeCallbacks(animationTask)
-
-                            // Broadcasts the media file to the rest of the system
-                            MediaScannerConnection.scanFile(
-                                    view.context, arrayOf(outputFile.absolutePath), null, null)
-
-                            // Launch external activity via intent to play video recorded using our provider
-                            startActivity(Intent().apply {
-                                action = Intent.ACTION_VIEW
-                                type = MimeTypeMap.getSingleton()
-                                        .getMimeTypeFromExtension(outputFile.extension)
-                                val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                                data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                        Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            })
-
-                            // Finishes our current camera screen
-                            delay(CameraActivity.ANIMATION_SLOW_MILLIS)
-                            navController.popBackStack()
                         }
                     }
                 }
@@ -402,7 +417,7 @@ class CameraFragment : Fragment() {
     override fun onDestroy() {
         super.onDestroy()
         cameraThread.quitSafely()
-        recorder.release()
+        recorder?.release()
         recorderSurface.release()
     }
 
