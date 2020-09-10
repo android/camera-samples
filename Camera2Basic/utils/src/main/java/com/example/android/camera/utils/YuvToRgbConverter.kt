@@ -26,7 +26,6 @@ import android.renderscript.Element
 import android.renderscript.RenderScript
 import android.renderscript.ScriptIntrinsicYuvToRGB
 import android.renderscript.Type
-import java.nio.ByteBuffer
 
 /**
  * Helper class used to efficiently convert a [Media.Image] object from
@@ -46,7 +45,7 @@ class YuvToRgbConverter(context: Context) {
     private val scriptYuvToRgb = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs))
 
     private var pixelCount: Int = -1
-    private lateinit var yuvBuffer: ByteBuffer
+    private lateinit var yuvBuffer: ByteArray
     private lateinit var inputAllocation: Allocation
     private lateinit var outputAllocation: Allocation
 
@@ -59,33 +58,30 @@ class YuvToRgbConverter(context: Context) {
             // Bits per pixel is an average for the whole image, so it's useful to compute the size
             // of the full buffer but should not be used to determine pixel offsets
             val pixelSizeBits = ImageFormat.getBitsPerPixel(ImageFormat.YUV_420_888)
-            yuvBuffer = ByteBuffer.allocateDirect(pixelCount * pixelSizeBits / 8)
+            yuvBuffer = ByteArray(pixelCount * pixelSizeBits / 8)
         }
 
-        // Rewind the buffer; no need to clear it since it will be filled
-        yuvBuffer.rewind()
-
         // Get the YUV data in byte array form using NV21 format
-        imageToByteBuffer(image, yuvBuffer.array())
+        imageToByteArray(image, yuvBuffer)
 
         // Ensure that the RenderScript inputs and outputs are allocated
         if (!::inputAllocation.isInitialized) {
             // Explicitly create an element with type NV21, since that's the pixel format we use
             val elemType = Type.Builder(rs, Element.YUV(rs)).setYuvFormat(ImageFormat.NV21).create()
-            inputAllocation = Allocation.createSized(rs, elemType.element, yuvBuffer.array().size)
+            inputAllocation = Allocation.createSized(rs, elemType.element, yuvBuffer.size)
         }
         if (!::outputAllocation.isInitialized) {
             outputAllocation = Allocation.createFromBitmap(rs, output)
         }
 
         // Convert NV21 format YUV to RGB
-        inputAllocation.copyFrom(yuvBuffer.array())
+        inputAllocation.copyFrom(yuvBuffer)
         scriptYuvToRgb.setInput(inputAllocation)
         scriptYuvToRgb.forEach(outputAllocation)
         outputAllocation.copyTo(output)
     }
 
-    private fun imageToByteBuffer(image: Image, outputBuffer: ByteArray) {
+    private fun imageToByteArray(image: Image, outputBuffer: ByteArray) {
         assert(image.format == ImageFormat.YUV_420_888)
 
         val imageCrop = image.cropRect
