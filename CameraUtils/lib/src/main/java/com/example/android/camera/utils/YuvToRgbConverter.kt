@@ -21,11 +21,9 @@ import android.graphics.Bitmap
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.media.Image
-import android.renderscript.Allocation
-import android.renderscript.Element
-import android.renderscript.RenderScript
-import android.renderscript.ScriptIntrinsicYuvToRGB
-import android.renderscript.Type
+import android.renderscript.*
+import java.nio.ByteBuffer
+import kotlin.experimental.inv
 
 /**
  * Helper class used to efficiently convert a [Media.Image] object from
@@ -62,7 +60,7 @@ class YuvToRgbConverter(context: Context) {
         }
 
         // Get the YUV data in byte array form using NV21 format
-        imageToByteArray(image, yuvBuffer)
+        image.toByteArray(yuvBuffer)
 
         // Ensure that the RenderScript inputs and outputs are allocated
         if (!::inputAllocation.isInitialized) {
@@ -81,118 +79,174 @@ class YuvToRgbConverter(context: Context) {
         outputAllocation.copyTo(output)
     }
 
-    private fun imageToByteArray(image: Image, outputBuffer: ByteArray) {
-        assert(image.format == ImageFormat.YUV_420_888)
+    private fun Allocation.copyFromPlane(plane: Image.Plane) {
+        if (plane.buffer.hasArray())
+            this.copyFrom(plane.buffer.array())
+        else {
+            this.copyFromBuffer(plane.buffer)
+        }
+    }
 
-        val imageCrop = image.cropRect
-        val imagePlanes = image.planes
+    private fun Allocation.copyFromBuffer(buffer: ByteBuffer) {
+        buffer.rewind()
+        val array = ByteArray(buffer.limit())
+        buffer.get(array)
+        this.copyFrom(array)
+    }
 
-        imagePlanes.forEachIndexed { planeIndex, plane ->
-            // How many values are read in input for each output value written
-            // Only the Y plane has a value for every pixel, U and V have half the resolution i.e.
-            //
-            // Y Plane            U Plane    V Plane
-            // ===============    =======    =======
-            // Y Y Y Y Y Y Y Y    U U U U    V V V V
-            // Y Y Y Y Y Y Y Y    U U U U    V V V V
-            // Y Y Y Y Y Y Y Y    U U U U    V V V V
-            // Y Y Y Y Y Y Y Y    U U U U    V V V V
-            // Y Y Y Y Y Y Y Y
-            // Y Y Y Y Y Y Y Y
-            // Y Y Y Y Y Y Y Y
-            val outputStride: Int
+    // see https://stackoverflow.com/a/52740776/192373
+// for 1920x1080 interleaved time is reduced from 13 ms to 2 ms
+// for less optimal resolution 1440x1080 to 5 ms
+    private fun Image.toByteArray(outputBuffer: ByteArray) {
 
-            // The index in the output buffer the next value will be written at
-            // For Y it's zero, for U and V we start at the end of Y and interleave them i.e.
-            //
-            // First chunk        Second chunk
-            // ===============    ===============
-            // Y Y Y Y Y Y Y Y    V U V U V U V U
-            // Y Y Y Y Y Y Y Y    V U V U V U V U
-            // Y Y Y Y Y Y Y Y    V U V U V U V U
-            // Y Y Y Y Y Y Y Y    V U V U V U V U
-            // Y Y Y Y Y Y Y Y
-            // Y Y Y Y Y Y Y Y
-            // Y Y Y Y Y Y Y Y
-            var outputOffset: Int
+        assert(format == ImageFormat.YUV_420_888)
+        assert(planes[1].pixelStride == planes[2].pixelStride)
+        assert(planes[1].rowStride == planes[2].rowStride)
 
-            when (planeIndex) {
-                0 -> {
-                    outputStride = 1
-                    outputOffset = 0
+        planes[0].extractLuminance(cropRect, outputBuffer)
+
+        if (planes[2].pixelStride == 2 && planes[2].buffer.isInterleavedWith(planes[1].buffer))
+            planes[2].extractChromaInterleaved(planes[1], cropRect, outputBuffer)
+        else if (planes[2].pixelStride == 2 && planes[1].buffer.isInterleavedWith(planes[2].buffer))
+            planes[2].extractChromaInterleaved(planes[1], cropRect, outputBuffer, uPlaneOffset=-1)
+        else {
+            planes[1].extractChroma(1, cropRect, outputBuffer)
+            planes[2].extractChroma(0, cropRect, outputBuffer)
+        }
+    }
+
+    // maybe this and other buffers overlap?
+    private fun ByteBuffer.isInterleavedWith(other: ByteBuffer): Boolean {
+        if (get(1) == other[0]) {
+            val savePixel = other[0]
+            val changed = savePixel.inv()
+            try {
+                other.put(0, changed) // does changing vBuffer effect uBuffer?
+                if (get(1) == changed) {
+                    return true
                 }
-                1 -> {
-                    outputStride = 2
-                    // For NV21 format, U is in odd-numbered indices
-                    outputOffset = pixelCount + 1
-                }
-                2 -> {
-                    outputStride = 2
-                    // For NV21 format, V is in even-numbered indices
-                    outputOffset = pixelCount
-                }
-                else -> {
-                    // Image contains more than 3 planes, something strange is going on
-                    return@forEachIndexed
-                }
-            }
-
-            val planeBuffer = plane.buffer
-            val rowStride = plane.rowStride
-            val pixelStride = plane.pixelStride
-
-            // We have to divide the width and height by two if it's not the Y plane
-            val planeCrop = if (planeIndex == 0) {
-                imageCrop
-            } else {
-                Rect(
-                    imageCrop.left / 2,
-                    imageCrop.top / 2,
-                    imageCrop.right / 2,
-                    imageCrop.bottom / 2
-                )
-            }
-
-            val planeWidth = planeCrop.width()
-            val planeHeight = planeCrop.height()
-
-            // Intermediate buffer used to store the bytes of each row
-            val rowBuffer = ByteArray(plane.rowStride)
-
-            // Size of each row in bytes
-            val rowLength = if (pixelStride == 1 && outputStride == 1) {
-                planeWidth
-            } else {
-                // Take into account that the stride may include data from pixels other than this
-                // particular plane and row, and that could be between pixels and not after every
-                // pixel:
-                //
-                // |---- Pixel stride ----|                    Row ends here --> |
-                // | Pixel 1 | Other Data | Pixel 2 | Other Data | ... | Pixel N |
-                //
-                // We need to get (N-1) * (pixel stride bytes) per row + 1 byte for the last pixel
-                (planeWidth - 1) * pixelStride + 1
-            }
-
-            for (row in 0 until planeHeight) {
-                // Move buffer position to the beginning of this row
-                planeBuffer.position(
-                    (row + planeCrop.top) * rowStride + planeCrop.left * pixelStride)
-
-                if (pixelStride == 1 && outputStride == 1) {
-                    // When there is a single stride value for pixel and output, we can just copy
-                    // the entire row in a single step
-                    planeBuffer.get(outputBuffer, outputOffset, rowLength)
-                    outputOffset += rowLength
-                } else {
-                    // When either pixel or output have a stride > 1 we must copy pixel by pixel
-                    planeBuffer.get(rowBuffer, 0, rowLength)
-                    for (col in 0 until planeWidth) {
-                        outputBuffer[outputOffset] = rowBuffer[col * pixelStride]
-                        outputOffset += outputStride
-                    }
-                }
+            } catch (th: Throwable) {
+                // silently catch everything
+            } finally {
+                other.put(0, savePixel) // restore
             }
         }
+        return false
+    }
+
+    private fun Image.Plane.extractLuminance(imageCrop: Rect, outputBuffer: ByteArray) {
+        var outputOffset = 0
+
+        assert(pixelStride == 1)
+
+        val planeWidth = imageCrop.width()
+        val planeHeight = imageCrop.height()
+
+        // Size of each row in bytes
+        val rowLength = planeWidth
+
+        if (rowStride == rowLength) {
+            assert(imageCrop.left == 0)
+            assert(imageCrop.top == 0)
+            buffer.position(0)
+            buffer.get(outputBuffer, 0, planeWidth * planeHeight)
+        } else {
+            for (row in 0 until planeHeight) {
+                // Move buffer position to the beginning of this row
+                buffer.position((row + imageCrop.top) * rowStride + imageCrop.left)
+
+                // When there is a single stride value for pixel and output, we can just copy
+                // the entire row in a single step
+                buffer.get(outputBuffer, outputOffset, rowLength)
+                outputOffset += rowLength
+            }
+        }
+    }
+
+    private fun Image.Plane.extractChromaInterleaved(
+            uPlane: Image.Plane,
+            imageCrop: Rect,
+            outputArray: ByteArray,
+            uPlaneOffset: Int = 1
+    ) {
+        assert(pixelStride == 2)
+        assert(pixelStride == uPlane.pixelStride)
+        assert(rowStride == uPlane.rowStride)
+
+        val planeCrop = imageCrop.halve()
+        val planeWidth = planeCrop.width()
+        val planeHeight = planeCrop.height()
+
+        // Size of each row in bytes
+        val rowLength = planeWidth * pixelStride
+
+        var outputOffset: Int = imageCrop.width() * imageCrop.height()
+
+        if (uPlaneOffset == -1) {
+            uPlane.buffer.get(outputArray, outputOffset, 1)
+            outputOffset += 1
+        }
+        if (rowStride == rowLength) {
+            buffer.position(0)
+
+            val remaining = buffer.remaining()
+            buffer.get(outputArray, outputOffset, remaining)
+            outputOffset += remaining
+        } else {
+            var pos = planeCrop.top * rowStride + planeCrop.left * pixelStride
+            for (row in 0 until planeHeight - 1) {
+                // Move buffer position to the beginning of this row
+                buffer.position(pos)
+                pos += rowStride
+
+                buffer.get(outputArray, outputOffset, rowLength)
+                outputOffset += rowLength
+            }
+
+            val lastRowLength = Math.min(buffer.remaining(), outputArray.size - outputOffset)
+            if (uPlaneOffset == -1) {
+                assert(lastRowLength == rowLength)
+            }
+            buffer.get(outputArray, outputOffset, lastRowLength)
+            outputOffset += lastRowLength
+        }
+
+        if (uPlaneOffset == -1) {
+            assert(outputOffset == outputArray.size)
+        }
+        if (outputOffset < outputArray.size) {
+            // add the last byte from the second plane
+            assert(outputOffset == outputArray.size - 1)
+            outputArray[outputOffset] = uPlane.buffer.get((planeHeight - 1 + planeCrop.top) * rowStride + planeCrop.left * 2 + rowLength - 2)
+        }
+    }
+
+    private fun Image.Plane.extractChroma(
+            firstOffset: Int,
+            imageCrop: Rect,
+            outputArray: ByteArray
+    ) {
+        assert(pixelStride == 1)
+
+        var outputOffset: Int = imageCrop.width() * imageCrop.height() + firstOffset
+        val planeCrop = imageCrop.halve()
+        val planeWidth = planeCrop.width()
+        val planeHeight = planeCrop.height()
+
+        // Intermediate buffer used to store the bytes of each row
+        val rowArray = ByteArray(planeWidth)
+
+        for (row in 0 until planeHeight) {
+            buffer.position((row + planeCrop.top) * rowStride + planeCrop.left)
+            buffer.get(rowArray)
+            for (col in 0 until planeWidth) {
+                outputArray[outputOffset] = rowArray[col]
+                outputOffset += 2
+            }
+        }
+    }
+
+    private fun Rect.halve(): Rect {
+        return Rect(left/2,top/2, right/2, bottom/2)
     }
 }
