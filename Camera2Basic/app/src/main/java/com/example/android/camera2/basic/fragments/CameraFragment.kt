@@ -147,6 +147,11 @@ class CameraFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         overlay = view.findViewById(R.id.overlay)
         viewFinder = view.findViewById(R.id.view_finder)
+        capture_button.setOnApplyWindowInsetsListener { v, insets ->
+            v.translationX = (-insets.systemWindowInsetRight).toFloat()
+            v.translationY = (-insets.systemWindowInsetBottom).toFloat()
+            insets.consumeSystemWindowInsets()
+        }
 
         viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
