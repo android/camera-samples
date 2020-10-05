@@ -9,7 +9,6 @@ import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
 import android.view.Surface
-import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.Preview.SurfaceProvider
@@ -25,10 +24,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import org.junit.*
 import org.junit.runner.RunWith
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.jvm.Throws
 
 /**
  * @see "https://developer.android.com/training/camerax/architecture.combine-use-cases"
@@ -40,102 +37,110 @@ class CameraPreviewTest : LifecycleOwner, ImageReader.OnImageAvailableListener, 
     val cameraAccess = GrantPermissionRule.grant(Manifest.permission.CAMERA)
 
     private var registry: LifecycleRegistry? = null
-    private var context: Context? = null
-    private var thread: HandlerThread? = null
-    private var executor: ExecutorService? = null
-    private var reader: ImageReader? = null
-    private var camera: Camera? = null
-    private var provider // requires main thread
-            : ProcessCameraProvider? = null
-    private var count = AtomicInteger(0)
+    private val thread = HandlerThread("CameraPreviewTest").also { it.start() }
+    private var executor = Executors.newSingleThreadExecutor()
+    private var provider: ProcessCameraProvider? = null // requires main thread
 
     /**
      * @implNote We can't use the main executor since it is reserved for the test framework.
      */
     @Before
-    @Throws(Exception::class)
     fun setup() {
-        context = ApplicationProvider.getApplicationContext()
+        val context: Context = ApplicationProvider.getApplicationContext()
         Assert.assertNotNull(context)
-        executor = Executors.newSingleThreadExecutor()
-        thread = HandlerThread("CameraPreviewTest")
-        thread!!.start()
-        val future = ProcessCameraProvider.getInstance(context!!)
-        provider = future.get()
+        provider = ProcessCameraProvider.getInstance(context).get()
         Assert.assertNotNull(provider)
-        reader = ImageReader.newInstance(1920, 1080, ImageFormat.YUV_420_888, 30)
-        val surface = reader!!.getSurface()
-        Assert.assertNotNull(surface)
-        reader!!.setOnImageAvailableListener(this, Handler(thread!!.looper))
     }
 
     @UiThreadTest
     @After
-    @Throws(Exception::class)
     fun teardown() {
-        if (provider != null) provider!!.unbindAll()
-        if (reader != null) reader!!.close()
-        if (thread != null) thread!!.quit()
-        if (executor != null) executor!!.shutdown()
+        provider?.unbindAll()
+        executor?.shutdown()
     }
 
-    override fun getLifecycle(): Lifecycle {
-        return registry!!
-    }
+    /**
+     * @implNote In checkPreviewUseCase, ImageReader will provide a Surface for camera preview test.
+     *  When each ImageProxy is acquired, the AtomicInteger will be incremented.
+     *  By doing so we can ensure the camera binding is working as expected.
+     */
+    private val reader = ImageReader.newInstance(1920, 1080, ImageFormat.YUV_420_888, 30)
+    private val count = AtomicInteger(0)
 
     @Before
-    fun markCreated() {
-        registry = LifecycleRegistry(this)
-        registry!!.markState(Lifecycle.State.INITIALIZED)
-        registry!!.markState(Lifecycle.State.CREATED)
+    fun setupImageReader() {
+        reader.setOnImageAvailableListener(this, Handler(thread.looper))
     }
 
     @After
-    fun markDestroyed() {
-        registry!!.markState(Lifecycle.State.DESTROYED)
-    }
-
-    override fun accept(result: SurfaceRequest.Result) {
-        when (result.resultCode) {
-            SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
-                Log.i("CameraPreviewTest", result.toString())
-                return
-            }
-            SurfaceRequest.Result.RESULT_REQUEST_CANCELLED, SurfaceRequest.Result.RESULT_INVALID_SURFACE, SurfaceRequest.Result.RESULT_SURFACE_ALREADY_PROVIDED, SurfaceRequest.Result.RESULT_WILL_NOT_PROVIDE_SURFACE -> {
-                Log.e("CameraPreviewTest", result.toString())
-                return
-            }
-        }
+    fun teardownImageReader() {
+        reader.close()
+        thread.quit()
     }
 
     override fun onImageAvailable(reader: ImageReader) {
         reader.acquireNextImage().use { image ->
-            val value = count.getAndIncrement()
-            Log.i("CameraPreviewTest", String.format("image: %d %s", value, image))
+            val imageNumber = count.getAndIncrement()
+            Log.i("CameraPreviewTest", String.format("image: %d %s", imageNumber, image))
         }
     }
 
+    /**
+     * @see ProcessCameraProvider.bindToLifecycle
+     */
+    override fun getLifecycle() = registry!!
+
+    @Before
+    fun markCreated() {
+        registry = LifecycleRegistry(this).also{
+            it.markState(Lifecycle.State.INITIALIZED)
+            it.markState(Lifecycle.State.CREATED)
+        }
+    }
+
+    @After
+    fun markDestroyed() {
+        registry?.markState(Lifecycle.State.DESTROYED)
+    }
+
+    /**
+     * @see SurfaceRequest.provideSurface
+     */
+    override fun accept(result: SurfaceRequest.Result) {
+        when (result.resultCode) {
+            SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
+                Log.i("CameraPreviewTest", result.toString())
+            }
+            SurfaceRequest.Result.RESULT_REQUEST_CANCELLED, SurfaceRequest.Result.RESULT_INVALID_SURFACE, SurfaceRequest.Result.RESULT_SURFACE_ALREADY_PROVIDED, SurfaceRequest.Result.RESULT_WILL_NOT_PROVIDE_SURFACE -> {
+                Log.e("CameraPreviewTest", result.toString())
+            }
+        }
+    }
+
+
     @UiThreadTest
     @Test
-    @Throws(Exception::class)
     fun checkPreviewUseCase() {
         // life cycle owner
-        registry!!.markState(Lifecycle.State.STARTED)
-        // selector
+        registry?.markState(Lifecycle.State.STARTED)
+
+        // select Back camera
         val selectorBuilder = CameraSelector.Builder()
         Assert.assertTrue(provider!!.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA))
         selectorBuilder.requireLensFacing(CameraSelector.LENS_FACING_BACK)
-        // usecase[]
+
+        // fit the preview size to ImageReader
         val previewBuilder = Preview.Builder()
-        previewBuilder.setTargetResolution(Size(reader!!.width, reader!!.height))
+        previewBuilder.setTargetResolution(Size(reader.width, reader.height))
         previewBuilder.setTargetRotation(Surface.ROTATION_90)
         val preview = previewBuilder.build()
-        // acquire camera
+
+        // acquire camera binding
         provider!!.unbindAll()
-        camera = provider!!.bindToLifecycle(this, selectorBuilder.build(), preview)
+        val camera = provider!!.bindToLifecycle(this, selectorBuilder.build(), preview)
         Assert.assertNotNull(camera)
         preview.setSurfaceProvider(executor!!, SurfaceProvider { request: SurfaceRequest ->
-            val surface = reader!!.surface
+            val surface = reader.surface
             Log.i("CameraPreviewTest", String.format("providing: %s", surface))
             request.provideSurface(surface, executor!!, this)
         })
