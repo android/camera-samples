@@ -137,7 +137,6 @@ class CameraActivity : AppCompatActivity() {
     }
 
     /** Declare and bind preview and analysis use cases */
-    @SuppressLint("UnsafeExperimentalUsageError")
     private fun bindCameraUseCases() = view_finder.post {
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -179,7 +178,7 @@ class CameraActivity : AppCompatActivity() {
                 }
 
                 // Convert the image to RGB and place it in our shared buffer
-                image.use { converter.yuvToRgb(image.image!!, bitmapBuffer) }
+                image.use { converter.yuvToRgb(image, bitmapBuffer) }
 
                 // Process the image in Tensorflow
                 val tfImage =  tfImageProcessor.process(tfImageBuffer.apply { load(bitmapBuffer) })
