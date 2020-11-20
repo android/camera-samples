@@ -61,11 +61,11 @@ class AutoFitSurfaceView @JvmOverloads constructor(
             val newHeight: Int
             val actualRatio = if (width > height) aspectRatio else 1f / aspectRatio
             if (width < height * actualRatio) {
-                newWidth = width
-                newHeight = (width / actualRatio).roundToInt()
-            } else {
                 newHeight = height
                 newWidth = (height * actualRatio).roundToInt()
+            } else {
+                newWidth = width
+                newHeight = (width / actualRatio).roundToInt()
             }
 
             Log.d(TAG, "Measured dimensions set: $newWidth x $newHeight")
