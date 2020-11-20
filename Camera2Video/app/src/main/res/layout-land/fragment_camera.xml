@@ -14,43 +14,29 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<androidx.constraintlayout.widget.ConstraintLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <com.example.android.camera.utils.AutoFitSurfaceView
         android:id="@+id/view_finder"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <View
         android:id="@+id/overlay"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:foreground="@android:color/transparent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:foreground="@android:color/transparent" />
 
     <ImageButton
         android:id="@+id/capture_button"
         android:layout_width="96dp"
         android:layout_height="96dp"
-        android:layout_marginRight="96dp"
+        android:layout_gravity="center|right"
         android:scaleType="fitCenter"
         android:background="@drawable/ic_shutter"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        android:contentDescription="@string/capture"
-        tools:ignore="RtlHardcoded" />
+        android:contentDescription="@string/capture" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>
