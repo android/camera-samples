@@ -179,9 +179,9 @@ class CameraActivity : AppCompatActivity() {
                 }
 
                 // Convert the image to RGB and place it in our shared buffer
-		// You can modify YuvToRgbConverter#yuvToRgb to take image directly. This
-		// allows you to remove @SuppressLint("UnsafeExperimentalUsageError"). See:
-		// https://github.com/rogerthat94/camera-samples/commit/4364ae25dc7da500400c877a8ac5565e4cd55eec
+                // You can modify YuvToRgbConverter#yuvToRgb to take image directly. This
+                // allows you to remove @SuppressLint("UnsafeExperimentalUsageError"). See:
+                // https://github.com/rogerthat94/camera-samples/commit/4364ae25dc7da500400c877a8ac5565e4cd55eec
                 image.use { converter.yuvToRgb(image.image!!, bitmapBuffer) }
 
                 // Process the image in Tensorflow
