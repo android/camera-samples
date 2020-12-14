@@ -3,7 +3,6 @@ name: Bug Report
 about: Issue related to sample code found in this repo
 title: ''
 labels: ''
-assignees: owahltinez
 
 ---
 
