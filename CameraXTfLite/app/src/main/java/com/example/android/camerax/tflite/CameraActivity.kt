@@ -211,7 +211,7 @@ class CameraActivity : AppCompatActivity() {
                 this as LifecycleOwner, cameraSelector, preview, imageAnalysis)
 
             // Use the camera object to link our preview use case with the view
-            preview.setSurfaceProvider(view_finder.createSurfaceProvider())
+            preview.setSurfaceProvider(view_finder.surfaceProvider)
 
         }, ContextCompat.getMainExecutor(this))
     }
