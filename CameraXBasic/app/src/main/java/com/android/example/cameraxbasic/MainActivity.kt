@@ -64,6 +64,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onBackPressed() {
+        finishAfterTransition();
+    }
+
     companion object {
 
         /** Use external media if it is available, our app's file directory otherwise */
