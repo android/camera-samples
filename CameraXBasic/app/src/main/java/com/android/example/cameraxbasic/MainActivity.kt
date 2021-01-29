@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
+import android.os.Build
 import android.widget.FrameLayout
 import com.android.example.cameraxbasic.utils.FLAGS_FULLSCREEN
 
@@ -61,6 +62,16 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
+    override fun onBackPressed() {
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            // Workaround for Android Q memory leak issue in IRequestFinishCallback$Stub.
+            // (https://issuetracker.google.com/issues/139738913)
+            finishAfterTransition()
+        } else {
+            super.onBackPressed()
         }
     }
 
