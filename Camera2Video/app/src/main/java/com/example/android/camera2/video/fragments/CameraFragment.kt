@@ -74,7 +74,10 @@ class CameraFragment : Fragment() {
     private val args: CameraFragmentArgs by navArgs()
 
     /** ViewBinding **/
-    private lateinit var binding : FragmentCameraBinding
+    private var _binding: FragmentCameraBinding? = null
+    // This property is only valid between onCreateView and
+    // onDestroyView.
+    private val binding get() = _binding!!
 
     /** Host's navigation controller */
     private val navController: NavController by lazy {
@@ -181,8 +184,15 @@ class CameraFragment : Fragment() {
     ): View? {
         super.onCreateView(inflater, container, savedInstanceState)
 
-        binding = FragmentCameraBinding.inflate(inflater, container, false)
+        _binding = FragmentCameraBinding.inflate(inflater, container, false)
         return binding.root
+    }
+
+    /** Fragments outlive their views. Cleaning up any references to the binding class instance
+     *  in the fragment's onDestroyView() method to avoid memory leak */
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     @SuppressLint("MissingPermission")
