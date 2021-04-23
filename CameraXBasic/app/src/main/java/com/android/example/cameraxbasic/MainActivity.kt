@@ -23,7 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
-import android.widget.FrameLayout
+import com.android.example.cameraxbasic.databinding.ActivityMainBinding
 import com.android.example.cameraxbasic.utils.FLAGS_FULLSCREEN
 
 const val KEY_EVENT_ACTION = "key_event_action"
@@ -35,20 +35,20 @@ private const val IMMERSIVE_FLAG_TIMEOUT = 500L
  * functionality is implemented in the form of fragments.
  */
 class MainActivity : AppCompatActivity() {
-    private lateinit var container: FrameLayout
+    private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        container = findViewById(R.id.fragment_container)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
     }
 
     override fun onResume() {
         super.onResume()
         // Before setting full screen flags, we must wait a bit to let UI settle; otherwise, we may
         // be trying to set app to immersive mode before it's ready and the flags do not stick
-        container.postDelayed({
-            container.systemUiVisibility = FLAGS_FULLSCREEN
+        binding.fragmentContainer.postDelayed({
+            binding.fragmentContainer.systemUiVisibility = FLAGS_FULLSCREEN
         }, IMMERSIVE_FLAG_TIMEOUT)
     }
 

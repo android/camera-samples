@@ -50,11 +50,10 @@ import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.computeExifOrientation
 import com.example.android.camera.utils.getPreviewOutputSize
-import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera2.basic.CameraActivity
 import com.example.android.camera2.basic.R
-import kotlinx.android.synthetic.main.fragment_camera.*
+import com.example.android.camera2.basic.databinding.FragmentCameraBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -73,6 +72,11 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
+
+    /** Android ViewBinding */
+    private var _binding: FragmentCameraBinding? = null
+
+    private val binding get() = _binding!!
 
     /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
@@ -106,11 +110,11 @@ class CameraFragment : Fragment() {
     private val animationTask: Runnable by lazy {
         Runnable {
             // Flash white animation
-            overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
+            binding.overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
-            overlay.postDelayed({
+            binding.overlay.postDelayed({
                 // Remove white flash animation
-                overlay.background = null
+                binding.overlay.background = null
             }, CameraActivity.ANIMATION_FAST_MILLIS)
         }
     }
@@ -120,12 +124,6 @@ class CameraFragment : Fragment() {
 
     /** [Handler] corresponding to [imageReaderThread] */
     private val imageReaderHandler = Handler(imageReaderThread.looper)
-
-    /** Where the camera preview is displayed */
-    private lateinit var viewFinder: AutoFitSurfaceView
-
-    /** Overlay on top of the camera preview */
-    private lateinit var overlay: View
 
     /** The [CameraDevice] that will be opened in this fragment */
     private lateinit var camera: CameraDevice
@@ -140,20 +138,21 @@ class CameraFragment : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_camera, container, false)
+    ): View {
+        _binding = FragmentCameraBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        overlay = view.findViewById(R.id.overlay)
-        viewFinder = view.findViewById(R.id.view_finder)
-        capture_button.setOnApplyWindowInsetsListener { v, insets ->
+        binding.captureButton.setOnApplyWindowInsetsListener { v, insets ->
             v.translationX = (-insets.systemWindowInsetRight).toFloat()
             v.translationY = (-insets.systemWindowInsetBottom).toFloat()
             insets.consumeSystemWindowInsets()
         }
 
-        viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
+        binding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
 
             override fun surfaceChanged(
@@ -166,10 +165,10 @@ class CameraFragment : Fragment() {
 
                 // Selects appropriate preview size and configures view finder
                 val previewSize = getPreviewOutputSize(
-                        viewFinder.display, characteristics, SurfaceHolder::class.java)
-                Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
+                        binding.viewFinder.display, characteristics, SurfaceHolder::class.java)
+                Log.d(TAG, "View finder size: ${binding.viewFinder.width} x ${binding.viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
-                viewFinder.setAspectRatio(previewSize.width, previewSize.height)
+                binding.viewFinder.setAspectRatio(previewSize.width, previewSize.height)
 
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
@@ -178,8 +177,8 @@ class CameraFragment : Fragment() {
 
         // Used to rotate the output media to match device orientation
         relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
-            observe(viewLifecycleOwner, Observer {
-                orientation -> Log.d(TAG, "Orientation changed: $orientation")
+            observe(viewLifecycleOwner, Observer { orientation ->
+                Log.d(TAG, "Orientation changed: $orientation")
             })
         }
     }
@@ -203,20 +202,20 @@ class CameraFragment : Fragment() {
                 size.width, size.height, args.pixelFormat, IMAGE_BUFFER_SIZE)
 
         // Creates list of Surfaces where the camera will output frames
-        val targets = listOf(viewFinder.holder.surface, imageReader.surface)
+        val targets = listOf(binding.viewFinder.holder.surface, imageReader.surface)
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
         session = createCaptureSession(camera, targets, cameraHandler)
 
         val captureRequest = camera.createCaptureRequest(
-                CameraDevice.TEMPLATE_PREVIEW).apply { addTarget(viewFinder.holder.surface) }
+                CameraDevice.TEMPLATE_PREVIEW).apply { addTarget(binding.viewFinder.holder.surface) }
 
         // This will keep sending the capture request as frequently as possible until the
         // session is torn down or session.stopRepeating() is called
         session.setRepeatingRequest(captureRequest.build(), null, cameraHandler)
 
         // Listen to the capture button
-        capture_button.setOnClickListener {
+        binding.captureButton.setOnClickListener {
 
             // Disable click listener to prevent multiple requests simultaneously in flight
             it.isEnabled = false
@@ -271,7 +270,7 @@ class CameraFragment : Fragment() {
             }
 
             override fun onError(device: CameraDevice, error: Int) {
-                val msg = when(error) {
+                val msg = when (error) {
                     ERROR_CAMERA_DEVICE -> "Fatal (device)"
                     ERROR_CAMERA_DISABLED -> "Device policy"
                     ERROR_CAMERA_IN_USE -> "Camera in use"
@@ -298,7 +297,7 @@ class CameraFragment : Fragment() {
 
         // Create a capture session using the predefined targets; this also involves defining the
         // session state callback to be notified of when the session is ready
-        device.createCaptureSession(targets, object: CameraCaptureSession.StateCallback() {
+        device.createCaptureSession(targets, object : CameraCaptureSession.StateCallback() {
 
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
 
@@ -320,7 +319,8 @@ class CameraFragment : Fragment() {
 
         // Flush any images left in the image reader
         @Suppress("ControlFlowWithEmptyBody")
-        while (imageReader.acquireNextImage() != null) {}
+        while (imageReader.acquireNextImage() != null) {
+        }
 
         // Start a new image queue
         val imageQueue = ArrayBlockingQueue<Image>(IMAGE_BUFFER_SIZE)
@@ -340,7 +340,7 @@ class CameraFragment : Fragment() {
                     timestamp: Long,
                     frameNumber: Long) {
                 super.onCaptureStarted(session, request, timestamp, frameNumber)
-                viewFinder.post(animationTask)
+                binding.viewFinder.post(animationTask)
             }
 
             override fun onCaptureCompleted(
@@ -370,7 +370,7 @@ class CameraFragment : Fragment() {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                                 image.format != ImageFormat.DEPTH_JPEG &&
                                 image.timestamp != resultTimestamp) continue
-                         Log.d(TAG, "Matching image dequeued: ${image.timestamp}")
+                        Log.d(TAG, "Matching image dequeued: ${image.timestamp}")
 
                         // Unset the image reader listener
                         imageReaderHandler.removeCallbacks(timeoutRunnable)
@@ -451,6 +451,11 @@ class CameraFragment : Fragment() {
         super.onDestroy()
         cameraThread.quitSafely()
         imageReaderThread.quitSafely()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     companion object {

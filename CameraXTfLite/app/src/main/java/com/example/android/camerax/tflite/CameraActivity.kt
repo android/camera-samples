@@ -34,13 +34,11 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.android.example.camerax.tflite.R
+import com.android.example.camerax.tflite.databinding.ActivityCameraBinding
 import com.example.android.camera.utils.YuvToRgbConverter
-import kotlinx.android.synthetic.main.activity_camera.*
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.nnapi.NnApiDelegate
@@ -59,7 +57,8 @@ import kotlin.random.Random
 /** Activity that displays the camera and performs object detection on the incoming frames */
 class CameraActivity : AppCompatActivity() {
 
-    private lateinit var container: ConstraintLayout
+    private lateinit var binding: ActivityCameraBinding
+
     private lateinit var bitmapBuffer: Bitmap
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -105,10 +104,10 @@ class CameraActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_camera)
-        container = findViewById(R.id.camera_container)
+        binding = ActivityCameraBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        camera_capture_button.setOnClickListener {
+        binding.cameraCaptureButton.setOnClickListener {
 
             // Disable all camera controls
             it.isEnabled = false
@@ -116,7 +115,7 @@ class CameraActivity : AppCompatActivity() {
             if (pauseAnalysis) {
                 // If image analysis is in paused state, resume it
                 pauseAnalysis = false
-                image_predicted.visibility = View.GONE
+                binding.imagePredicted.visibility = View.GONE
 
             } else {
                 // Otherwise, pause image analysis and freeze image
@@ -127,8 +126,8 @@ class CameraActivity : AppCompatActivity() {
                 }
                 val uprightImage = Bitmap.createBitmap(
                     bitmapBuffer, 0, 0, bitmapBuffer.width, bitmapBuffer.height, matrix, true)
-                image_predicted.setImageBitmap(uprightImage)
-                image_predicted.visibility = View.VISIBLE
+                binding.imagePredicted.setImageBitmap(uprightImage)
+                binding.imagePredicted.visibility = View.VISIBLE
             }
 
             // Re-enable camera controls
@@ -138,7 +137,7 @@ class CameraActivity : AppCompatActivity() {
 
     /** Declare and bind preview and analysis use cases */
     @SuppressLint("UnsafeExperimentalUsageError")
-    private fun bindCameraUseCases() = view_finder.post {
+    private fun bindCameraUseCases() = binding.viewFinder.post {
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener(Runnable {
@@ -149,13 +148,13 @@ class CameraActivity : AppCompatActivity() {
             // Set up the view finder use case to display camera preview
             val preview = Preview.Builder()
                 .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-                .setTargetRotation(view_finder.display.rotation)
+                .setTargetRotation(binding.viewFinder.display.rotation)
                 .build()
 
             // Set up the image analysis use case which will process frames in real time
             val imageAnalysis = ImageAnalysis.Builder()
                 .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-                .setTargetRotation(view_finder.display.rotation)
+                .setTargetRotation(binding.viewFinder.display.rotation)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
@@ -211,19 +210,19 @@ class CameraActivity : AppCompatActivity() {
                 this as LifecycleOwner, cameraSelector, preview, imageAnalysis)
 
             // Use the camera object to link our preview use case with the view
-            preview.setSurfaceProvider(view_finder.surfaceProvider)
+            preview.setSurfaceProvider(binding.viewFinder.surfaceProvider)
 
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun reportPrediction(
         prediction: ObjectDetectionHelper.ObjectPrediction?
-    ) = view_finder.post {
+    ) = binding.viewFinder.post {
 
         // Early exit: if prediction is not good enough, don't report it
         if (prediction == null || prediction.score < ACCURACY_THRESHOLD) {
-            box_prediction.visibility = View.GONE
-            text_prediction.visibility = View.GONE
+            binding.boxPrediction.visibility = View.GONE
+            binding.textPrediction.visibility = View.GONE
             return@post
         }
 
@@ -231,17 +230,17 @@ class CameraActivity : AppCompatActivity() {
         val location = mapOutputCoordinates(prediction.location)
 
         // Update the text and UI
-        text_prediction.text = "${"%.2f".format(prediction.score)} ${prediction.label}"
-        (box_prediction.layoutParams as ViewGroup.MarginLayoutParams).apply {
+        binding.textPrediction.text = "${"%.2f".format(prediction.score)} ${prediction.label}"
+        (binding.boxPrediction.layoutParams as ViewGroup.MarginLayoutParams).apply {
             topMargin = location.top.toInt()
             leftMargin = location.left.toInt()
-            width = min(view_finder.width, location.right.toInt() - location.left.toInt())
-            height = min(view_finder.height, location.bottom.toInt() - location.top.toInt())
+            width = min(binding.viewFinder.width, location.right.toInt() - location.left.toInt())
+            height = min(binding.viewFinder.height, location.bottom.toInt() - location.top.toInt())
         }
 
         // Make sure all UI elements are visible
-        box_prediction.visibility = View.VISIBLE
-        text_prediction.visibility = View.VISIBLE
+        binding.boxPrediction.visibility = View.VISIBLE
+        binding.textPrediction.visibility = View.VISIBLE
     }
 
     /**
@@ -252,19 +251,19 @@ class CameraActivity : AppCompatActivity() {
 
         // Step 1: map location to the preview coordinates
         val previewLocation = RectF(
-            location.left * view_finder.width,
-            location.top * view_finder.height,
-            location.right * view_finder.width,
-            location.bottom * view_finder.height
+            location.left * binding.viewFinder.width,
+            location.top * binding.viewFinder.height,
+            location.right * binding.viewFinder.width,
+            location.bottom * binding.viewFinder.height
         )
 
         // Step 2: compensate for camera sensor orientation and mirroring
         val isFrontFacing = lensFacing == CameraSelector.LENS_FACING_FRONT
         val correctedLocation = if (isFrontFacing) {
             RectF(
-                view_finder.width - previewLocation.right,
+                binding.viewFinder.width - previewLocation.right,
                 previewLocation.top,
-                view_finder.width - previewLocation.left,
+                binding.viewFinder.width - previewLocation.left,
                 previewLocation.bottom)
         } else {
             previewLocation
@@ -275,7 +274,7 @@ class CameraActivity : AppCompatActivity() {
         val requestedRatio = 4f / 3f
         val midX = (correctedLocation.left + correctedLocation.right) / 2f
         val midY = (correctedLocation.top + correctedLocation.bottom) / 2f
-        return if (view_finder.width < view_finder.height) {
+        return if (binding.viewFinder.width < binding.viewFinder.height) {
             RectF(
                 midX - (1f + margin) * requestedRatio * correctedLocation.width() / 2f,
                 midY - (1f - margin) * correctedLocation.height() / 2f,
