@@ -29,7 +29,6 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.util.Log
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -54,6 +53,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
+import androidx.window.WindowManager
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.MainActivity
@@ -106,6 +106,7 @@ class CameraFragment : Fragment() {
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraProvider: ProcessCameraProvider? = null
+    private lateinit var windowManager: WindowManager
 
     private val displayManager by lazy {
         requireContext().getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
@@ -208,6 +209,9 @@ class CameraFragment : Fragment() {
         // Every time the orientation of device changes, update rotation for use cases
         displayManager.registerDisplayListener(displayListener, null)
 
+        //Initialize WindowManager to retrieve display metrics
+        windowManager = WindowManager(view.context)
+
         // Determine the output directory
         outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
@@ -236,8 +240,8 @@ class CameraFragment : Fragment() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
 
-        // Redraw the camera UI controls
-        updateCameraUi()
+        // Rebind the camera with the updated display metrics
+        bindCameraUseCases()
 
         // Enable or disable switching between cameras
         updateCameraSwitchButton()
@@ -270,10 +274,10 @@ class CameraFragment : Fragment() {
     private fun bindCameraUseCases() {
 
         // Get screen metrics used to setup camera for full screen resolution
-        val metrics = DisplayMetrics().also { binding.viewFinder.display.getRealMetrics(it) }
-        Log.d(TAG, "Screen metrics: ${metrics.widthPixels} x ${metrics.heightPixels}")
+        val metrics = windowManager.getCurrentWindowMetrics().bounds
+        Log.d(TAG, "Screen metrics: ${metrics.width()} x ${metrics.height()}")
 
-        val screenAspectRatio = aspectRatio(metrics.widthPixels, metrics.heightPixels)
+        val screenAspectRatio = aspectRatio(metrics.width(), metrics.height())
         Log.d(TAG, "Preview aspect ratio: $screenAspectRatio")
 
         val rotation = binding.viewFinder.display.rotation
@@ -375,7 +379,7 @@ class CameraFragment : Fragment() {
         lifecycleScope.launch(Dispatchers.IO) {
             outputDirectory.listFiles { file ->
                 EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
-            }?.max()?.let {
+            }?.maxOrNull()?.let {
                 setGalleryThumbnail(Uri.fromFile(it))
             }
         }
