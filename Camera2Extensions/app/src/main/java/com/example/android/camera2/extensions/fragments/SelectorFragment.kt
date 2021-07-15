@@ -29,7 +29,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.Navigation
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.android.camera.utils.GenericListAdapter
+import com.example.android.camera2.extensions.GenericListAdapter
 import com.example.android.camera2.extensions.R
 
 /**
@@ -41,7 +41,7 @@ class SelectorFragment : Fragment() {
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
-    ): View? = RecyclerView(requireContext())
+    ): View = RecyclerView(requireContext())
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

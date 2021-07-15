@@ -18,5 +18,6 @@
 <resources>
     <string name="app_name">Camera2Extensions</string>
     <string name="capture">Capture</string>
-    <string name="permission_required">Camera perimssion required!</string>
+    <string name="switch_content">Switch extension</string>
+    <string name="permission_required">Camera permission required!</string>
 </resources>

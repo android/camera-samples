@@ -45,7 +45,10 @@ class CameraActivity : AppCompatActivity() {
                 // Before setting full screen flags, we must wait a bit to let UI settle; otherwise,
                 // we may be trying to set app to immersive mode before it's ready and the flags do
                 // not stick
-                container.postDelayed({container.systemUiVisibility = FLAGS_FULLSCREEN},
+                container.postDelayed({
+                                          @Suppress("DEPRECATION")
+                                          container.systemUiVisibility = FLAGS_FULLSCREEN
+                                      },
                                       IMMERSIVE_FLAG_TIMEOUT)
             } else {
                 Toast.makeText(this, R.string.permission_required,
@@ -64,7 +67,10 @@ class CameraActivity : AppCompatActivity() {
         super.onResume()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
             PackageManager.PERMISSION_GRANTED) {
-            container.postDelayed({container.systemUiVisibility = FLAGS_FULLSCREEN},
+            container.postDelayed({
+                                      @Suppress("DEPRECATION")
+                                      container.systemUiVisibility = FLAGS_FULLSCREEN
+                                  },
                                   IMMERSIVE_FLAG_TIMEOUT)
         } else  {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -73,6 +79,7 @@ class CameraActivity : AppCompatActivity() {
 
     companion object {
         /** Combination of all flags required to put activity into immersive mode */
+        @Suppress("DEPRECATION")
         const val FLAGS_FULLSCREEN =
                 View.SYSTEM_UI_FLAG_LOW_PROFILE or
                         View.SYSTEM_UI_FLAG_FULLSCREEN or

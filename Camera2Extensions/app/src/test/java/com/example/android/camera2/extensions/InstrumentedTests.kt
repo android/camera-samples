@@ -31,7 +31,7 @@ import org.junit.runner.RunWith
 class MainInstrumentedTest {
 
     @get:Rule
-    val permissionRule = GrantPermissionRule.grant(Manifest.permission.CAMERA)
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(Manifest.permission.CAMERA)
 
     @get:Rule
     val activityRule: ActivityTestRule<CameraActivity> =
