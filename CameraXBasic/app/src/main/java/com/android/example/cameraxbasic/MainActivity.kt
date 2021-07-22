@@ -24,7 +24,9 @@ import java.io.File
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
 import android.widget.FrameLayout
-import com.android.example.cameraxbasic.utils.FLAGS_FULLSCREEN
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 const val KEY_EVENT_ACTION = "key_event_action"
 const val KEY_EVENT_EXTRA = "key_event_extra"
@@ -48,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         // Before setting full screen flags, we must wait a bit to let UI settle; otherwise, we may
         // be trying to set app to immersive mode before it's ready and the flags do not stick
         container.postDelayed({
-            container.systemUiVisibility = FLAGS_FULLSCREEN
+            hideSystemUI()
         }, IMMERSIVE_FLAG_TIMEOUT)
     }
 
@@ -74,5 +76,18 @@ class MainActivity : AppCompatActivity() {
             return if (mediaDir != null && mediaDir.exists())
                 mediaDir else appContext.filesDir
         }
+    }
+
+    private fun hideSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, container).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    private fun showSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        WindowInsetsControllerCompat(window, container).show(WindowInsetsCompat.Type.systemBars())
     }
 }

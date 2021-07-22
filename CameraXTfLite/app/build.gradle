@@ -43,6 +43,9 @@ android {
         noCompress "tflite"
         noCompress "lite"
     }
+    buildFeatures {
+        viewBinding  true
+    }
 }
 
 dependencies {
