@@ -39,10 +39,6 @@ android {
         jvmTarget = rootProject.ext.java_version
     }
 
-    buildFeatures {
-        viewBinding true
-    }
-
     buildTypes {
        release {
            minifyEnabled false

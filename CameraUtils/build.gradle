@@ -18,15 +18,15 @@
 
 buildscript {
     // Top-level variables used for versioning
-    ext.kotlin_version = '1.4.31'
+    ext.kotlin_version = '1.5.21'
     ext.java_version = JavaVersion.VERSION_1_8
 
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.1.3'
+        classpath 'com.android.tools.build:gradle:4.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -38,7 +38,7 @@ allprojects {
     repositories {
         mavenLocal()
         google()
-        jcenter()
+        mavenCentral()
     }
 }
 
