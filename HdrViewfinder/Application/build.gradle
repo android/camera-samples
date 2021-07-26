@@ -2,11 +2,11 @@
 buildscript {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.1.3'
+        classpath 'com.android.tools.build:gradle:4.2.2'
     }
 }
 
@@ -14,23 +14,15 @@ apply plugin: 'com.android.application'
 
 repositories {
     google()
-    jcenter()
+    mavenCentral()
 }
 
 dependencies {
-
-
-        implementation "com.android.support:support-v4:28.0.0"
-        implementation "com.android.support:support-v13:28.0.0"
-        implementation "com.android.support:cardview-v7:28.0.0"
-        implementation "com.android.support:appcompat-v7:28.0.0"
-
-
+    implementation "com.android.support:support-v4:28.0.0"
+    implementation "com.android.support:support-v13:28.0.0"
+    implementation "com.android.support:cardview-v7:28.0.0"
+    implementation "com.android.support:appcompat-v7:28.0.0"
     implementation 'com.android.support:design:28.0.0'
-
-
-
-
 }
 
 // The sample build uses multiple directories to
