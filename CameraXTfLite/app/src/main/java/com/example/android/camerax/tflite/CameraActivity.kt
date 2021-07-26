@@ -187,7 +187,7 @@ class CameraActivity : AppCompatActivity() {
                 val predictions = detector.predict(tfImage)
 
                 // Report only the top prediction
-                reportPrediction(predictions.maxBy { it.score })
+                reportPrediction(predictions.maxByOrNull { it.score })
 
                 // Compute the FPS of the entire pipeline
                 val frameCount = 10

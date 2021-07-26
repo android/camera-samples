@@ -23,8 +23,12 @@ import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
+import android.os.Build
+import android.widget.FrameLayout
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.android.example.cameraxbasic.databinding.ActivityMainBinding
-import com.android.example.cameraxbasic.utils.FLAGS_FULLSCREEN
 
 const val KEY_EVENT_ACTION = "key_event_action"
 const val KEY_EVENT_EXTRA = "key_event_extra"
@@ -48,7 +52,7 @@ class MainActivity : AppCompatActivity() {
         // Before setting full screen flags, we must wait a bit to let UI settle; otherwise, we may
         // be trying to set app to immersive mode before it's ready and the flags do not stick
         binding.fragmentContainer.postDelayed({
-            binding.fragmentContainer.systemUiVisibility = FLAGS_FULLSCREEN
+            hideSystemUI()
         }, IMMERSIVE_FLAG_TIMEOUT)
     }
 
@@ -64,6 +68,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onBackPressed() {
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            // Workaround for Android Q memory leak issue in IRequestFinishCallback$Stub.
+            // (https://issuetracker.google.com/issues/139738913)
+            finishAfterTransition()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     companion object {
 
         /** Use external media if it is available, our app's file directory otherwise */
@@ -73,6 +87,14 @@ class MainActivity : AppCompatActivity() {
                 File(it, appContext.resources.getString(R.string.app_name)).apply { mkdirs() } }
             return if (mediaDir != null && mediaDir.exists())
                 mediaDir else appContext.filesDir
+        }
+    }
+
+    private fun hideSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, binding.fragmentContainer).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 }
