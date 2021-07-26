@@ -74,9 +74,9 @@ import kotlin.coroutines.suspendCoroutine
 class CameraFragment : Fragment() {
 
     /** Android ViewBinding */
-    private var _binding: FragmentCameraBinding? = null
+    private var _fragmentCameraBinding: FragmentCameraBinding? = null
 
-    private val binding get() = _binding!!
+    private val fragmentCameraBinding get() = _fragmentCameraBinding!!
 
     /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
@@ -110,11 +110,11 @@ class CameraFragment : Fragment() {
     private val animationTask: Runnable by lazy {
         Runnable {
             // Flash white animation
-            binding.overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
+            fragmentCameraBinding.overlay.background = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
-            binding.overlay.postDelayed({
+            fragmentCameraBinding.overlay.postDelayed({
                 // Remove white flash animation
-                binding.overlay.background = null
+                fragmentCameraBinding.overlay.background = null
             }, CameraActivity.ANIMATION_FAST_MILLIS)
         }
     }
@@ -139,20 +139,20 @@ class CameraFragment : Fragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentCameraBinding.inflate(inflater, container, false)
-        return binding.root
+        _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
+        return fragmentCameraBinding.root
     }
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.captureButton.setOnApplyWindowInsetsListener { v, insets ->
+        fragmentCameraBinding.captureButton.setOnApplyWindowInsetsListener { v, insets ->
             v.translationX = (-insets.systemWindowInsetRight).toFloat()
             v.translationY = (-insets.systemWindowInsetBottom).toFloat()
             insets.consumeSystemWindowInsets()
         }
 
-        binding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
+        fragmentCameraBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
 
             override fun surfaceChanged(
@@ -165,10 +165,10 @@ class CameraFragment : Fragment() {
 
                 // Selects appropriate preview size and configures view finder
                 val previewSize = getPreviewOutputSize(
-                        binding.viewFinder.display, characteristics, SurfaceHolder::class.java)
-                Log.d(TAG, "View finder size: ${binding.viewFinder.width} x ${binding.viewFinder.height}")
+                        fragmentCameraBinding.viewFinder.display, characteristics, SurfaceHolder::class.java)
+                Log.d(TAG, "View finder size: ${fragmentCameraBinding.viewFinder.width} x ${fragmentCameraBinding.viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
-                binding.viewFinder.setAspectRatio(previewSize.width, previewSize.height)
+                fragmentCameraBinding.viewFinder.setAspectRatio(previewSize.width, previewSize.height)
 
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
@@ -202,20 +202,20 @@ class CameraFragment : Fragment() {
                 size.width, size.height, args.pixelFormat, IMAGE_BUFFER_SIZE)
 
         // Creates list of Surfaces where the camera will output frames
-        val targets = listOf(binding.viewFinder.holder.surface, imageReader.surface)
+        val targets = listOf(fragmentCameraBinding.viewFinder.holder.surface, imageReader.surface)
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
         session = createCaptureSession(camera, targets, cameraHandler)
 
         val captureRequest = camera.createCaptureRequest(
-                CameraDevice.TEMPLATE_PREVIEW).apply { addTarget(binding.viewFinder.holder.surface) }
+                CameraDevice.TEMPLATE_PREVIEW).apply { addTarget(fragmentCameraBinding.viewFinder.holder.surface) }
 
         // This will keep sending the capture request as frequently as possible until the
         // session is torn down or session.stopRepeating() is called
         session.setRepeatingRequest(captureRequest.build(), null, cameraHandler)
 
         // Listen to the capture button
-        binding.captureButton.setOnClickListener {
+        fragmentCameraBinding.captureButton.setOnClickListener {
 
             // Disable click listener to prevent multiple requests simultaneously in flight
             it.isEnabled = false
@@ -340,7 +340,7 @@ class CameraFragment : Fragment() {
                     timestamp: Long,
                     frameNumber: Long) {
                 super.onCaptureStarted(session, request, timestamp, frameNumber)
-                binding.viewFinder.post(animationTask)
+                fragmentCameraBinding.viewFinder.post(animationTask)
             }
 
             override fun onCaptureCompleted(
@@ -455,7 +455,7 @@ class CameraFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
+        _fragmentCameraBinding = null
     }
 
     companion object {

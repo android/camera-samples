@@ -90,9 +90,9 @@ typealias LumaListener = (luma: Double) -> Unit
  */
 class CameraFragment : Fragment() {
 
-    private var _binding: FragmentCameraBinding? = null
+    private var _fragmentCameraBinding: FragmentCameraBinding? = null
 
-    private val binding get() = _binding!!
+    private val fragmentCameraBinding get() = _fragmentCameraBinding!!
 
     private var cameraUiContainerBinding: CameraUiContainerBinding? = null
 
@@ -165,7 +165,7 @@ class CameraFragment : Fragment() {
         broadcastManager.unregisterReceiver(volumeDownReceiver)
         displayManager.unregisterDisplayListener(displayListener)
 
-        _binding = null
+        _fragmentCameraBinding = null
     }
 
     override fun onCreateView(
@@ -173,8 +173,8 @@ class CameraFragment : Fragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentCameraBinding.inflate(inflater, container, false)
-        return binding.root
+        _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
+        return fragmentCameraBinding.root
     }
 
     private fun setGalleryThumbnail(uri: Uri) {
@@ -216,10 +216,10 @@ class CameraFragment : Fragment() {
         outputDirectory = MainActivity.getOutputDirectory(requireContext())
 
         // Wait for the views to be properly laid out
-        binding.viewFinder.post {
+        fragmentCameraBinding.viewFinder.post {
 
             // Keep track of the display in which this view is attached
-            displayId = binding.viewFinder.display.displayId
+            displayId = fragmentCameraBinding.viewFinder.display.displayId
 
             // Build UI controls
             updateCameraUi()
@@ -280,7 +280,7 @@ class CameraFragment : Fragment() {
         val screenAspectRatio = aspectRatio(metrics.width(), metrics.height())
         Log.d(TAG, "Preview aspect ratio: $screenAspectRatio")
 
-        val rotation = binding.viewFinder.display.rotation
+        val rotation = fragmentCameraBinding.viewFinder.display.rotation
 
         // CameraProvider
         val cameraProvider = cameraProvider
@@ -336,7 +336,7 @@ class CameraFragment : Fragment() {
                     this, cameraSelector, preview, imageCapture, imageAnalyzer)
 
             // Attach the viewfinder's surface provider to preview use case
-            preview?.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+            preview?.setSurfaceProvider(fragmentCameraBinding.viewFinder.surfaceProvider)
         } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
         }
@@ -366,12 +366,12 @@ class CameraFragment : Fragment() {
 
         // Remove previous UI if any
         cameraUiContainerBinding?.root?.let {
-            binding.root.removeView(it)
+            fragmentCameraBinding.root.removeView(it)
         }
 
         cameraUiContainerBinding = CameraUiContainerBinding.inflate(
             LayoutInflater.from(requireContext()),
-            binding.root,
+            fragmentCameraBinding.root,
             true
         )
 
@@ -449,10 +449,10 @@ class CameraFragment : Fragment() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
                     // Display flash animation to indicate that photo was captured
-                    binding.root.postDelayed({
-                        binding.root.foreground = ColorDrawable(Color.WHITE)
-                        binding.root.postDelayed(
-                                { binding.root.foreground = null }, ANIMATION_FAST_MILLIS)
+                    fragmentCameraBinding.root.postDelayed({
+                        fragmentCameraBinding.root.foreground = ColorDrawable(Color.WHITE)
+                        fragmentCameraBinding.root.postDelayed(
+                                { fragmentCameraBinding.root.foreground = null }, ANIMATION_FAST_MILLIS)
                     }, ANIMATION_SLOW_MILLIS)
                 }
             }

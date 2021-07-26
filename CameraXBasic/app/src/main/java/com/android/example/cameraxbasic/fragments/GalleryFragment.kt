@@ -45,9 +45,9 @@ val EXTENSION_WHITELIST = arrayOf("JPG")
 class GalleryFragment internal constructor() : Fragment() {
 
     /** Android ViewBinding */
-    private var _binding: FragmentGalleryBinding? = null
+    private var _fragmentGalleryBinding: FragmentGalleryBinding? = null
 
-    private val binding get() = _binding!!
+    private val fragmentGalleryBinding get() = _fragmentGalleryBinding!!
 
     /** AndroidX navigation arguments */
     private val args: GalleryFragmentArgs by navArgs()
@@ -82,8 +82,8 @@ class GalleryFragment internal constructor() : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentGalleryBinding.inflate(inflater, container, false)
-        return binding.root
+        _fragmentGalleryBinding = FragmentGalleryBinding.inflate(inflater, container, false)
+        return fragmentGalleryBinding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -91,12 +91,12 @@ class GalleryFragment internal constructor() : Fragment() {
 
         //Checking media files list
         if (mediaList.isEmpty()) {
-            binding.deleteButton.isEnabled = false
-            binding.shareButton.isEnabled = false
+            fragmentGalleryBinding.deleteButton.isEnabled = false
+            fragmentGalleryBinding.shareButton.isEnabled = false
         }
 
         // Populate the ViewPager and implement a cache of two media items
-        binding.photoViewPager.apply {
+        fragmentGalleryBinding.photoViewPager.apply {
             offscreenPageLimit = 2
             adapter = MediaPagerAdapter(childFragmentManager)
         }
@@ -104,18 +104,18 @@ class GalleryFragment internal constructor() : Fragment() {
         // Make sure that the cutout "safe area" avoids the screen notch if any
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             // Use extension method to pad "inside" view containing UI using display cutout's bounds
-            binding.cutoutSafeArea.padWithDisplayCutout()
+            fragmentGalleryBinding.cutoutSafeArea.padWithDisplayCutout()
         }
 
         // Handle back button press
-        binding.backButton.setOnClickListener {
+        fragmentGalleryBinding.backButton.setOnClickListener {
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
         }
 
         // Handle share button press
-        binding.shareButton.setOnClickListener {
+        fragmentGalleryBinding.shareButton.setOnClickListener {
 
-            mediaList.getOrNull(binding.photoViewPager.currentItem)?.let { mediaFile ->
+            mediaList.getOrNull(fragmentGalleryBinding.photoViewPager.currentItem)?.let { mediaFile ->
 
                 // Create a sharing intent
                 val intent = Intent().apply {
@@ -138,9 +138,9 @@ class GalleryFragment internal constructor() : Fragment() {
         }
 
         // Handle delete button press
-        binding.deleteButton.setOnClickListener {
+        fragmentGalleryBinding.deleteButton.setOnClickListener {
 
-            mediaList.getOrNull(binding.photoViewPager.currentItem)?.let { mediaFile ->
+            mediaList.getOrNull(fragmentGalleryBinding.photoViewPager.currentItem)?.let { mediaFile ->
 
                 AlertDialog.Builder(view.context, android.R.style.Theme_Material_Dialog)
                         .setTitle(getString(R.string.delete_title))
@@ -156,8 +156,8 @@ class GalleryFragment internal constructor() : Fragment() {
                                     view.context, arrayOf(mediaFile.absolutePath), null, null)
 
                             // Notify our view pager
-                            mediaList.removeAt(binding.photoViewPager.currentItem)
-                            binding.photoViewPager.adapter?.notifyDataSetChanged()
+                            mediaList.removeAt(fragmentGalleryBinding.photoViewPager.currentItem)
+                            fragmentGalleryBinding.photoViewPager.adapter?.notifyDataSetChanged()
 
                             // If all photos have been deleted, return to camera
                             if (mediaList.isEmpty()) {
@@ -174,6 +174,6 @@ class GalleryFragment internal constructor() : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
+        _fragmentGalleryBinding = null
     }
 }
