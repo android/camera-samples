@@ -156,6 +156,7 @@ class CameraFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        _fragmentCameraBinding = null
         super.onDestroyView()
 
         // Shut down our background executor
@@ -164,8 +165,6 @@ class CameraFragment : Fragment() {
         // Unregister the broadcast receivers and listeners
         broadcastManager.unregisterReceiver(volumeDownReceiver)
         displayManager.unregisterDisplayListener(displayListener)
-
-        _fragmentCameraBinding = null
     }
 
     override fun onCreateView(

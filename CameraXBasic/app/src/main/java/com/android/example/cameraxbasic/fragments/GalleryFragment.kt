@@ -173,7 +173,7 @@ class GalleryFragment internal constructor() : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
         _fragmentGalleryBinding = null
+        super.onDestroyView()
     }
 }

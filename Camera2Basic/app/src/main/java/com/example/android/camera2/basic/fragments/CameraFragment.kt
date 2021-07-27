@@ -454,8 +454,8 @@ class CameraFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
         _fragmentCameraBinding = null
+        super.onDestroyView()
     }
 
     companion object {
