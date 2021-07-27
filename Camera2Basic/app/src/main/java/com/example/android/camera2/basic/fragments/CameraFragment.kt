@@ -162,13 +162,18 @@ class CameraFragment : Fragment() {
                     height: Int) = Unit
 
             override fun surfaceCreated(holder: SurfaceHolder) {
-
                 // Selects appropriate preview size and configures view finder
                 val previewSize = getPreviewOutputSize(
-                        fragmentCameraBinding.viewFinder.display, characteristics, SurfaceHolder::class.java)
+                    fragmentCameraBinding.viewFinder.display,
+                    characteristics,
+                    SurfaceHolder::class.java
+                )
                 Log.d(TAG, "View finder size: ${fragmentCameraBinding.viewFinder.width} x ${fragmentCameraBinding.viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
-                fragmentCameraBinding.viewFinder.setAspectRatio(previewSize.width, previewSize.height)
+                fragmentCameraBinding.viewFinder.setAspectRatio(
+                    previewSize.width,
+                    previewSize.height
+                )
 
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
