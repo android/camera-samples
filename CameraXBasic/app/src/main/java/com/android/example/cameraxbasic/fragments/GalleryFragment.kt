@@ -44,7 +44,10 @@ val EXTENSION_WHITELIST = arrayOf("JPG")
 /** Fragment used to present the user with a gallery of photos taken */
 class GalleryFragment internal constructor() : Fragment() {
 
-    private lateinit var fragmentGalleryBinding: FragmentGalleryBinding
+    /** Android ViewBinding */
+    private var _fragmentGalleryBinding: FragmentGalleryBinding? = null
+
+    private val fragmentGalleryBinding get() = _fragmentGalleryBinding!!
 
     /** AndroidX navigation arguments */
     private val args: GalleryFragmentArgs by navArgs()
@@ -79,7 +82,7 @@ class GalleryFragment internal constructor() : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        fragmentGalleryBinding = FragmentGalleryBinding.inflate(inflater, container, false)
+        _fragmentGalleryBinding = FragmentGalleryBinding.inflate(inflater, container, false)
         return fragmentGalleryBinding.root
     }
 
@@ -167,5 +170,10 @@ class GalleryFragment internal constructor() : Fragment() {
                         .create().showImmersive()
             }
         }
+    }
+
+    override fun onDestroyView() {
+        _fragmentGalleryBinding = null
+        super.onDestroyView()
     }
 }
