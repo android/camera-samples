@@ -18,25 +18,25 @@ package com.example.android.camera2.slowmo
 
 import android.os.Bundle
 import android.view.View
-import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
+import com.example.android.camera2.slowmo.databinding.ActivityCameraBinding
 
 class CameraActivity : AppCompatActivity() {
 
-    private lateinit var container: FrameLayout
+    private lateinit var activityCameraBinding: ActivityCameraBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_camera)
-        container = findViewById(R.id.fragment_container)
+        activityCameraBinding = ActivityCameraBinding.inflate(layoutInflater)
+        setContentView(activityCameraBinding.root)
     }
 
     override fun onResume() {
         super.onResume()
         // Before setting full screen flags, we must wait a bit to let UI settle; otherwise, we may
         // be trying to set app to immersive mode before it's ready and the flags do not stick
-        container.postDelayed({
-            container.systemUiVisibility = FLAGS_FULLSCREEN
+        activityCameraBinding.fragmentContainer.postDelayed({
+            activityCameraBinding.fragmentContainer.systemUiVisibility = FLAGS_FULLSCREEN
         }, IMMERSIVE_FLAG_TIMEOUT)
     }
 
