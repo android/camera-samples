@@ -73,10 +73,7 @@ import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
 
-    /** Android ViewBinding */
-    private var _fragmentCameraBinding: FragmentCameraBinding? = null
-
-    private val fragmentCameraBinding get() = _fragmentCameraBinding!!
+    private lateinit var fragmentCameraBinding: FragmentCameraBinding
 
     /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
@@ -139,7 +136,7 @@ class CameraFragment : Fragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View {
-        _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
+        fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
         return fragmentCameraBinding.root
     }
 
@@ -456,11 +453,6 @@ class CameraFragment : Fragment() {
         super.onDestroy()
         cameraThread.quitSafely()
         imageReaderThread.quitSafely()
-    }
-
-    override fun onDestroyView() {
-        _fragmentCameraBinding = null
-        super.onDestroyView()
     }
 
     companion object {

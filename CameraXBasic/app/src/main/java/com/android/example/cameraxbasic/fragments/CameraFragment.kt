@@ -90,9 +90,7 @@ typealias LumaListener = (luma: Double) -> Unit
  */
 class CameraFragment : Fragment() {
 
-    private var _fragmentCameraBinding: FragmentCameraBinding? = null
-
-    private val fragmentCameraBinding get() = _fragmentCameraBinding!!
+    private lateinit var fragmentCameraBinding: FragmentCameraBinding
 
     private var cameraUiContainerBinding: CameraUiContainerBinding? = null
 
@@ -156,7 +154,6 @@ class CameraFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        _fragmentCameraBinding = null
         super.onDestroyView()
 
         // Shut down our background executor
@@ -172,7 +169,7 @@ class CameraFragment : Fragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View {
-        _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
+        fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
         return fragmentCameraBinding.root
     }
 
