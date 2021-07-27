@@ -16,7 +16,6 @@
 
 apply plugin: "com.android.application"
 apply plugin: "kotlin-android"
-apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdkVersion 30
@@ -42,6 +41,10 @@ android {
     aaptOptions {
         noCompress "tflite"
         noCompress "lite"
+    }
+
+    buildFeatures {
+        viewBinding true
     }
 }
 
