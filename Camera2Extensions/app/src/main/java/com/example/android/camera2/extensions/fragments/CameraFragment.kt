@@ -45,14 +45,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
-import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera2.extensions.R
 import com.example.android.camera2.extensions.databinding.FragmentCameraBinding
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.io.FileOutputStream
@@ -65,6 +62,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.abs
 import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.launch
 
 /*
  * This is the main camera fragment where all camera extension logic can be found.
@@ -81,11 +79,6 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   private val cameraManager: CameraManager by lazy {
     val context = requireContext().applicationContext
     context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-  }
-
-  /** [CameraCharacteristics] corresponding to the provided Camera ID */
-  private val characteristics: CameraCharacteristics by lazy {
-    cameraManager.getCameraCharacteristics(args.cameraId)
   }
 
   /**
@@ -195,14 +188,11 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   /** [Handler] corresponding to [storeThread] */
   private val storeHandler = Handler(storeThread.looper)
 
-  /** Live data listener for changes in the device orientation relative to the camera */
-  private lateinit var relativeOrientation: OrientationLiveData
-
   override fun onCreateView(
     inflater: LayoutInflater,
     container: ViewGroup?,
     savedInstanceState: Bundle?
-  ): View? {
+  ): View {
     _binding = FragmentCameraBinding.inflate(inflater, container, false)
     return binding.root
   }
@@ -254,13 +244,6 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
       }
 
       true
-    }
-
-    // Used to rotate the output media to match device orientation
-    relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
-      observe(viewLifecycleOwner, Observer { orientation ->
-        Log.d(TAG, "Orientation changed: $orientation")
-      })
     }
   }
 
@@ -382,14 +365,14 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     val previewSize = pickPreviewResolution(cameraManager, args.cameraId)
     texture?.setDefaultBufferSize(previewSize.width, previewSize.height)
     val previewSurface = Surface(texture)
-    val YUVColorEncodingSystemSizes = extensionCharacteristics.getExtensionSupportedSizes(
+    val yuvColorEncodingSystemSizes = extensionCharacteristics.getExtensionSupportedSizes(
       currentExtension, ImageFormat.YUV_420_888
     )
     val jpegSizes = extensionCharacteristics.getExtensionSupportedSizes(
       currentExtension, ImageFormat.JPEG
     )
     val stillFormat = if (jpegSizes.isEmpty()) ImageFormat.YUV_420_888 else ImageFormat.JPEG
-    val stillCaptureSize = if (jpegSizes.isEmpty()) YUVColorEncodingSystemSizes[0] else jpegSizes[0]
+    val stillCaptureSize = if (jpegSizes.isEmpty()) yuvColorEncodingSystemSizes[0] else jpegSizes[0]
     stillImageReader = ImageReader.newInstance(
       stillCaptureSize.width,
       stillCaptureSize.height, stillFormat, 1

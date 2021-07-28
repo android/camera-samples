@@ -31,10 +31,11 @@
         style="@android:style/Widget.Material.Light.Button.Borderless"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical|right"
+        android:layout_gravity="center_vertical|end"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        android:contentDescription="@string/switch_content"
         android:padding="@dimen/button_padding" />
 
     <ImageButton
