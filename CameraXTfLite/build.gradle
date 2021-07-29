@@ -18,32 +18,35 @@ buildscript {
 
     ext {
         // Top-level variables used for versioning
-        ext.kotlin_version = '+'
+        ext.kotlin_version = '1.5.21'
         ext.java_version = JavaVersion.VERSION_1_8
     }
 
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.0.0'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.3.72'
-        classpath 'com.diffplug.spotless:spotless-plugin-gradle:3.27.0'
+        classpath 'com.android.tools.build:gradle:4.2.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.diffplug.spotless:spotless-plugin-gradle:5.11.1'
     }
 }
 
 allprojects {
     repositories {
         google()
-        jcenter()
-        maven { url 'https://jitpack.io' }
+        mavenCentral()
+        maven { // repo for TFLite snapshot
+            name 'ossrh-snapshot'
+            url 'http://oss.sonatype.org/content/repositories/snapshots'
+        }
     }
 }
 
 subprojects {
-    apply plugin: 'com.diffplug.gradle.spotless'
+    apply plugin: 'com.diffplug.spotless'
     spotless {
         java {
             target "**/*.java"

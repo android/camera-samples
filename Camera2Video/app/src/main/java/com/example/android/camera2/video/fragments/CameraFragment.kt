@@ -49,13 +49,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
-import com.example.android.camera.utils.AutoFitSurfaceView
 import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
 import com.example.android.camera2.video.R
-import kotlinx.android.synthetic.main.fragment_camera.*
+import com.example.android.camera2.video.databinding.FragmentCameraBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -70,6 +69,11 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
+
+    /** Android ViewBinding */
+    private var _fragmentCameraBinding: FragmentCameraBinding? = null
+
+    private val fragmentCameraBinding get() = _fragmentCameraBinding!!
 
     /** AndroidX navigation arguments */
     private val args: CameraFragmentArgs by navArgs()
@@ -126,22 +130,16 @@ class CameraFragment : Fragment() {
     private val animationTask: Runnable by lazy {
         Runnable {
             // Flash white animation
-            overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
+            fragmentCameraBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
-            overlay.postDelayed({
+            fragmentCameraBinding.overlay.postDelayed({
                 // Remove white flash animation
-                overlay.foreground = null
+                fragmentCameraBinding.overlay.foreground = null
                 // Restart animation recursively
-                overlay.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
+                fragmentCameraBinding.overlay.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
             }, CameraActivity.ANIMATION_FAST_MILLIS)
         }
     }
-
-    /** Where the camera preview is displayed */
-    private lateinit var viewFinder: AutoFitSurfaceView
-
-    /** Overlay on top of the camera preview */
-    private lateinit var overlay: View
 
     /** Captures frames from a [CameraDevice] for our video recording */
     private lateinit var session: CameraCaptureSession
@@ -154,7 +152,7 @@ class CameraFragment : Fragment() {
         // Capture request holds references to target surfaces
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
             // Add the preview surface target
-            addTarget(viewFinder.holder.surface)
+            addTarget(fragmentCameraBinding.viewFinder.holder.surface)
         }.build()
     }
 
@@ -163,7 +161,7 @@ class CameraFragment : Fragment() {
         // Capture request holds references to target surfaces
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
             // Add the preview and recording surface targets
-            addTarget(viewFinder.holder.surface)
+            addTarget(fragmentCameraBinding.viewFinder.holder.surface)
             addTarget(recorderSurface)
             // Sets user requested FPS for all targets
             set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(args.fps, args.fps))
@@ -176,18 +174,19 @@ class CameraFragment : Fragment() {
     private lateinit var relativeOrientation: OrientationLiveData
 
     override fun onCreateView(
-            inflater: LayoutInflater,
-            container: ViewGroup?,
-            savedInstanceState: Bundle?
-    ): View? = inflater.inflate(R.layout.fragment_camera, container, false)
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
+        return fragmentCameraBinding.root
+    }
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        overlay = view.findViewById(R.id.overlay)
-        viewFinder = view.findViewById(R.id.view_finder)
 
-        viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
+        fragmentCameraBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
             override fun surfaceChanged(
                     holder: SurfaceHolder,
@@ -199,13 +198,13 @@ class CameraFragment : Fragment() {
 
                 // Selects appropriate preview size and configures view finder
                 val previewSize = getPreviewOutputSize(
-                        viewFinder.display, characteristics, SurfaceHolder::class.java)
-                Log.d(TAG, "View finder size: ${viewFinder.width} x ${viewFinder.height}")
+                        fragmentCameraBinding.viewFinder.display, characteristics, SurfaceHolder::class.java)
+                Log.d(TAG, "View finder size: ${fragmentCameraBinding.viewFinder.width} x ${fragmentCameraBinding.viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
-                viewFinder.setAspectRatio(previewSize.width, previewSize.height)
+                fragmentCameraBinding.viewFinder.setAspectRatio(previewSize.width, previewSize.height)
 
                 // To ensure that size is set, initialize camera in the view's thread
-                viewFinder.post { initializeCamera() }
+                fragmentCameraBinding.viewFinder.post { initializeCamera() }
             }
         })
 
@@ -244,7 +243,7 @@ class CameraFragment : Fragment() {
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
 
         // Creates list of Surfaces where the camera will output frames
-        val targets = listOf(viewFinder.holder.surface, recorderSurface)
+        val targets = listOf(fragmentCameraBinding.viewFinder.holder.surface, recorderSurface)
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
         session = createCaptureSession(camera, targets, cameraHandler)
@@ -254,7 +253,7 @@ class CameraFragment : Fragment() {
         session.setRepeatingRequest(previewRequest, null, cameraHandler)
 
         // React to user touching the capture button
-        capture_button.setOnTouchListener { view, event ->
+        fragmentCameraBinding.captureButton.setOnTouchListener { view, event ->
             when (event.action) {
 
                 MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
@@ -278,7 +277,7 @@ class CameraFragment : Fragment() {
                     Log.d(TAG, "Recording started")
 
                     // Starts recording animation
-                    overlay.post(animationTask)
+                    fragmentCameraBinding.overlay.post(animationTask)
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
@@ -297,7 +296,7 @@ class CameraFragment : Fragment() {
                     recorder.stop()
 
                     // Removes recording animation
-                    overlay.removeCallbacks(animationTask)
+                    fragmentCameraBinding.overlay.removeCallbacks(animationTask)
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
@@ -393,6 +392,11 @@ class CameraFragment : Fragment() {
         cameraThread.quitSafely()
         recorder.release()
         recorderSurface.release()
+    }
+
+    override fun onDestroyView() {
+        _fragmentCameraBinding = null
+        super.onDestroyView()
     }
 
     companion object {
