@@ -20,7 +20,7 @@ apply plugin: 'kotlin-kapt'
 apply plugin: "androidx.navigation.safeargs"
 
 android {
-    compileSdkVersion 'android-S'
+    compileSdkVersion 'android-31'
     defaultConfig {
         testInstrumentationRunner kotlin_version
         applicationId "com.android.example.camera2.extensions"
