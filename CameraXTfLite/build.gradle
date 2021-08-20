@@ -42,6 +42,8 @@ allprojects {
             name 'ossrh-snapshot'
             url 'http://oss.sonatype.org/content/repositories/snapshots'
         }
+        // use cameraX snap build: http://rahulrav.com/blog/androidx_dev.html
+        maven { url 'https://androidx.dev/snapshots/builds/7658704/artifacts/repository' }
     }
 }
 
