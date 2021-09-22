@@ -26,6 +26,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.navigation.Navigation
+import androidx.navigation.fragment.FragmentNavigator
 import com.android.example.cameraxbasic.databinding.ActivityMainBinding
 import java.io.File
 
@@ -69,7 +71,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+        val currentDestination =
+            Navigation.findNavController(this, R.id.fragment_container).currentDestination
+        if (currentDestination is FragmentNavigator.Destination && currentDestination.className == GalleryFragment::class.java.name) {
+            Navigation.findNavController(this, R.id.fragment_container).navigateUp()
+        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
             // Workaround for Android Q memory leak issue in IRequestFinishCallback$Stub.
             // (https://issuetracker.google.com/issues/139738913)
             finishAfterTransition()
