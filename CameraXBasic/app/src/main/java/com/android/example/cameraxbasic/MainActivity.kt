@@ -29,6 +29,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.FragmentNavigator
 import com.android.example.cameraxbasic.databinding.ActivityMainBinding
+import com.android.example.cameraxbasic.fragments.GalleryFragment
 import java.io.File
 
 const val KEY_EVENT_ACTION = "key_event_action"
