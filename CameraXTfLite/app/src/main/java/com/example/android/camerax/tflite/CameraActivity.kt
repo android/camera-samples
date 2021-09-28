@@ -83,6 +83,12 @@ class CameraActivity : AppCompatActivity() {
             .build()
     }
 
+    // nnAPiDelegate must be released by explicitly calling its close() function.
+    //     https://github.com/android/camera-samples/issues/417
+    private val nnApiDelegate by lazy  {
+        NnApiDelegate()
+    }
+
     private val tflite by lazy {
         Interpreter(
             FileUtil.loadMappedFile(this, MODEL_PATH),
@@ -133,6 +139,11 @@ class CameraActivity : AppCompatActivity() {
             // Re-enable camera controls
             it.isEnabled = true
         }
+    }
+
+    override fun onDestroy() {
+        nnApiDelegate?.close()
+        super.onDestroy()
     }
 
     /** Declare and bind preview and analysis use cases */
