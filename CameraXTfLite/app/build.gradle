@@ -18,7 +18,7 @@ apply plugin: "com.android.application"
 apply plugin: "kotlin-android"
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 31
     ndkVersion "21.3.6528147"
 
     defaultConfig {
@@ -49,7 +49,6 @@ android {
 }
 
 dependencies {
-    implementation project(':utils')
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
 
     // App compat and UI things
@@ -58,13 +57,13 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
 
     // CameraX
-    def camerax_version = "1.1.0-alpha07"
+    def camerax_version = "1.1.0-alpha09"
     implementation "androidx.camera:camera-core:${camerax_version}"
     implementation "androidx.camera:camera-camera2:${camerax_version}"
     implementation "androidx.camera:camera-lifecycle:${camerax_version}"
 
     // CameraX View class
-    implementation "androidx.camera:camera-view:1.0.0-alpha27"
+    implementation "androidx.camera:camera-view:1.0.0-alpha29"
 
     // Tensorflow lite dependencies
     implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly-SNAPSHOT'
