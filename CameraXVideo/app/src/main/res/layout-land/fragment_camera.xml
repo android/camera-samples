@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright 2021 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+
+    <CheckBox
+        android:id="@+id/audio_selection"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center"
+        android:layout_marginStart="40dp"
+        android:text="Audio"
+        android:textColor="@color/ic_white"
+        android:buttonTint="@color/ic_white"/>
+    <ListView
+        android:id="@+id/quality_selection"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_gravity="start|center"
+        android:layout_marginStart="160dp"
+        android:choiceMode="singleChoice">
+    </ListView>
+
+    <ImageButton
+        android:id="@+id/camera_button"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="96dp"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/ic_switch"
+        android:contentDescription="@string/camera"
+        android:scaleType="fitCenter"
+        tools:ignore="ImageContrastCheck" />
+    <ImageButton
+        android:id="@+id/capture_button"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="end|center"
+        android:layout_marginEnd="96dp"
+        android:background="@drawable/ic_start"
+        android:contentDescription="@string/capture"
+        android:scaleType="fitCenter"
+        tools:ignore="ImageContrastCheck" />
+    <ImageButton
+        android:id="@+id/stop_button"
+        android:visibility="invisible"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="96dp"
+        android:layout_marginTop="32dp"
+        android:background="@drawable/ic_stop"
+        android:contentDescription="@string/stop"
+        android:scaleType="fitCenter"
+        tools:ignore="ImageContrastCheck" />
+
+    <TextView
+        android:id="@+id/capture_status"
+        android:maxLines="2"
+        android:lines="2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center"
+        android:layout_marginBottom="48dp"
+        android:layout_marginStart="48dp"
+        android:text="@string/Idle"
+        android:textColor="@color/txGray"
+        android:background="@color/txTransparent" />
+</FrameLayout>
