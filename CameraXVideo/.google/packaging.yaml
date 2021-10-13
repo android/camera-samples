@@ -13,6 +13,5 @@ github:       android/camera-samples
 level:        INTERMEDIATE
 icon:         screenshots/icon-web.png
 apiRefs:
-  - android:android.hardware.camera2
-  - android:android.media.MediaRecorder
+    - androidx.camera:camera-video
 license: apache2
