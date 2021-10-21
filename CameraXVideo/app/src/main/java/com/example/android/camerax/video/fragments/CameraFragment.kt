@@ -379,7 +379,10 @@ class CameraFragment : Fragment() {
         }
         // fixup for qualitySelector list
         if (cameraCapabilities.size <= 1) {
-            fragmentCameraBinding.qualitySelection.visibility = View.INVISIBLE
+            fragmentCameraBinding.qualitySelection.let {
+                it.visibility = View.INVISIBLE
+                it.isEnabled = false
+            }
         }
     }
 
@@ -390,21 +393,24 @@ class CameraFragment : Fragment() {
      */
     private fun showUI(forRecording: Boolean, status:String = "idle") {
         if (forRecording) {
-            fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_pause)
-            fragmentCameraBinding.cameraButton.visibility= View.INVISIBLE
-            fragmentCameraBinding.audioSelection.visibility = View.INVISIBLE
-            fragmentCameraBinding.qualitySelection.visibility=View.INVISIBLE
+            fragmentCameraBinding.let {
+                it.captureButton.setImageResource(R.drawable.ic_pause)
+                it.cameraButton.visibility= View.INVISIBLE
+                it.audioSelection.visibility = View.INVISIBLE
+                it.qualitySelection.visibility=View.INVISIBLE
 
-            fragmentCameraBinding.stopButton.visibility = View.VISIBLE
+                it.stopButton.visibility = View.VISIBLE
+            }
         } else {
-            fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_start)
-            fragmentCameraBinding.stopButton.visibility = View.INVISIBLE
+            fragmentCameraBinding.let {
+                it.captureButton.setImageResource(R.drawable.ic_start)
+                it.stopButton.visibility = View.INVISIBLE
 
-            fragmentCameraBinding.cameraButton.visibility= View.VISIBLE
-            fragmentCameraBinding.audioSelection.visibility = View.VISIBLE
-            fragmentCameraBinding.qualitySelection.visibility=View.VISIBLE
+                it.cameraButton.visibility= View.VISIBLE
+                it.audioSelection.visibility = View.VISIBLE
+                it.qualitySelection.visibility=View.VISIBLE
+            }
         }
-
     }
 
     /**
