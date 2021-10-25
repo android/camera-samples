@@ -175,6 +175,8 @@ class CameraFragment : Fragment() {
                     previewSize.height
                 )
 
+                val orientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
+                fragmentCameraBinding.viewFinder.setSensorOrientation(orientation?: 0)
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
             }

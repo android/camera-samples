@@ -20,7 +20,9 @@ import android.content.Context
 import android.util.AttributeSet
 import android.util.Log
 import android.view.SurfaceView
+import android.view.WindowManager
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 /**
  * A [SurfaceView] that can be adjusted to a specified aspect ratio and
@@ -33,6 +35,7 @@ class AutoFitSurfaceView @JvmOverloads constructor(
 ) : SurfaceView(context, attrs, defStyle) {
 
     private var aspectRatio = 0f
+    private var sensorOrientation = 0
 
     /**
      * Sets the aspect ratio for this view. The size of the view will be
@@ -48,6 +51,9 @@ class AutoFitSurfaceView @JvmOverloads constructor(
         requestLayout()
     }
 
+    fun setSensorOrientation(orientation:Int) {
+        sensorOrientation = orientation
+    }
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -59,7 +65,12 @@ class AutoFitSurfaceView @JvmOverloads constructor(
             // Performs center-crop transformation of the camera frames
             val newWidth: Int
             val newHeight: Int
-            val actualRatio = if (width > height) aspectRatio else 1f / aspectRatio
+            val displayOrientation = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).let {
+                it.defaultDisplay.rotation * 90
+            }
+            val rotation = (sensorOrientation - displayOrientation + 360) % 360
+            val actualRatio = if (rotation == 0 || rotation == 180) aspectRatio else 1f/aspectRatio
+
             if (width < height * actualRatio) {
                 newHeight = height
                 newWidth = (height * actualRatio).roundToInt()
