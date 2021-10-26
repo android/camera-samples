@@ -46,7 +46,7 @@ class VideoViewerFragment : androidx.fragment.app.Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         _binding = FragmentVideoViewerBinding.inflate(inflater, container, false)
         // UI adjustment + hacking to display VideoView use tips / capture result
         val tv = TypedValue()
@@ -88,10 +88,10 @@ class VideoViewerFragment : androidx.fragment.app.Fragment() {
                 }
 
                 val dataIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-                val fileInfo =  "FileSize: ${fileSize}" + dataIndex.let { "\n ${cursor.getString(it)}" }
+                val fileInfo =  "FileSize: $fileSize" + dataIndex.let { "\n ${cursor.getString(it)}" }
 
-                Log.i("VideoViewerFragment", "$fileInfo")
-                binding.videoViewerTips.text = "$fileInfo"
+                Log.i("VideoViewerFragment", fileInfo)
+                binding.videoViewerTips.text = fileInfo
             }
 
             val mc = MediaController(requireContext())
