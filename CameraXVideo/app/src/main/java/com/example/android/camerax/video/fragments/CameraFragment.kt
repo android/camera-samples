@@ -75,10 +75,10 @@ class CameraFragment : Fragment() {
 
     // Camera UI  states and inputs
     enum class UiState {
-        IDLE,
-        RECORDING,
-        FINALIZED,
-        RECOVERY
+        IDLE,       // Not recording, all UI controls are active.
+        RECORDING,  // Camera is recording, only display Pause/Resume & Stop button.
+        FINALIZED,  // Recording just completes, disable all RECORDING UI controls.
+        RECOVERY    // For future use.
     }
     private var cameraIndex = 0
     private var qualitySelectorIndex = DEFAULT_QUALITY_SELECTOR_IDX
@@ -259,8 +259,8 @@ class CameraFragment : Fragment() {
      */
     @SuppressLint("ClickableViewAccessibility", "MissingPermission")
     private fun initializeUI() {
-        fragmentCameraBinding.cameraButton.let {
-            it.setOnClickListener {
+        fragmentCameraBinding.cameraButton.apply {
+            setOnClickListener {
                 cameraIndex = (cameraIndex + 1) % cameraCapabilities.size
                 // camera device change is instant:
                 //   - preview needs to be restarted
@@ -273,7 +273,7 @@ class CameraFragment : Fragment() {
                     bindCaptureUsecase()
                 }
             }
-            it.isEnabled = false
+            isEnabled = false
         }
 
         // audioEnabled by default is disabled.
@@ -283,9 +283,9 @@ class CameraFragment : Fragment() {
         }
 
         // React to user touching the capture button
-        fragmentCameraBinding.captureButton.let {
-            it.setOnClickListener {
-                if (!this::recordingState.isInitialized || recordingState is VideoRecordEvent.Finalize) {
+        fragmentCameraBinding.captureButton.apply {
+            setOnClickListener {
+                if (!this@CameraFragment::recordingState.isInitialized || recordingState is VideoRecordEvent.Finalize) {
                     enableUI(false)  // Our eventListener will turn on the Recording UI.
                     startRecording()
                 } else {
@@ -309,11 +309,11 @@ class CameraFragment : Fragment() {
                     }
                 }
             }
-            it.isEnabled = false
+            isEnabled = false
         }
 
-        fragmentCameraBinding.stopButton.let {
-            it.setOnClickListener {
+        fragmentCameraBinding.stopButton.apply {
+            setOnClickListener {
                 // stopping: hide it after getting a click before we go to viewing fragment
                 fragmentCameraBinding.stopButton.visibility = View.INVISIBLE
                 if (activeRecording == null || recordingState is VideoRecordEvent.Finalize) {
@@ -328,8 +328,8 @@ class CameraFragment : Fragment() {
                 fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_start)
             }
             // ensure the stop button is initialized disabled & invisible
-            it.visibility = View.INVISIBLE
-            it.isEnabled = false
+            visibility = View.INVISIBLE
+            isEnabled = false
         }
 
         fragmentCameraBinding.captureStatus.text = getString(R.string.Idle)
