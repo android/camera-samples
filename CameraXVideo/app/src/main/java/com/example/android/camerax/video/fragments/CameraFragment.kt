@@ -30,7 +30,6 @@ package com.example.android.camerax.video.fragments
 
 import android.annotation.SuppressLint
 import android.content.ContentValues
-import android.content.pm.ActivityInfo
 import java.text.SimpleDateFormat
 import android.os.Bundle
 import android.provider.MediaStore
@@ -74,7 +73,13 @@ class CameraFragment : Fragment() {
     private var activeRecording: ActiveRecording? = null
     private lateinit var recordingState:VideoRecordEvent
 
-    /// Camera UI inputs
+    // Camera UI  states and inputs
+    enum class UiState {
+        IDLE,       // Not recording, all UI controls are active.
+        RECORDING,  // Camera is recording, only display Pause/Resume & Stop button.
+        FINALIZED,  // Recording just completes, disable all RECORDING UI controls.
+        RECOVERY    // For future use.
+    }
     private var cameraIndex = 0
     private var qualitySelectorIndex = DEFAULT_QUALITY_SELECTOR_IDX
     private var audioEnabled = false
@@ -85,46 +90,45 @@ class CameraFragment : Fragment() {
     // main cameraX capture functions
     /**
      *   Always bind preview + video capture use case combinations in this sample
-     *   (VideoCapture can work on its own).
+     *   (VideoCapture can work on its own). The function should always execute on
+     *   the main thread.
      */
-    private fun bindCaptureUsecase() {
-        lifecycleScope.launch {
-            val cameraProvider = ProcessCameraProvider.getInstance(requireContext()).await()
+    private suspend fun bindCaptureUsecase() {
+        val cameraProvider = ProcessCameraProvider.getInstance(requireContext()).await()
 
-            val cameraSelector = CameraSelector.Builder()
-                .requireLensFacing(getCameraLensFacing(cameraIndex))
-                .build()
-            val preview = Preview.Builder().setTargetAspectRatio(DEFAULT_ASPECT_RATIO)
-                .build().apply {
-                    setSurfaceProvider(fragmentCameraBinding.previewView.surfaceProvider)
-                }
-
-            // create the user required QualitySelector (video resolution): we know this is
-            // supported, a valid qualitySelector will be created.
-            val qualitySelector = QualitySelector.of(
-                cameraCapabilities[cameraIndex].selector[qualitySelectorIndex])
-
-            // build a recorder, which can:
-            //   - record video/audio to MediaStore(only use here), File, ParcelFileDescriptor
-            //   - be used create recording(s) (the recording performs recording)
-            val recorder = Recorder.Builder()
-                .setQualitySelector(qualitySelector)
-                .build()
-            videoCapture = VideoCapture.withOutput(recorder)
-
-            try {
-                cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
-                    requireParentFragment(),
-                    cameraSelector,
-                    videoCapture,
-                    preview
-                )
-            } catch (exc: Exception) {
-                Log.e(TAG, "Use case binding failed", exc)
-                resetUIandState()
+        val cameraSelector = getCameraSelector(cameraIndex)
+        val preview = Preview.Builder().setTargetAspectRatio(DEFAULT_ASPECT_RATIO)
+            .build().apply {
+                setSurfaceProvider(fragmentCameraBinding.previewView.surfaceProvider)
             }
+
+        // create the user required QualitySelector (video resolution): we know this is
+        // supported, a valid qualitySelector will be created.
+        val qualitySelector = QualitySelector.of(
+            cameraCapabilities[cameraIndex].qualitySelector[qualitySelectorIndex])
+
+        // build a recorder, which can:
+        //   - record video/audio to MediaStore(only shown here), File, ParcelFileDescriptor
+        //   - be used create recording(s) (the recording performs recording)
+        val recorder = Recorder.Builder()
+            .setQualitySelector(qualitySelector)
+            .build()
+        videoCapture = VideoCapture.withOutput(recorder)
+
+        try {
+            cameraProvider.unbindAll()
+            cameraProvider.bindToLifecycle(
+                viewLifecycleOwner,
+                cameraSelector,
+                videoCapture,
+                preview
+            )
+        } catch (exc: Exception) {
+            // we are on main thread, let's reset the controls on the UI.
+            Log.e(TAG, "Use case binding failed", exc)
+            resetUIandState("bindToLifecycle failed: $exc")
         }
+        enableUI(true)
     }
 
     /**
@@ -184,43 +188,46 @@ class CameraFragment : Fragment() {
      *   idx is even number:  CameraSelector.LENS_FACING_BACK
      *          odd number:   CameraSelector.LENS_FACING_FRONT
      */
-    private fun getCameraLensFacing(idx: Int) : Int {
+    private fun getCameraSelector(idx: Int) : CameraSelector {
         if (cameraCapabilities.size == 0) {
             Log.i(TAG, "Error: This device does not have any camera, bailing out")
             requireActivity().finish()
         }
-        return (cameraCapabilities[idx % cameraCapabilities.size].lensFacing)
+        return (cameraCapabilities[idx % cameraCapabilities.size].camSelector)
     }
 
+    data class CameraCapability(val camSelector: CameraSelector, val qualitySelector:List<Int>)
     /**
-     * Query and cache for the platform's camera capabilities
-     * The function is destructive as it unbinds all already bound use cases
+     * Query and cache this platform's camera capabilities, run only once.
      */
-    data class CameraCapability(var lensFacing:Int, var selector:List<Int>)
     init {
         enumerationDeferred = lifecycleScope.async {
             whenCreated {
                 val provider = ProcessCameraProvider.getInstance(requireContext()).await()
 
                 provider.unbindAll()
-                for (lens in arrayOf(CameraSelector.LENS_FACING_BACK, CameraSelector.LENS_FACING_FRONT)){
-                    val cameraSelector = CameraSelector.Builder().requireLensFacing(lens).build()
+                for (camSelector in arrayOf(
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                )) {
                     try {
                         // just want to get the camera.cameraInfo to query capabilities
                         // we are not binding anything here.
-                        if (provider.hasCamera(cameraSelector)) {
-                            val camera = provider.bindToLifecycle(requireParentFragment(), cameraSelector)
-                            val qualityCap = QualitySelector.getSupportedQualities(camera.cameraInfo)
-                                .filter { quality ->
-                                    listOf(QualitySelector.QUALITY_UHD,
-                                        QualitySelector.QUALITY_FHD,
-                                        QualitySelector.QUALITY_HD,
-                                    ).contains(quality)
-                                }
-                            cameraCapabilities.add(CameraCapability(lens, qualityCap))
+                        if (provider.hasCamera(camSelector)) {
+                            val camera = provider.bindToLifecycle(requireActivity(), camSelector)
+                            val qualityCap =
+                                QualitySelector.getSupportedQualities(camera.cameraInfo)
+                                    .filter { quality ->
+                                        listOf(
+                                            QualitySelector.QUALITY_UHD,
+                                            QualitySelector.QUALITY_FHD,
+                                            QualitySelector.QUALITY_HD,
+                                        ).contains(quality)
+                                    }
+                            cameraCapabilities.add(CameraCapability(camSelector, qualityCap))
                         }
                     } catch (exc: java.lang.Exception) {
-                        Log.e(TAG, "Camera Face $lens is not supported")
+                        Log.e(TAG, "Camera Face $camSelector is not supported")
                     }
                 }
             }
@@ -228,67 +235,103 @@ class CameraFragment : Fragment() {
     }
 
     /**
+     * One time initialize for CameraFragment, starts when view is created.
+     */
+    private fun initCameraFragment() {
+        initializeUI()  // UI controls except the QualitySelector are initialized
+                        // but disabled; need to wait for quality enumeration to
+                        // complete then resume UI initialization
+        viewLifecycleOwner.lifecycleScope.launch {
+            if (enumerationDeferred != null) {
+                enumerationDeferred!!.await()
+                enumerationDeferred = null
+            }
+            initializeQualitySectionsUI()
+
+            bindCaptureUsecase()
+        }
+    }
+
+    /**
      * Initialize UI. Preview and Capture actions are configured in this function.
      * Note that preview and capture are both initialized either by UI or CameraX callbacks
-     * (only except the very 1st time upon entering to this fragment in onViewCreated()
+     * (except the very 1st time upon entering to this fragment in onCreateView()
      */
     @SuppressLint("ClickableViewAccessibility", "MissingPermission")
     private fun initializeUI() {
-        fragmentCameraBinding.cameraButton.setOnClickListener{
-            cameraIndex = (cameraIndex + 1) % cameraCapabilities.size
-            // camera device change is instant:
-            //   - preview needs to be restarted
-            //   - qualitySelector selection is invalidated
-            //   - camera selector UI need to update
-            qualitySelectorIndex = DEFAULT_QUALITY_SELECTOR_IDX
-            initializeQualitySectionsUI()
-            bindCaptureUsecase()
+        fragmentCameraBinding.cameraButton.apply {
+            setOnClickListener {
+                cameraIndex = (cameraIndex + 1) % cameraCapabilities.size
+                // camera device change is instant:
+                //   - preview needs to be restarted
+                //   - qualitySelector selection is invalidated
+                //   - camera selector UI need to update
+                qualitySelectorIndex = DEFAULT_QUALITY_SELECTOR_IDX
+                initializeQualitySectionsUI()
+                enableUI(false)
+                viewLifecycleOwner.lifecycleScope.launch {
+                    bindCaptureUsecase()
+                }
+            }
+            isEnabled = false
         }
 
+        // audioEnabled by default is disabled.
         fragmentCameraBinding.audioSelection.isChecked = audioEnabled
         fragmentCameraBinding.audioSelection.setOnClickListener {
             audioEnabled = fragmentCameraBinding.audioSelection.isChecked
         }
 
         // React to user touching the capture button
-        fragmentCameraBinding.captureButton.setOnClickListener {
-            if (!this::recordingState.isInitialized || recordingState is VideoRecordEvent.Finalize) {
-                fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_pause)
-                fragmentCameraBinding.stopButton.visibility = View.VISIBLE
-                enableUI(false)
-                startRecording()
-            } else {
-                when (recordingState) {
-                    is VideoRecordEvent.Start -> {
-                        activeRecording?.pause()
-                        fragmentCameraBinding.stopButton.visibility = View.VISIBLE
-                    }
-                    is VideoRecordEvent.Pause -> {
-                        activeRecording?.resume()
-                    }
-                    is VideoRecordEvent.Resume -> {
-                        activeRecording?.pause()
-                    }
-                    else -> {
-                        Log.e(TAG, "Unknown State ($recordingState) when Capture Button is pressed ")
+        fragmentCameraBinding.captureButton.apply {
+            setOnClickListener {
+                if (!this@CameraFragment::recordingState.isInitialized || recordingState is VideoRecordEvent.Finalize) {
+                    enableUI(false)  // Our eventListener will turn on the Recording UI.
+                    startRecording()
+                } else {
+                    when (recordingState) {
+                        is VideoRecordEvent.Start -> {
+                            activeRecording?.pause()
+                            fragmentCameraBinding.stopButton.visibility = View.VISIBLE
+                        }
+                        is VideoRecordEvent.Pause -> {
+                            activeRecording?.resume()
+                        }
+                        is VideoRecordEvent.Resume -> {
+                            activeRecording?.pause()
+                        }
+                        else -> {
+                            Log.e(
+                                TAG,
+                                "Unknown State ($recordingState) when Capture Button is pressed "
+                            )
+                        }
                     }
                 }
             }
+            isEnabled = false
         }
-        fragmentCameraBinding.stopButton.setOnClickListener {
-            // stopping
-            fragmentCameraBinding.stopButton.visibility = View.INVISIBLE
-            if (activeRecording == null || recordingState is VideoRecordEvent.Finalize) {
-                return@setOnClickListener
-            }
 
-            val recording = activeRecording
-            if (recording != null) {
-                recording.stop()
-                activeRecording = null
+        fragmentCameraBinding.stopButton.apply {
+            setOnClickListener {
+                // stopping: hide it after getting a click before we go to viewing fragment
+                fragmentCameraBinding.stopButton.visibility = View.INVISIBLE
+                if (activeRecording == null || recordingState is VideoRecordEvent.Finalize) {
+                    return@setOnClickListener
+                }
+
+                val recording = activeRecording
+                if (recording != null) {
+                    recording.stop()
+                    activeRecording = null
+                }
+                fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_start)
             }
-            fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_start)
+            // ensure the stop button is initialized disabled & invisible
+            visibility = View.INVISIBLE
+            isEnabled = false
         }
+
         fragmentCameraBinding.captureStatus.text = getString(R.string.Idle)
     }
 
@@ -311,13 +354,10 @@ class CameraFragment : Fragment() {
                     // nothing needs to do here.
                 }
                 is VideoRecordEvent.Start -> {
-                    fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_pause)
-                    fragmentCameraBinding.captureButton.isEnabled = true
-                    fragmentCameraBinding.stopButton.isEnabled = true
+                    showUI(UiState.RECORDING, event.getName())
                 }
                 is VideoRecordEvent.Finalize-> {
-                    fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_start)
-                    fragmentCameraBinding.stopButton.visibility = View.INVISIBLE
+                    showUI(UiState.FINALIZED, event.getName())
                 }
                 is VideoRecordEvent.Pause -> {
                     fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_resume)
@@ -348,14 +388,60 @@ class CameraFragment : Fragment() {
      *    Once recording is started, need to disable able UI to avoid conflict.
      */
     private fun enableUI(enable: Boolean) {
-        fragmentCameraBinding.cameraButton.isEnabled = enable
-        fragmentCameraBinding.captureButton.isEnabled = enable
-        fragmentCameraBinding.stopButton.isEnabled = enable
+        arrayOf(fragmentCameraBinding.cameraButton,
+                fragmentCameraBinding.captureButton,
+                fragmentCameraBinding.stopButton,
+                fragmentCameraBinding.audioSelection,
+                fragmentCameraBinding.qualitySelection).forEach {
+                    it.isEnabled = enable
+        }
+        // fixup for qualitySelector list
+        if (cameraCapabilities.size <= 1) {
+            fragmentCameraBinding.qualitySelection.let {
+                it.visibility = View.INVISIBLE
+                it.isEnabled = false
+            }
+        }
+    }
 
-        // Hide the audio and the quality selector list
-       val visible = if (!enable) View.INVISIBLE else View.VISIBLE
-            fragmentCameraBinding.audioSelection.visibility = visible
-            fragmentCameraBinding.qualitySelection.visibility = visible
+    /**
+     * initialize UI for recording:
+     *  - at recording: hide audio, qualitySelection,change camera UI; enable stop button
+     *  - otherwise: show all except the stop button
+     */
+    private fun showUI(state: UiState, status:String = "idle") {
+        fragmentCameraBinding.let {
+            when(state) {
+                UiState.IDLE -> {
+                    it.captureButton.setImageResource(R.drawable.ic_start)
+                    it.stopButton.visibility = View.INVISIBLE
+
+                    it.cameraButton.visibility= View.VISIBLE
+                    it.audioSelection.visibility = View.VISIBLE
+                    it.qualitySelection.visibility=View.VISIBLE
+                }
+                UiState.RECORDING -> {
+                    it.cameraButton.visibility = View.INVISIBLE
+                    it.audioSelection.visibility = View.INVISIBLE
+                    it.qualitySelection.visibility = View.INVISIBLE
+
+                    it.captureButton.setImageResource(R.drawable.ic_pause)
+                    it.captureButton.isEnabled = true
+                    it.stopButton.visibility = View.VISIBLE
+                    it.stopButton.isEnabled = true
+                }
+                UiState.FINALIZED -> {
+                    it.captureButton.setImageResource(R.drawable.ic_start)
+                    it.stopButton.visibility = View.INVISIBLE
+                }
+                else -> {
+                    val errorMsg = "Error: showUI($state) is not supported"
+                    Log.e(TAG, errorMsg)
+                    return
+                }
+            }
+            it.captureStatus.text = status
+        }
     }
 
     /**
@@ -363,15 +449,15 @@ class CameraFragment : Fragment() {
      *    in case binding failed, let's give it another change for re-try. In future cases
      *    we might fail and user get notified on the status
      */
-    private fun resetUIandState() {
-        lifecycleScope.launch(Dispatchers.Main) {
-            enableUI(true)
-            fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_start)
-            fragmentCameraBinding.stopButton.visibility = View.INVISIBLE
-            fragmentCameraBinding.captureStatus.text = "Capture system reset due to binding failure," +
-                "\nyou could retry with new settings."
-            bindCaptureUsecase()
-        }
+    private fun resetUIandState(reason: String) {
+        enableUI(true)
+        showUI(UiState.IDLE, reason)
+
+        cameraIndex = 0
+        qualitySelectorIndex = DEFAULT_QUALITY_SELECTOR_IDX
+        audioEnabled = false
+        fragmentCameraBinding.audioSelection.isChecked = audioEnabled
+        fragmentCameraBinding.qualitySelection.setSelection(qualitySelectorIndex)
     }
 
     /**
@@ -382,7 +468,7 @@ class CameraFragment : Fragment() {
      *    User selection is saved to qualitySelectorIndex, used later in bind capture pipeline phase.
      */
     private fun initializeQualitySectionsUI() {
-        val selectorStrings = cameraCapabilities[cameraIndex].selector.map {
+        val selectorStrings = cameraCapabilities[cameraIndex].qualitySelector.map {
             qualityMap.getString(it)
         }
         // Assign adapter to ListView
@@ -399,19 +485,25 @@ class CameraFragment : Fragment() {
 
         val previousSelection = intArrayOf(-1)
         val previousView = arrayOf<View?>(null)
-        fragmentCameraBinding.qualitySelection.setOnItemClickListener { _, view, position, _ ->
-            if (previousView[0] != null) {
-                previousView[0]!!.setBackgroundColor(0x00000000)
-            }
-            view.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.icPressed))
-            previousSelection[0] = position
-            previousView[0] = view
+        fragmentCameraBinding.qualitySelection.let {
+            it.setOnItemClickListener { _, view, position, _ ->
+                if (previousView[0] != null) {
+                    previousView[0]!!.setBackgroundColor(0)
+                }
+                view.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.icPressed))
+                previousSelection[0] = position
+                previousView[0] = view
 
-            // cache the current quality selection index
-            if (qualitySelectorIndex != position) {
-                qualitySelectorIndex = position
-                bindCaptureUsecase()   //  rebind the capture use case
+                // cache the current quality selection index
+                if (qualitySelectorIndex != position) {
+                    qualitySelectorIndex = position
+                    enableUI(false)
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        bindCaptureUsecase()
+                    }
+                }
             }
+            it.isEnabled = false
         }
     }
 
@@ -425,7 +517,7 @@ class CameraFragment : Fragment() {
             return
         }
 
-        lifecycleScope.launch(Dispatchers.Main) {
+        lifecycleScope.launch {
             navController.navigate(
                 CameraFragmentDirections.actionCameraFragmentToVideoViewer(
                     event.outputResults.outputUri
@@ -441,21 +533,8 @@ class CameraFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
+        initCameraFragment()
         return fragmentCameraBinding.root
-    }
-
-    // system functions starts
-    override fun onResume() {
-        super.onResume()
-        lifecycleScope.launch(Dispatchers.Main) {
-            if(enumerationDeferred != null ) {
-                enumerationDeferred!!.await()
-                enumerationDeferred = null
-            }
-            initializeUI()
-            initializeQualitySectionsUI()
-            bindCaptureUsecase()
-        }
     }
     override fun onDestroyView() {
         _fragmentCameraBinding = null
