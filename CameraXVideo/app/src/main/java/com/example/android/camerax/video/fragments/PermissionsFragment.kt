@@ -19,6 +19,7 @@ package com.example.android.camerax.video.fragments
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -32,7 +33,7 @@ import androidx.navigation.Navigation
 import com.example.android.camerax.video.R
 import com.example.android.camerax.video.databinding.FragmentPermissionBinding
 
-private val PERMISSIONS_REQUIRED = arrayOf(
+private var PERMISSIONS_REQUIRED = arrayOf(
     Manifest.permission.CAMERA,
     Manifest.permission.RECORD_AUDIO)
 
@@ -42,6 +43,13 @@ private val PERMISSIONS_REQUIRED = arrayOf(
 class PermissionsFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // add the storage access permission request for Android 9 and below.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            val permissionList = PERMISSIONS_REQUIRED.toMutableList()
+            permissionList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            PERMISSIONS_REQUIRED = permissionList.toTypedArray()
+        }
 
         if (!hasPermissions(requireContext())) {
             // Request camera-related permissions
