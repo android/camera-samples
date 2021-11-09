@@ -395,11 +395,14 @@ class CameraFragment : Fragment() {
                 fragmentCameraBinding.qualitySelection).forEach {
                     it.isEnabled = enable
         }
-        // fixup for qualitySelector list
+        // disable the camera button if no device to switch
         if (cameraCapabilities.size <= 1) {
-            fragmentCameraBinding.qualitySelection.let {
-                it.visibility = View.INVISIBLE
-                it.isEnabled = false
+            fragmentCameraBinding.cameraButton.isEnabled = false
+        }
+        // disable the resolution list if no resolution to switch
+        if (cameraCapabilities[cameraIndex].qualitySelector.size <= 1) {
+            fragmentCameraBinding.qualitySelection.apply {
+                isEnabled = false
             }
         }
     }
