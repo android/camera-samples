@@ -30,6 +30,7 @@ package com.example.android.camerax.video.fragments
 
 import android.annotation.SuppressLint
 import android.content.ContentValues
+import android.content.res.Configuration
 import java.text.SimpleDateFormat
 import android.os.Bundle
 import android.provider.MediaStore
@@ -50,8 +51,10 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.video.*
 import androidx.concurrent.futures.await
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.whenCreated
 import kotlinx.coroutines.*
 import java.util.*
@@ -97,15 +100,24 @@ class CameraFragment : Fragment() {
         val cameraProvider = ProcessCameraProvider.getInstance(requireContext()).await()
 
         val cameraSelector = getCameraSelector(cameraIndex)
-        val preview = Preview.Builder().setTargetAspectRatio(DEFAULT_ASPECT_RATIO)
-            .build().apply {
-                setSurfaceProvider(fragmentCameraBinding.previewView.surfaceProvider)
-            }
 
         // create the user required QualitySelector (video resolution): we know this is
         // supported, a valid qualitySelector will be created.
-        val qualitySelector = QualitySelector.of(
-            cameraCapabilities[cameraIndex].qualitySelector[qualitySelectorIndex])
+        val quality = cameraCapabilities[cameraIndex].qualitySelector[qualitySelectorIndex]
+        val qualitySelector = QualitySelector.of(quality)
+
+        fragmentCameraBinding.previewView.updateLayoutParams<ConstraintLayout.LayoutParams> {
+            val orientation = this@CameraFragment.resources.configuration.orientation
+            dimensionRatio = qualitySelector.getAspectRatioString(quality,
+                (orientation == Configuration.ORIENTATION_PORTRAIT))
+        }
+
+        val preview = Preview.Builder()
+            .setTargetAspectRatio(qualitySelector.getAspectRatio(quality))
+            .setTargetRotation(fragmentCameraBinding.previewView.display.rotation)
+            .build().apply {
+                setSurfaceProvider(fragmentCameraBinding.previewView.surfaceProvider)
+            }
 
         // build a recorder, which can:
         //   - record video/audio to MediaStore(only shown here), File, ParcelFileDescriptor
@@ -222,6 +234,7 @@ class CameraFragment : Fragment() {
                                             QualitySelector.QUALITY_UHD,
                                             QualitySelector.QUALITY_FHD,
                                             QualitySelector.QUALITY_HD,
+                                            QualitySelector.QUALITY_SD,
                                         ).contains(quality)
                                     }
                             cameraCapabilities.add(CameraCapability(camSelector, qualityCap))
@@ -482,7 +495,9 @@ class CameraFragment : Fragment() {
         {
             override fun getView(position: Int, tvView: View?, parent: ViewGroup): View {
                 return (super.getView(position, tvView, parent) as TextView)
-                  .apply { setTextColor(ContextCompat.getColor(requireContext(), R.color.ic_white)) }
+                  .apply {
+                      setTextColor(ContextCompat.getColor(requireContext(), R.color.ic_white))
+                  }
             }
         }
 
@@ -536,8 +551,12 @@ class CameraFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         _fragmentCameraBinding = FragmentCameraBinding.inflate(inflater, container, false)
-        initCameraFragment()
         return fragmentCameraBinding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        initCameraFragment()
     }
     override fun onDestroyView() {
         _fragmentCameraBinding = null
@@ -547,7 +566,6 @@ class CameraFragment : Fragment() {
     companion object {
         // default QualitySelector if no input from UI
         const val DEFAULT_QUALITY_SELECTOR_IDX = 0
-        const val DEFAULT_ASPECT_RATIO = AspectRatio.RATIO_16_9
         val TAG:String = CameraFragment::class.java.simpleName
         private val qualityMap = QualityMap()
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
@@ -582,6 +600,45 @@ internal class QualityMap {
             -1
         }
     }
+}
+
+/**
+ * a helper function to retrieve the aspect ratio from a QualitySelector enum.
+ */
+fun QualitySelector.getAspectRatio(quality:Int): Int {
+     return when {
+        arrayOf(QualitySelector.QUALITY_UHD,
+            QualitySelector.QUALITY_FHD,
+            QualitySelector.QUALITY_HD).contains(quality) -> AspectRatio.RATIO_16_9
+        quality ==  QualitySelector.QUALITY_SD -> AspectRatio.RATIO_4_3
+        else -> -1
+    }
+}
+
+/**
+ * a helper function to retrieve the aspect ratio string from a QualitySelector enum.
+ */
+fun QualitySelector.getAspectRatioString(quality:Int, portraitMode:Boolean) :String? {
+    val width:Int
+    val height:Int
+
+    when {
+        arrayOf(QualitySelector.QUALITY_UHD,
+            QualitySelector.QUALITY_FHD,
+            QualitySelector.QUALITY_HD).contains(quality) -> {
+            width = 16
+            height = 9
+        }
+        quality ==  QualitySelector.QUALITY_SD -> {
+            width = 4
+            height = 3
+        }
+        else -> {
+            return null
+        }
+    }
+
+    return if (portraitMode) "V,$height:$width" else "H,$width:$height"
 }
 
 /**
