@@ -114,7 +114,6 @@ class CameraFragment : Fragment() {
 
         val preview = Preview.Builder()
             .setTargetAspectRatio(qualitySelector.getAspectRatio(quality))
-            .setTargetRotation(fragmentCameraBinding.previewView.display.rotation)
             .build().apply {
                 setSurfaceProvider(fragmentCameraBinding.previewView.surfaceProvider)
             }
