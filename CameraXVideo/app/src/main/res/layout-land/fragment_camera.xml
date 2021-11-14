@@ -44,13 +44,14 @@
         app:layout_constraintStart_toStartOf="@id/land_vertical_guideline"
         app:layout_constraintTop_toTopOf="@id/land_horizontal_guideline" />
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/quality_selection"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="96dp"
         android:translationY="-36dp"
         android:choiceMode="singleChoice"
+        android:layout_centerVertical="false"
         app:layout_constraintStart_toEndOf="@id/audio_selection"
         app:layout_constraintTop_toTopOf="@id/audio_selection" />
 

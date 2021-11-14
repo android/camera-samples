@@ -30,6 +30,7 @@ package com.example.android.camerax.video.fragments
 
 import android.annotation.SuppressLint
 import android.content.ContentValues
+import android.content.Context
 import android.content.res.Configuration
 import java.text.SimpleDateFormat
 import android.os.Bundle
@@ -56,6 +57,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.whenCreated
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.android.camera.utils.GenericListAdapter
 import kotlinx.coroutines.*
 import java.util.*
 
@@ -64,6 +67,7 @@ class CameraFragment : Fragment() {
     // UI with ViewBinding
     private var _fragmentCameraBinding: FragmentCameraBinding? = null
     private val fragmentCameraBinding get() = _fragmentCameraBinding!!
+    private var prevQualitySelectorView:View? = null
 
     /** Host's navigation controller */
     private val navController: NavController by lazy {
@@ -377,10 +381,6 @@ class CameraFragment : Fragment() {
                 is VideoRecordEvent.Resume -> {
                     fragmentCameraBinding.captureButton.setImageResource(R.drawable.ic_pause)
                 }
-                else -> {
-                    Log.e(TAG, "Error(Unknown Event) from Recorder")
-                    return
-                }
         }
 
         val stats = event.recordingStats
@@ -472,58 +472,65 @@ class CameraFragment : Fragment() {
         qualitySelectorIndex = DEFAULT_QUALITY_SELECTOR_IDX
         audioEnabled = false
         fragmentCameraBinding.audioSelection.isChecked = audioEnabled
-        fragmentCameraBinding.qualitySelection.setSelection(qualitySelectorIndex)
+        initializeQualitySectionsUI()
     }
 
     /**
      *  initializeQualitySectionsUI():
-     *    Populate a ListView to display camera capabilities, one front, and one back facing
-     *    which has been enumerated into:
-     *       cameraCapabilities.
-     *    User selection is saved to qualitySelectorIndex, used later in bind capture pipeline phase.
+     *    Populate a RecyclerView to display camera capabilities:
+     *       - one front facing
+     *       - one back facing
+     *    User selection is saved to qualitySelectorIndex, will be used
+     *    in the bindCaptureUsecase().
      */
     private fun initializeQualitySectionsUI() {
         val selectorStrings = cameraCapabilities[cameraIndex].qualitySelector.map {
             qualityMap.getString(it)
         }
-        // Assign adapter to ListView
-        fragmentCameraBinding.qualitySelection.adapter =
-        object : ArrayAdapter<String?>(
-            requireContext(),
-            android.R.layout.simple_list_item_1, android.R.id.text1, selectorStrings)
-        {
-            override fun getView(position: Int, tvView: View?, parent: ViewGroup): View {
-                return (super.getView(position, tvView, parent) as TextView)
-                  .apply {
-                      setTextColor(ContextCompat.getColor(requireContext(), R.color.ic_white))
-                  }
-            }
-        }
+        // create the adapter to QualitySelector RecyclerView
+        fragmentCameraBinding.qualitySelection.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = GenericListAdapter(
+                selectorStrings,
+                itemLayoutId = android.R.layout.simple_list_item_1
+            ) { holderView, qcString, position ->
 
-        val previousSelection = intArrayOf(-1)
-        val previousView = arrayOf<View?>(null)
-        fragmentCameraBinding.qualitySelection.let {
-            it.setOnItemClickListener { _, view, position, _ ->
-                if (previousView[0] != null) {
-                    previousView[0]!!.setBackgroundColor(0)
+                holderView.findViewById<TextView>(android.R.id.text1)?.apply {
+                    text = qcString
+                    setTextColor(ContextCompat.getColor(context, R.color.txWhite))
                 }
-                view.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.icPressed))
-                previousSelection[0] = position
-                previousView[0] = view
+                holderView.setOnClickListener {
+                    if (qualitySelectorIndex == position) return@setOnClickListener
 
-                // cache the current quality selection index
-                if (qualitySelectorIndex != position) {
+                    prevQualitySelectorView?.setBackgroundColor(
+                        ContextCompat.getColor(context,R.color.txTransparent))
+                    prevQualitySelectorView = it
                     qualitySelectorIndex = position
+                    prevQualitySelectorView?.setBackgroundColor(
+                        ContextCompat.getColor(context, R.color.icPressed))
                     enableUI(false)
                     viewLifecycleOwner.lifecycleScope.launch {
                         bindCaptureUsecase()
                     }
                 }
             }
-            it.isEnabled = false
-        }
+            isEnabled = false
+        }.postDelayed({
+            // initialize default QualitySelector to qualitySelectorIndex
+            //      delaying some time(100ms) is necessary for completing inflation
+            //      (specially on relatively slower devices)
+            fragmentCameraBinding.qualitySelection.also {
+                (it.layoutManager as LinearLayoutManager).scrollToPosition(qualitySelectorIndex)
+                prevQualitySelectorView = it.findViewHolderForAdapterPosition(qualitySelectorIndex)?.itemView
+                prevQualitySelectorView?.setBackgroundColor(
+                    ContextCompat.getColor(
+                        requireContext(),
+                        R.color.icPressed
+                    )
+                )
+            }
+        },100)
     }
-
     /**
      * Display capture the video in MediaStore
      *     event: VideoRecordEvent.Finalize holding MediaStore URI
@@ -650,6 +657,6 @@ fun VideoRecordEvent.getName() : String {
         is VideoRecordEvent.Finalize-> "Finalized"
         is VideoRecordEvent.Pause -> "Paused"
         is VideoRecordEvent.Resume -> "Resumed"
-        else -> "Error(Unknown)"
+        else -> throw IllegalArgumentException()
     }
 }
