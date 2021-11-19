@@ -340,28 +340,33 @@ class CameraFragment : Fragment() {
             run {
                 when (cameraState.type) {
                     CameraState.Type.PENDING_OPEN -> {
+                        // Ask the user to close other camera apps
                         Toast.makeText(context,
-                                "Consider closing other camera apps",
+                                "CameraState: Pending Open",
                                 Toast.LENGTH_SHORT).show()
                     }
                     CameraState.Type.OPENING -> {
+                        // Show the Camera UI
                         Toast.makeText(context,
-                                "Show camera UI",
+                                "CameraState: Opening",
                                 Toast.LENGTH_SHORT).show()
                     }
                     CameraState.Type.OPEN -> {
+                        // Setup Camera resources and begin processing
                         Toast.makeText(context,
-                                "Setup camera resources and begin processing",
+                                "CameraState: Open",
                                 Toast.LENGTH_SHORT).show()
                     }
                     CameraState.Type.CLOSING -> {
+                        // Close camera UI
                         Toast.makeText(context,
-                                "Close camera UI",
+                                "CameraState: Closing",
                                 Toast.LENGTH_SHORT).show()
                     }
                     CameraState.Type.CLOSED -> {
+                        // Free camera resources
                         Toast.makeText(context,
-                                "Free camera resources",
+                                "CameraState: Closed",
                                 Toast.LENGTH_SHORT).show()
                     }
                 }
