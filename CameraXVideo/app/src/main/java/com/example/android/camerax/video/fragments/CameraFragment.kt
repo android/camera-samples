@@ -492,22 +492,28 @@ class CameraFragment : Fragment() {
             layoutManager = LinearLayoutManager(context)
             adapter = GenericListAdapter(
                 selectorStrings,
-                itemLayoutId = android.R.layout.simple_list_item_1
+                itemLayoutId = R.layout.video_quality_item
             ) { holderView, qcString, position ->
 
-                holderView.findViewById<TextView>(android.R.id.text1)?.apply {
+                holderView.findViewById<TextView>(R.id.qualityTextView)?.apply {
                     text = qcString
-                    setTextColor(ContextCompat.getColor(context, R.color.txWhite))
+                    isSelected = (position == qualitySelectorIndex)
                 }
-                holderView.setOnClickListener {
+                holderView.setOnClickListener { view ->
                     if (qualitySelectorIndex == position) return@setOnClickListener
 
-                    prevQualitySelectorView?.setBackgroundColor(
-                        ContextCompat.getColor(context,R.color.txTransparent))
-                    prevQualitySelectorView = it
+                    fragmentCameraBinding.qualitySelection.let {
+                        // deselect the previous selection on UI.
+                        it.findViewHolderForAdapterPosition(qualitySelectorIndex)
+                          ?.itemView
+                          ?.isSelected = false
+                        it.adapter?.notifyItemChanged(qualitySelectorIndex)
+                    }
+                    // turn on the new selection on UI.
+                    view.isSelected = true
                     qualitySelectorIndex = position
-                    prevQualitySelectorView?.setBackgroundColor(
-                        ContextCompat.getColor(context, R.color.icPressed))
+
+                    // rebind the use cases to put the new QualitySelection in action.
                     enableUI(false)
                     viewLifecycleOwner.lifecycleScope.launch {
                         bindCaptureUsecase()
@@ -515,21 +521,7 @@ class CameraFragment : Fragment() {
                 }
             }
             isEnabled = false
-        }.postDelayed({
-            // initialize default QualitySelector to qualitySelectorIndex
-            //      delaying some time(100ms) is necessary for completing inflation
-            //      (specially on relatively slower devices)
-            fragmentCameraBinding.qualitySelection.also {
-                (it.layoutManager as LinearLayoutManager).scrollToPosition(qualitySelectorIndex)
-                prevQualitySelectorView = it.findViewHolderForAdapterPosition(qualitySelectorIndex)?.itemView
-                prevQualitySelectorView?.setBackgroundColor(
-                    ContextCompat.getColor(
-                        requireContext(),
-                        R.color.icPressed
-                    )
-                )
-            }
-        },100)
+        }
     }
     /**
      * Display capture the video in MediaStore
