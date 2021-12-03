@@ -608,8 +608,9 @@ fun QualitySelector.getAspectRatio(quality:Int): Int {
         arrayOf(QualitySelector.QUALITY_UHD,
             QualitySelector.QUALITY_FHD,
             QualitySelector.QUALITY_HD).contains(quality) -> AspectRatio.RATIO_16_9
-        quality ==  QualitySelector.QUALITY_SD -> AspectRatio.RATIO_4_3
-        else -> -1
+
+        (quality ==  QualitySelector.QUALITY_SD) -> AspectRatio.RATIO_4_3
+         else -> throw UnsupportedOperationException()
     }
 }
 
@@ -631,9 +632,7 @@ fun QualitySelector.getAspectRatioString(quality:Int, portraitMode:Boolean) :Str
             width = 4
             height = 3
         }
-        else -> {
-            return null
-        }
+        else -> throw UnsupportedOperationException()
     }
 
     return if (portraitMode) "V,$height:$width" else "H,$width:$height"
