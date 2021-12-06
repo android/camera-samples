@@ -495,19 +495,20 @@ class CameraFragment : Fragment() {
                 itemLayoutId = R.layout.video_quality_item
             ) { holderView, qcString, position ->
 
-                holderView.findViewById<TextView>(R.id.qualityTextView)?.apply {
-                    text = qcString
+                holderView.apply {
+                    findViewById<TextView>(R.id.qualityTextView)?.text = qcString
+                    // select the default quality selector
                     isSelected = (position == qualitySelectorIndex)
                 }
+
                 holderView.setOnClickListener { view ->
                     if (qualitySelectorIndex == position) return@setOnClickListener
 
                     fragmentCameraBinding.qualitySelection.let {
                         // deselect the previous selection on UI.
                         it.findViewHolderForAdapterPosition(qualitySelectorIndex)
-                          ?.itemView
-                          ?.isSelected = false
-                        it.adapter?.notifyItemChanged(qualitySelectorIndex)
+                            ?.itemView
+                            ?.isSelected = false
                     }
                     // turn on the new selection on UI.
                     view.isSelected = true
