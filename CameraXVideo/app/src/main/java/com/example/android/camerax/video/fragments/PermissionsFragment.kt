@@ -60,7 +60,7 @@ class PermissionsFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         return FragmentPermissionBinding.inflate(inflater, container, false).also {
             it.permissionContainer.setOnClickListener {
                 if (hasPermissions(requireContext())) {

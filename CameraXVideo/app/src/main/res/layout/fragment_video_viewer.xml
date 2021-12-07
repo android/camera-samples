@@ -24,7 +24,8 @@
         android:id="@+id/video_viewer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fitsSystemWindows="true" />
+        android:fitsSystemWindows="true"
+        android:layout_gravity="center|center"/>
 
     <TextView
         android:id="@+id/video_viewer_tips"
@@ -32,5 +33,6 @@
         android:layout_gravity="bottom|center"
         android:layout_height="wrap_content"
         android:textColor="@color/txBlue"
+        android:textSize="16sp"
         android:text="@string/video_viewer_tips" />
 </FrameLayout>

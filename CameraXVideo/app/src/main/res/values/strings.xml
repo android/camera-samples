@@ -15,6 +15,7 @@
 -->
 <resources>
     <string name="app_name">CameraXVideo</string>
+    <string name="audio">Audio</string>
     <string name="camera">Camera</string>
     <string name="capture">Capture</string>
     <string name="stop">Stop</string>
