@@ -1,4 +1,5 @@
 <resources>
+    <color name="transparent">#00000000</color>
     <color name="ic_white">#FFFFFFFF</color>
     <color name="light_blue_600">#FF039BE5</color>
     <color name="light_blue_900">#FF01579B</color>
@@ -9,8 +10,10 @@
     <color name="icFocused">#DDFFFFFF</color>
     <color name="icPressed">#AAFFFFFF</color>
     <color name="txBlack">#FF000000</color>
-    <color name="txTransparent">#00000000</color>
     <color name="txBlue">#FF0000FF</color>
+    <color name="txWhite">#FFFFFFFF</color>
     <color name="txGray">#80FFFFFF</color>
-
+    <color name="bkDarkPurple">#FF440044</color>
+    <color name="bkLightPurple">#FF880088</color>
+    <color name="bkPurple">#FFFF00FF</color>
 </resources>

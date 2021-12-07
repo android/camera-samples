@@ -14,19 +14,18 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<FrameLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/permission_container"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="5dp">
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/qualityTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical|center_horizontal"
-        android:textSize="16sp"
         android:textColor="@color/txWhite"
-        android:text="@string/alpha_warning" />
-</FrameLayout>
+        android:background="@drawable/selector_background"
+        android:textSize="20sp"/>
+</LinearLayout>
