@@ -24,15 +24,15 @@ import kotlin.math.roundToInt
 
 /**
  * A [SurfaceView] that can be adjusted to a specified aspect ratio and
- * performs center-crop transformation of input frames.
+ * performs padding transformation of input frames.
  */
 class AutoFitSurfaceView @JvmOverloads constructor(
-        context: Context,
-        attrs: AttributeSet? = null,
-        defStyle: Int = 0
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyle: Int = 0
 ) : SurfaceView(context, attrs, defStyle) {
 
-    private var aspectRatio = 0f
+    private var sourceAspectRatio = 0f
 
     /**
      * Sets the aspect ratio for this view. The size of the view will be
@@ -43,34 +43,37 @@ class AutoFitSurfaceView @JvmOverloads constructor(
      */
     fun setAspectRatio(width: Int, height: Int) {
         require(width > 0 && height > 0) { "Size cannot be negative" }
-        aspectRatio = width.toFloat() / height.toFloat()
+        sourceAspectRatio = width.toFloat() / height.toFloat()
         holder.setFixedSize(width, height)
         requestLayout()
     }
 
+    /**
+     * Adjust width and height of the SurfaceView to fit the aspect ratio of the source
+     */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val height = MeasureSpec.getSize(heightMeasureSpec)
-        if (aspectRatio == 0f) {
+        val windowAspectRatio = width/height.toFloat()
+        if (sourceAspectRatio == 0f) { // custom aspect ratio not set
             setMeasuredDimension(width, height)
-        } else {
-
-            // Performs center-crop transformation of the camera frames
-            val newWidth: Int
-            val newHeight: Int
-            val actualRatio = if (width > height) aspectRatio else 1f / aspectRatio
-            if (width < height * actualRatio) {
-                newHeight = height
-                newWidth = (height * actualRatio).roundToInt()
-            } else {
-                newWidth = width
-                newHeight = (width / actualRatio).roundToInt()
-            }
-
-            Log.d(TAG, "Measured dimensions set: $newWidth x $newHeight")
-            setMeasuredDimension(newWidth, newHeight)
+            return
         }
+
+        // Performs padding transformation of the camera frames
+        val newWidth: Int
+        val newHeight: Int
+
+        if (windowAspectRatio > sourceAspectRatio) {
+            newHeight = height
+            newWidth = (height * sourceAspectRatio).roundToInt()
+        } else {
+            newWidth = width
+            newHeight = (width / sourceAspectRatio).roundToInt()
+        }
+
+        Log.d(TAG, "Measured dimensions set: $newWidth x $newHeight")
+        setMeasuredDimension(newWidth, newHeight)
     }
 
     companion object {

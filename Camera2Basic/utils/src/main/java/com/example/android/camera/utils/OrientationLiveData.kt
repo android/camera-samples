@@ -68,7 +68,7 @@ class OrientationLiveData(
          * @return the relative rotation from the camera sensor to the current device orientation.
          */
         @JvmStatic
-        private fun computeRelativeRotation(
+        fun computeRelativeRotation(
                 characteristics: CameraCharacteristics,
                 surfaceRotation: Int
         ): Int {

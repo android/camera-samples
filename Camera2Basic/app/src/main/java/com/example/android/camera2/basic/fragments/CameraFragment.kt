@@ -170,11 +170,21 @@ class CameraFragment : Fragment() {
                 )
                 Log.d(TAG, "View finder size: ${fragmentCameraBinding.viewFinder.width} x ${fragmentCameraBinding.viewFinder.height}")
                 Log.d(TAG, "Selected preview size: $previewSize")
-                fragmentCameraBinding.viewFinder.setAspectRatio(
-                    previewSize.width,
-                    previewSize.height
-                )
 
+                val displayRotation =  activity?.windowManager?.defaultDisplay?.rotation?:0
+                val relativeRotation = OrientationLiveData.computeRelativeRotation(characteristics, displayRotation)
+
+                if (relativeRotation % 180 != 0){ // preview is portrait-shaped
+                    fragmentCameraBinding.viewFinder.setAspectRatio(
+                        previewSize.height,
+                        previewSize.width,
+                    )
+                }else{
+                    fragmentCameraBinding.viewFinder.setAspectRatio(
+                        previewSize.width,
+                        previewSize.height,
+                    )
+                }
                 // To ensure that size is set, initialize camera in the view's thread
                 view.post { initializeCamera() }
             }

@@ -21,8 +21,9 @@
 
     <com.example.android.camera.utils.AutoFitSurfaceView
         android:id="@+id/view_finder"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"/>
 
     <View
         android:id="@+id/overlay"
