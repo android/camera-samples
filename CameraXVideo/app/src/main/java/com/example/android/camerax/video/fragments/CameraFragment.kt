@@ -194,7 +194,14 @@ class CameraFragment : Fragment() {
         updateUI(event)
 
         if (event is VideoRecordEvent.Finalize) {
-            showVideo(event)
+             // display the captured video
+            lifecycleScope.launch {
+                navController.navigate(
+                    CameraFragmentDirections.actionCameraFragmentToVideoViewer(
+                        event.outputResults.outputUri
+                    )
+                )
+            }
         }
     }
 
@@ -522,24 +529,6 @@ class CameraFragment : Fragment() {
                 }
             }
             isEnabled = false
-        }
-    }
-    /**
-     * Display capture the video in MediaStore
-     *     event: VideoRecordEvent.Finalize holding MediaStore URI
-     */
-    private fun showVideo(event: VideoRecordEvent) {
-
-        if (event !is VideoRecordEvent.Finalize) {
-            return
-        }
-
-        lifecycleScope.launch {
-            navController.navigate(
-                CameraFragmentDirections.actionCameraFragmentToVideoViewer(
-                    event.outputResults.outputUri
-                )
-            )
         }
     }
 
