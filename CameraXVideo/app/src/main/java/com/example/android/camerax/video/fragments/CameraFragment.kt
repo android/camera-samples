@@ -30,7 +30,6 @@ package com.example.android.camerax.video.fragments
 
 import android.annotation.SuppressLint
 import android.content.ContentValues
-import android.content.Context
 import android.content.res.Configuration
 import java.text.SimpleDateFormat
 import android.os.Bundle
@@ -56,6 +55,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import androidx.core.view.updateLayoutParams
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.whenCreated
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.android.camera.utils.GenericListAdapter
@@ -67,7 +67,7 @@ class CameraFragment : Fragment() {
     // UI with ViewBinding
     private var _fragmentCameraBinding: FragmentCameraBinding? = null
     private val fragmentCameraBinding get() = _fragmentCameraBinding!!
-    private var prevQualitySelectorView:View? = null
+    private val captureLiveStatus = MutableLiveData<String>()
 
     /** Host's navigation controller */
     private val navController: NavController by lazy {
@@ -355,7 +355,12 @@ class CameraFragment : Fragment() {
             isEnabled = false
         }
 
-        fragmentCameraBinding.captureStatus.text = getString(R.string.Idle)
+        captureLiveStatus.observe(viewLifecycleOwner) {
+            fragmentCameraBinding.captureStatus.apply {
+                post { text = it }
+            }
+        }
+        captureLiveStatus.value = getString(R.string.Idle)
     }
 
     /**
@@ -397,7 +402,7 @@ class CameraFragment : Fragment() {
         if(event is VideoRecordEvent.Finalize)
             text = "${text}\nFile saved to: ${event.outputResults.outputUri}"
 
-        fragmentCameraBinding.captureStatus.text=text
+        captureLiveStatus.value = text
         Log.i(TAG, "recording event: $text")
     }
 
