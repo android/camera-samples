@@ -107,7 +107,6 @@
         android:background="@color/transparent"
         android:lines="2"
         android:maxLines="2"
-        android:text="@string/Idle"
         android:textColor="@color/txWhite"
         android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="parent"
