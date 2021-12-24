@@ -27,39 +27,36 @@
         android:label="Permissions" >
 
         <action
-            android:id="@+id/action_permissions_fragment_to_camera_fragment"
-            app:destination="@id/camera_fragment" />
+            android:id="@+id/action_permissions_to_capture"
+            app:destination="@id/capture_fragment" />
 
     </fragment>
 
     <fragment
-        android:id="@+id/camera_fragment"
-        android:name="com.example.android.camerax.video.fragments.CameraFragment"
-        android:label="Camera" >
+        android:id="@+id/capture_fragment"
+        android:name="com.example.android.camerax.video.fragments.CaptureFragment"
+        android:label="Capture" >
 
         <action
-            android:id="@+id/action_camera_to_permissions"
-            app:destination="@id/permissions_fragment"
-            app:popUpTo="@id/camera_fragment"
-            app:popUpToInclusive="true"/>
+            android:id="@+id/action_capture_to_permissions"
+            app:destination="@id/permissions_fragment" />
         <action
-            android:id="@+id/action_camera_fragment_to_video_viewer"
+            android:id="@+id/action_capture_to_video_viewer"
             app:destination="@id/video_viewer" />
-
     </fragment>
+
     <fragment
         android:id="@+id/video_viewer"
         android:name="com.example.android.camerax.video.fragments.VideoViewerFragment"
         android:label="fragment_video_viewer"
         tools:layout="@layout/fragment_video_viewer" >
-
         <argument
             android:name="uri"
             app:argType="android.net.Uri" />
 
         <action
-            android:id="@+id/action_video_viewer2_to_camera_fragment"
-            app:destination="@id/camera_fragment" />
+            android:id="@+id/action_video_viewer_to_capture"
+            app:destination="@id/capture_fragment" />
     </fragment>
 
 </navigation>
