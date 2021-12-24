@@ -65,7 +65,7 @@ class PermissionsFragment : Fragment() {
             it.permissionContainer.setOnClickListener {
                 if (hasPermissions(requireContext())) {
                     Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
-                        PermissionsFragmentDirections.actionPermissionsFragmentToCameraFragment()
+                        PermissionsFragmentDirections.actionPermissionsToCapture()
                     )
                 } else {
                     Log.e(PermissionsFragment::class.java.simpleName,
