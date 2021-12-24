@@ -1,7 +1,8 @@
 # Camera Samples Repository
 
 This repository contains a set of individual Android Studio projects to help you get
-started with the [Camera APIs](https://developer.android.com/guide/topics/media/camera) in Android.
+started with the [CameraX](https://developer.android.com/training/camerax) and 
+[Camera2](https://developer.android.com/training/camera2) APIs in Android.
 
 ## Samples
 
