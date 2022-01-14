@@ -1,5 +1,9 @@
 # CameraX + Tensorflow Lite
-This sample implements an Activity that performs real-time object detection on
+This is a collection of examples to demonstrate CameraX usage in different areas such as TFLite,
+and the list will grow along with CameraX advancing footprints.
+
+## TensorFlow Lite(TFLite)
+This example implements an Activity that performs real-time object detection on
 the live camera frames. It performs the following operations:
 1. Initializes camera preview and image analysis frame streams using CameraX
 2. Loads a mobilenet quantized model using Tensorflow Lite
@@ -10,5 +14,5 @@ The whole pipeline is able to maintain 30 FPS on a Pixel 3 XL with:
 - the default tensor size (300 x 300)
 
 ## Screenshots
-![demo](screenshots/demo.gif "demo animation")
-![screenshot 1](screenshots/screenshot-1.jpg "screenshot 1")
+![demo](tflite/screenshots/demo.gif "demo animation")
+![screenshot 1](tflite/screenshots/screenshot-1.jpg "screenshot 1")
