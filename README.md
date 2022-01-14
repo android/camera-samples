@@ -9,7 +9,7 @@ started with the [CameraX](https://developer.android.com/training/camerax) and
 | Sample                                    | Description  |
 | ----------------------------------------- | ------------ |
 | [CameraXBasic](CameraXBasic)              | Demonstrates how to use CameraX APIs. |
-| [CameraXTfLite](CameraXTfLite)            | Demonstrates how to use TfLite with CameraX APIs. |
+| [CameraXAdvanced](CameraXAdvanced)        | Demonstrates how to use CameraX APIs with TFLite and others |
 | [CameraXVideo](CameraXVideo)              | Demonstrates how to use CameraX VideoCapture API. |
 | [Camera2Basic](Camera2Basic)              | Demonstrates capturing JPEG, RAW and DEPTH images, e.g. unprocessed pixel data directly from the camera sensor. |
 | [Camera2SlowMotion](Camera2SlowMotion)    | Demonstrates capturing high-speed video in a constrained camera capture session. |
