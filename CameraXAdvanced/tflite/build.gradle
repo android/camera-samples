@@ -57,13 +57,13 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
 
     // CameraX
-    def camerax_version = "1.1.0-alpha09"
+    def camerax_version = "1.1.0-alpha12"
     implementation "androidx.camera:camera-core:${camerax_version}"
     implementation "androidx.camera:camera-camera2:${camerax_version}"
     implementation "androidx.camera:camera-lifecycle:${camerax_version}"
 
     // CameraX View class
-    implementation "androidx.camera:camera-view:1.0.0-alpha29"
+    implementation "androidx.camera:camera-view:1.0.0-alpha32"
 
     // Tensorflow lite dependencies
     implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly-SNAPSHOT'

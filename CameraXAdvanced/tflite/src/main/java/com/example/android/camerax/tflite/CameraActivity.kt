@@ -49,6 +49,7 @@ import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
 import org.tensorflow.lite.support.image.ops.Rot90Op
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -82,11 +83,8 @@ class CameraActivity : AppCompatActivity() {
             .build()
     }
 
-    // nnAPiDelegate must be released by explicitly calling its close() function.
-    //     https://github.com/android/camera-samples/issues/417
-    private var nnapiInitialized = false
     private val nnApiDelegate by lazy  {
-        NnApiDelegate().apply { nnapiInitialized = true }
+        NnApiDelegate()
     }
 
     private val tflite by lazy {
@@ -94,7 +92,6 @@ class CameraActivity : AppCompatActivity() {
             FileUtil.loadMappedFile(this, MODEL_PATH),
             Interpreter.Options().addDelegate(nnApiDelegate))
     }
-
     private val detector by lazy {
         ObjectDetectionHelper(
             tflite,
@@ -142,7 +139,17 @@ class CameraActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        if (nnapiInitialized) nnApiDelegate.close()
+
+        // Terminate all outstanding analyzing jobs (if there is any).
+        executor.apply {
+            shutdown()
+            awaitTermination(1000, TimeUnit.MILLISECONDS)
+        }
+
+        // Release TFLite resources.
+        tflite.close()
+        nnApiDelegate.close()
+
         super.onDestroy()
     }
 
@@ -151,7 +158,7 @@ class CameraActivity : AppCompatActivity() {
     private fun bindCameraUseCases() = activityCameraBinding.viewFinder.post {
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        cameraProviderFuture.addListener(Runnable {
+        cameraProviderFuture.addListener ({
 
             // Camera provider is now guaranteed to be available
             val cameraProvider = cameraProviderFuture.get()
@@ -217,7 +224,7 @@ class CameraActivity : AppCompatActivity() {
 
             // Apply declared configs to CameraX using the same lifecycle owner
             cameraProvider.unbindAll()
-            val camera = cameraProvider.bindToLifecycle(
+            cameraProvider.bindToLifecycle(
                 this as LifecycleOwner, cameraSelector, preview, imageAnalysis)
 
             // Use the camera object to link our preview use case with the view
