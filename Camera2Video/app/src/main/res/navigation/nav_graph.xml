@@ -39,7 +39,40 @@
         android:label="Selector" >
 
         <action
+            android:id="@+id/action_selector_to_dynamic_range"
+            app:destination="@id/dynamic_range_fragment" />
+
+        <action
             android:id="@+id/action_selector_to_camera"
+            app:launchSingleTop="true"
+            app:destination="@id/camera_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/dynamic_range_fragment"
+        android:name="com.example.android.camera2.video.fragments.DynamicRangeFragment"
+        android:label="DynamicRange" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <action
+            android:id="@+id/action_dynamic_range_to_camera"
             app:launchSingleTop="true"
             app:destination="@id/camera_fragment" />
 
@@ -65,6 +98,10 @@
 
         <argument
             android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
             app:argType="integer" />
 
         <action
