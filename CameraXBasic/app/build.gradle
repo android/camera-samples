@@ -20,7 +20,7 @@ apply plugin: 'kotlin-kapt'
 apply plugin: "androidx.navigation.safeargs"
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 31
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         applicationId "com.android.example.cameraxbasic"
@@ -68,7 +68,7 @@ dependencies {
     implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
     // CameraX core library
-    def camerax_version = '1.1.0-alpha07'
+    def camerax_version = '1.1.0-beta01'
     implementation "androidx.camera:camera-core:$camerax_version"
 
     // CameraX Camera2 extensions
@@ -78,10 +78,11 @@ dependencies {
     implementation "androidx.camera:camera-lifecycle:$camerax_version"
 
     // CameraX View class
-    implementation 'androidx.camera:camera-view:1.0.0-alpha27'
+    implementation "androidx.camera:camera-view:$camerax_version"
+
 
     // CameraX Extensions library
-    // implementation 'androidx.camera:camera-extensions:1.0.0-alpha27'
+    // implementation "androidx.camera:camera-extensions:$camerax_version"
 
     //WindowManager
     implementation 'androidx.window:window:1.0.0-alpha09'
