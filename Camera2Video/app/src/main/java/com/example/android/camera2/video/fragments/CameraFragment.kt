@@ -227,7 +227,14 @@ class CameraFragment : Fragment() {
         setVideoEncodingBitRate(RECORDER_VIDEO_BITRATE)
         if (args.fps > 0) setVideoFrameRate(args.fps)
         setVideoSize(args.width, args.height)
-        setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+
+        val videoEncoder = when {
+            args.dynamicRange == DynamicRangeProfiles.STANDARD -> MediaRecorder.VideoEncoder.H264
+            args.dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaRecorder.VideoEncoder.HEVC
+            else -> throw IllegalArgumentException("Unknown dynamic range format")
+        }
+
+        setVideoEncoder(videoEncoder)
         setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
         setInputSurface(surface)
     }
