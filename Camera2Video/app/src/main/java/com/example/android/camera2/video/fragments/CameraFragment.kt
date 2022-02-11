@@ -26,6 +26,8 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.params.DynamicRangeProfiles
+import android.hardware.camera2.params.OutputConfiguration
 import android.media.MediaCodec
 import android.media.MediaRecorder
 import android.media.MediaScannerConnection
@@ -363,10 +365,19 @@ class CameraFragment : Fragment() {
             targets: List<Surface>,
             handler: Handler? = null
     ): CameraCaptureSession = suspendCoroutine { cont ->
+        val outputConfigs = mutableListOf<OutputConfiguration>()
+        for (target in targets) {
+            val outputConfig = OutputConfiguration(target)
+            outputConfig.setDynamicRangeProfile(args.dynamicRange)
+            outputConfigs.add(outputConfig)
+        }
+
+        // OutputConfiguration config = new OutputConfiguration(target.getSurface());
 
         // Creates a capture session using the predefined targets, and defines a session state
         // callback which resumes the coroutine once the session is configured
-        device.createCaptureSession(targets, object: CameraCaptureSession.StateCallback() {
+        device.createCaptureSessionByOutputConfigurations(
+                outputConfigs, object: CameraCaptureSession.StateCallback() {
 
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
 
