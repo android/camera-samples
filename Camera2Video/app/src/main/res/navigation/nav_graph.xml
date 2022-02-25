@@ -102,7 +102,7 @@
 
         <argument
             android:name="dynamicRange"
-            app:argType="integer" />
+            app:argType="long" />
 
         <action
             android:id="@+id/action_camera_to_permissions"

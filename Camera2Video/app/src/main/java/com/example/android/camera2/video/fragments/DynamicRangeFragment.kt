@@ -77,9 +77,9 @@ class DynamicRangeFragment : Fragment() {
 
         private data class DynamicRangeInfo(
                 val name: String,
-                val value: Int)
+                val value: Long)
 
-        private fun dynamicRangeProfileString(value: Int) = when (value) {
+        private fun dynamicRangeProfileString(value: Long) = when (value) {
             DynamicRangeProfiles.STANDARD -> "STANDARD"
             DynamicRangeProfiles.HLG10 -> "HLG10"
             DynamicRangeProfiles.HDR10 -> "HDR10"
