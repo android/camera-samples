@@ -18,6 +18,12 @@
 
 package com.example.android.camerax.video.fragments
 
+import android.content.ContentResolver
+import android.database.Cursor
+import android.database.CursorIndexOutOfBoundsException
+import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -29,6 +35,9 @@ import android.widget.MediaController
 import androidx.navigation.fragment.navArgs
 import com.example.android.camerax.video.databinding.FragmentVideoViewerBinding
 import android.util.TypedValue
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import java.lang.RuntimeException
 
 /**
  * VideoViewerFragment:
@@ -46,7 +55,7 @@ class VideoViewerFragment : androidx.fragment.app.Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         _binding = FragmentVideoViewerBinding.inflate(inflater, container, false)
         // UI adjustment + hacking to display VideoView use tips / capture result
         val tv = TypedValue()
@@ -59,7 +68,23 @@ class VideoViewerFragment : androidx.fragment.app.Fragment() {
     }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        showVideo()
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+            showVideo(args.uri)
+        } else {
+            // force MediaScanner to re-scan the media file.
+            val path = getAbsolutePathFromUri(args.uri) ?: return
+            MediaScannerConnection.scanFile(
+                context, arrayOf(path), null
+            ) { _, uri ->
+                // playback video on main thread with VideoView
+                if (uri != null) {
+                    lifecycleScope.launch {
+                        showVideo(uri)
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -74,33 +99,68 @@ class VideoViewerFragment : androidx.fragment.app.Fragment() {
      *   - the captured video
      *   - the file size and location
      */
-    private fun showVideo() {
-        if (args.uri.scheme.toString().compareTo("content") == 0) {
-            val resolver = requireContext().contentResolver
-            resolver.query(args.uri, null, null, null, null)?.use { cursor ->
-                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                cursor.moveToFirst()
+    private fun showVideo(uri : Uri) {
+        val fileSize = getFileSizeFromUri(uri)
+        if (fileSize == null || fileSize <= 0) {
+            Log.e("VideoViewerFragment", "Failed to get recorded file size, could not be played!")
+            return
+        }
 
-                val fileSize = cursor.getLong(sizeIndex)
-                if (fileSize <= 0) {
-                    Log.e("VideoViewerFragment", "Recorded file size is 0, could not be played!")
-                    return
-                }
+        val filePath = getAbsolutePathFromUri(uri) ?: return
+        val fileInfo = "FileSize: $fileSize\n $filePath"
+        Log.i("VideoViewerFragment", fileInfo)
+        binding.videoViewerTips.text = fileInfo
 
-                val dataIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-                val fileInfo =  "FileSize: ${fileSize}" + dataIndex.let { "\n ${cursor.getString(it)}" }
+        val mc = MediaController(requireContext())
+        binding.videoViewer.apply {
+            setVideoURI(uri)
+            setMediaController(mc)
+            requestFocus()
+        }.start()
+        mc.show(0)
+    }
 
-                Log.i("VideoViewerFragment", "$fileInfo")
-                binding.videoViewerTips.text = "$fileInfo"
+    /**
+     * A helper function to get the captured file location.
+     */
+    private fun getAbsolutePathFromUri(contentUri: Uri): String? {
+        var cursor:Cursor? = null
+        return try {
+            cursor = requireContext()
+                .contentResolver
+                .query(contentUri, arrayOf(MediaStore.Images.Media.DATA), null, null, null)
+            if (cursor == null) {
+                return null
             }
+            val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            cursor.moveToFirst()
+            cursor.getString(columnIndex)
+        } catch (e: RuntimeException) {
+            Log.e("VideoViewerFragment", String.format(
+                "Failed in getting absolute path for Uri %s with Exception %s",
+                contentUri.toString(), e.toString()
+            )
+            )
+            null
+        } finally {
+            cursor?.close()
+        }
+    }
 
-            val mc = MediaController(requireContext())
-            binding.videoViewer.apply {
-                setVideoURI(args.uri)
-                setMediaController(mc)
-                requestFocus()
-            }.start()
-            mc.show(0)
+    /**
+     * A helper function to retrieve the captured file size.
+     */
+    private fun getFileSizeFromUri(contentUri: Uri): Long? {
+        val cursor = requireContext()
+            .contentResolver
+            .query(contentUri, null, null, null, null)
+            ?: return null
+
+        val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+        cursor.moveToFirst()
+
+        cursor.use {
+            return it.getLong(sizeIndex)
         }
     }
 }

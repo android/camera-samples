@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright 2021 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:background="@color/bkPurple"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="V,9:16"/>
+
+    <CheckBox
+        android:id="@+id/audio_selection"
+        android:text="@string/audio"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:buttonTint="@color/ic_white"
+        android:textColor="@color/txWhite"
+        android:textSize="20sp"
+        app:layout_constraintTop_toBottomOf="@id/horizontal_guideline"
+        app:layout_constraintStart_toStartOf="@id/previewView" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/vertical_guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.50" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/quality_selection"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:background="?android:attr/activatedBackgroundIndicator"
+        android:choiceMode="singleChoice"
+        android:layout_centerVertical="false"
+        app:layout_constraintStart_toEndOf="@+id/vertical_guideline"
+        app:layout_constraintTop_toTopOf="@id/audio_selection"
+        app:layout_constraintBottom_toTopOf="@id/stop_button"/>
+
+    <ImageButton
+        android:id="@+id/camera_button"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="13dp"
+        android:background="@drawable/ic_switch"
+        android:contentDescription="@string/camera"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toTopOf="@+id/capture_status"
+        app:layout_constraintEnd_toStartOf="@+id/capture_button"
+        tools:ignore="ImageContrastCheck" />
+
+    <ImageButton
+        android:id="@+id/capture_button"
+        android:layout_width="96dp"
+        android:layout_height="0dp"
+        android:background="@drawable/ic_start"
+        android:contentDescription="@string/capture"
+        android:translationX="48dp"
+        android:scaleType="fitCenter"
+        app:layout_constraintEnd_toEndOf="@+id/vertical_guideline"
+        app:layout_constraintTop_toTopOf="@+id/camera_button"
+        app:layout_constraintBottom_toBottomOf="@+id/camera_button"
+        tools:ignore="ImageContrastCheck" />
+
+    <ImageButton
+        android:id="@+id/stop_button"
+        android:background="@drawable/ic_stop"
+        android:visibility="invisible"
+        android:layout_width="96dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="16dp"
+        android:contentDescription="@string/stop"
+        android:translationX="48dp"
+        android:scaleType="fitCenter"
+        app:layout_constraintStart_toEndOf="@+id/capture_button"
+        app:layout_constraintTop_toTopOf="@+id/capture_button"
+        app:layout_constraintBottom_toBottomOf="@+id/capture_button"
+        tools:ignore="ImageContrastCheck" />
+
+    <TextView
+        android:id="@+id/capture_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="47dp"
+        android:background="@color/transparent"
+        android:lines="2"
+        android:maxLines="2"
+        android:textColor="@color/txWhite"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/camera_button" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/horizontal_guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.50" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
