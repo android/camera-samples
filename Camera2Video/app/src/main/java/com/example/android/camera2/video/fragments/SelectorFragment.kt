@@ -64,27 +64,35 @@ class SelectorFragment : Fragment() {
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
                     var dynamicRangeProfiles: DynamicRangeProfiles? = null;
-                  
+
                     // DynamicRangeProfiles is introduced in android Tiramisu. If the SDK residing on
                     // our device is older, do not call the non-existant paths.
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU ||
-                        android.os.Build.VERSION.PREVIEW_SDK_INT > 0) {
+                    if (android.os.Build.VERSION.SDK_INT >=
+                            android.os.Build.VERSION_CODES.TIRAMISU) {
                         val characteristics = cameraManager.getCameraCharacteristics(item.cameraId)
                         dynamicRangeProfiles = characteristics.get(
                                 CameraCharacteristics.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES)
                     }
 
+                    val navController =
+                        Navigation.findNavController(requireActivity(), R.id.fragment_container)
+
                     // If possible, navigate to a second selector for picking a dynamic range.
                     // Otherwise continue on to video recording.
                     if (dynamicRangeProfiles != null) {
-                        Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                            .navigate(SelectorFragmentDirections.actionSelectorToDynamicRange(
-                                    item.cameraId, item.size.width, item.size.height, item.fps))
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToDynamicRange(
+                            item.cameraId, item.size.width, item.size.height, item.fps))
+                    } else if (android.os.Build.VERSION.SDK_INT >= 29) {
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToRecordMode(
+                            item.cameraId, item.size.width, item.size.height, item.fps,
+                            DynamicRangeProfiles.STANDARD))
                     } else {
-                        Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                            .navigate(SelectorFragmentDirections.actionSelectorToCamera(
-                                    item.cameraId, item.size.width, item.size.height, item.fps,
-                                    DynamicRangeProfiles.STANDARD))
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToSurfaceView(
+                            item.cameraId, item.size.width, item.size.height, item.fps,
+                            DynamicRangeProfiles.STANDARD))
                     }
                 }
             }

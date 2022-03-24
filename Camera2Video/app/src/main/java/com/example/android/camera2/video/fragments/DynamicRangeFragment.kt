@@ -66,7 +66,7 @@ class DynamicRangeFragment : Fragment() {
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
                     Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                            .navigate(DynamicRangeFragmentDirections.actionDynamicRangeToCamera(
+                            .navigate(DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
                                     args.cameraId, args.width, args.height, args.fps, item.value))
                 }
             }
