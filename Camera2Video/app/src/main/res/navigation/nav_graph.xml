@@ -43,9 +43,14 @@
             app:destination="@id/dynamic_range_fragment" />
 
         <action
-            android:id="@+id/action_selector_to_camera"
+            android:id="@+id/action_selector_to_record_mode"
             app:launchSingleTop="true"
-            app:destination="@id/camera_fragment" />
+            app:destination="@id/record_mode_fragment" />
+
+        <action
+            android:id="@+id/action_selector_to_surface_view"
+            app:launchSingleTop="true"
+            app:destination="@id/surface_view_fragment" />
 
     </fragment>
 
@@ -72,16 +77,16 @@
             app:argType="integer" />
 
         <action
-            android:id="@+id/action_dynamic_range_to_camera"
+            android:id="@+id/action_dynamic_range_to_record_mode"
             app:launchSingleTop="true"
-            app:destination="@id/camera_fragment" />
+            app:destination="@id/record_mode_fragment" />
 
     </fragment>
 
     <fragment
-        android:id="@+id/camera_fragment"
-        android:name="com.example.android.camera2.video.fragments.CameraFragment"
-        android:label="Camera" >
+        android:id="@+id/record_mode_fragment"
+        android:name="com.example.android.camera2.video.fragments.RecordModeFragment"
+        android:label="RecordMode" >
 
         <argument
             android:name="camera_id"
@@ -105,10 +110,119 @@
             app:argType="long" />
 
         <action
-            android:id="@+id/action_camera_to_permissions"
+            android:id="@+id/action_record_mode_to_surface_view"
+            app:launchSingleTop="true"
+            app:destination="@id/surface_view_fragment" />
+
+        <action
+            android:id="@+id/action_record_mode_to_filter"
+            app:launchSingleTop="true"
+            app:destination="@id/filter_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/surface_view_fragment"
+        android:name="com.example.android.camera2.video.fragments.SurfaceViewFragment"
+        android:label="SurfaceView" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_surface_view_to_permissions"
             app:destination="@id/permissions_fragment"
-            app:popUpTo="@id/camera_fragment"
+            app:popUpTo="@id/surface_view_fragment"
             app:popUpToInclusive="true"/>
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/filter_fragment"
+        android:name="com.example.android.camera2.video.fragments.FilterFragment"
+        android:label="Filter" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_filter_to_texture_view"
+            app:launchSingleTop="true"
+            app:destination="@id/texture_view_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/texture_view_fragment"
+        android:name="com.example.android.camera2.video.fragments.TextureViewFragment"
+        android:label="TextureView" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <argument
+            android:name="filterOn"
+            app:argType="boolean" />
+
+        <action
+            android:id="@+id/action_texture_view_to_permissions"
+            app:destination="@id/permissions_fragment"
+            app:popUpTo="@id/texture_view_fragment"
+            app:popUpToInclusive="true" />
 
     </fragment>
 
