@@ -364,6 +364,32 @@ class CameraFragment : Fragment() {
     }
 
     /**
+     * Creates a [CameraCaptureSession] with the dynamic range profile set.
+     */
+    private fun setupSessionWithDynamicRangeProfile(
+            device: CameraDevice,
+            targets: List<Surface>,
+            handler: Handler? = null,
+            stateCallback: CameraCaptureSession.StateCallback
+    ): Boolean {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val outputConfigs = mutableListOf<OutputConfiguration>()
+            for (target in targets) {
+                val outputConfig = OutputConfiguration(target)
+                outputConfig.setDynamicRangeProfile(args.dynamicRange)
+                outputConfigs.add(outputConfig)
+            }
+
+            device.createCaptureSessionByOutputConfigurations(
+                    outputConfigs, stateCallback, handler)
+            return true
+        } else {
+            device.createCaptureSession(targets, stateCallback, handler)
+            return false
+        }
+    }
+
+    /**
      * Creates a [CameraCaptureSession] and returns the configured session (as the result of the
      * suspend coroutine)
      */
@@ -372,20 +398,7 @@ class CameraFragment : Fragment() {
             targets: List<Surface>,
             handler: Handler? = null
     ): CameraCaptureSession = suspendCoroutine { cont ->
-        val outputConfigs = mutableListOf<OutputConfiguration>()
-        for (target in targets) {
-            val outputConfig = OutputConfiguration(target)
-            outputConfig.setDynamicRangeProfile(args.dynamicRange)
-            outputConfigs.add(outputConfig)
-        }
-
-        // OutputConfiguration config = new OutputConfiguration(target.getSurface());
-
-        // Creates a capture session using the predefined targets, and defines a session state
-        // callback which resumes the coroutine once the session is configured
-        device.createCaptureSessionByOutputConfigurations(
-                outputConfigs, object: CameraCaptureSession.StateCallback() {
-
+        val stateCallback = object: CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
 
             override fun onConfigureFailed(session: CameraCaptureSession) {
@@ -393,7 +406,9 @@ class CameraFragment : Fragment() {
                 Log.e(TAG, exc.message, exc)
                 cont.resumeWithException(exc)
             }
-        }, handler)
+        }
+
+        setupSessionWithDynamicRangeProfile(device, targets, handler, stateCallback)
     }
 
     override fun onStop() {
