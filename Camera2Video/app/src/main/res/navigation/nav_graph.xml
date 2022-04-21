@@ -81,6 +81,11 @@
             app:launchSingleTop="true"
             app:destination="@id/record_mode_fragment" />
 
+        <action
+            android:id="@+id/action_dynamic_range_to_surface_view"
+            app:launchSingleTop="true"
+            app:destination="@id/surface_view_fragment" />
+
     </fragment>
 
     <fragment
@@ -209,10 +214,6 @@
         <argument
             android:name="fps"
             app:argType="integer" />
-
-        <argument
-            android:name="dynamicRange"
-            app:argType="long" />
 
         <argument
             android:name="filterOn"

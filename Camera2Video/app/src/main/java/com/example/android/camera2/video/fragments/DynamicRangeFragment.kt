@@ -65,11 +65,20 @@ class DynamicRangeFragment : Fragment() {
             adapter = GenericListAdapter(dynamicRangeList, itemLayoutId = layoutId) { view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
-                    Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                            .navigate(DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
-                                    args.cameraId, args.width, args.height, args.fps, item.value))
+                    navigate(item.value)
                 }
             }
+        }
+    }
+
+    private fun navigate(dynamicRangeProfile: Long) {
+        val navController = Navigation.findNavController(requireActivity(), R.id.fragment_container)
+        if (dynamicRangeProfile == DynamicRangeProfiles.STANDARD) {
+            navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
+                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
+        } else {
+            navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToSurfaceView(
+                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
         }
     }
 

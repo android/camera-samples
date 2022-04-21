@@ -29,14 +29,14 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
-import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.HardwareBuffer
 import android.media.Image
 import android.media.ImageReader
 import android.media.ImageWriter
 import android.media.MediaCodec
-import android.media.MediaRecorder
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
 import android.media.MediaScannerConnection
 import android.opengl.EGL14
 import android.opengl.EGL14.EGL_CONTEXT_CLIENT_VERSION
@@ -49,6 +49,7 @@ import android.opengl.EGLSurface
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.os.Bundle
+import android.os.ConditionVariable
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
@@ -81,7 +82,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.nio.ByteBuffer
-import java.nio.ByteOrder;
+import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -90,6 +91,8 @@ import kotlin.RuntimeException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+
+import com.example.android.camera2.video.EncoderWrapper
 
 /** Generates a fullscreen quad to cover the entire viewport. Applies the transform set on the
     camera surface to adjust for orientation and scaling when used for copying from the camera
@@ -175,27 +178,14 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
     private val outputFile: File by lazy { createFile(requireContext(), "mp4") }
 
     /**
-     * Setup a persistent [Surface] for the recorder so we can use it as an output target for the
-     * camera session without preparing the recorder
+     * Setup a [Surface] for the encoder
      */
-    private val recorderSurface: Surface by lazy {
-
-        // Get a persistent Surface from MediaCodec, don't forget to release when done
-        val surface = MediaCodec.createPersistentInputSurface()
-
-        // Prepare and release a dummy MediaRecorder with our new surface
-        // Required to allocate an appropriately sized buffer before passing the Surface as the
-        //  output target to the capture session
-        createRecorder(surface).apply {
-            prepare()
-            release()
-        }
-
-        surface
+    private val encoderSurface: Surface by lazy {
+        encoder.getInputSurface()
     }
 
-    /** Saves the video recording */
-    private val recorder: MediaRecorder by lazy { createRecorder(recorderSurface) }
+    /** [EncoderWrapper] utility class */
+    private val encoder: EncoderWrapper by lazy { createEncoder() }
 
     /** [HandlerThread] where all camera operations run */
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
@@ -209,12 +199,18 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
             // Flash white animation
             fragmentBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
-            fragmentBinding.overlay.postDelayed({
-                // Remove white flash animation
-                fragmentBinding.overlay.foreground = null
-                // Restart animation recursively
-                fragmentBinding.overlay.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
-            }, CameraActivity.ANIMATION_FAST_MILLIS)
+
+            if (currentlyRecording) {
+                fragmentBinding.overlay.postDelayed({
+                    // Remove white flash animation
+                    fragmentBinding.overlay.foreground = null
+                    // Restart animation recursively
+                    if (currentlyRecording) {
+                        fragmentBinding.overlay.postDelayed(animationTask,
+                                CameraActivity.ANIMATION_FAST_MILLIS)
+                    }
+                }, CameraActivity.ANIMATION_FAST_MILLIS)
+            }
         }
     }
 
@@ -281,12 +277,18 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
         characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
     }
 
+    @Volatile
+    private var currentlyRecording = false
+
+    /** Condition variable for blocking until the recording completes */
+    private val cvRecordingComplete = ConditionVariable(false)
+
     /** EGL / OpenGL data. */
     private var eglDisplay = EGL14.EGL_NO_DISPLAY;
     private var eglContext = EGL14.EGL_NO_CONTEXT;
     private var eglConfig: EGLConfig? = null;
     private var eglRenderSurface: EGLSurface? = null
-    private var eglRecorderSurface: EGLSurface? = null
+    private var eglEncoderSurface: EGLSurface? = null
     private var eglTextureViewSurface: EGLSurface? = null
     private var vertexShader = 0
     private var passthroughFragmentShader = 0
@@ -500,32 +502,18 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
         })
     }
 
-    /** Creates a [MediaRecorder] instance using the provided [Surface] as input */
-    private fun createRecorder(surface: Surface) = MediaRecorder().apply {
-        setAudioSource(MediaRecorder.AudioSource.MIC)
-        setVideoSource(MediaRecorder.VideoSource.SURFACE)
-        setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        setOutputFile(outputFile.absolutePath)
-        setVideoEncodingBitRate(RECORDER_VIDEO_BITRATE)
-        if (args.fps > 0) setVideoFrameRate(args.fps)
+    private fun createEncoder(): EncoderWrapper {
+        var width = args.width
+        var height = args.height
 
         /** Swap width and height if the camera is rotated on its side */
         if (orientation == 90 || orientation == 270) {
-            setVideoSize(args.height, args.width)
-        } else {
-            setVideoSize(args.width, args.height)
+            width = args.height
+            height = args.width
         }
 
-        /** Note: GPU output may not be 10-bit. Need to investigate. */
-        val videoEncoder = when {
-            args.dynamicRange == DynamicRangeProfiles.STANDARD -> MediaRecorder.VideoEncoder.H264
-            args.dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaRecorder.VideoEncoder.HEVC
-            else -> throw IllegalArgumentException("Unknown dynamic range format")
-        }
-
-        setVideoEncoder(videoEncoder)
-        setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        setInputSurface(surface)
+        return EncoderWrapper(width, height, RECORDER_VIDEO_BITRATE, args.fps, 0,
+                MediaFormat.MIMETYPE_VIDEO_AVC, -1, outputFile)
     }
 
     /**
@@ -559,18 +547,19 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                     requireActivity().requestedOrientation =
                             ActivityInfo.SCREEN_ORIENTATION_LOCKED
 
-                    // Finalizes recorder setup and starts recording
-                    recorder.apply {
-                        prepare()
+                    val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
+                    eglEncoderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig,
+                            encoderSurface, surfaceAttribs, 0)
+                    if (eglEncoderSurface == EGL14.EGL_NO_SURFACE) {
+                        throw RuntimeException("Failed to create EGL encoder surface")
+                    }
+
+                    // Finalizes encoder setup and starts recording
+                    encoder.apply {
                         start()
                     }
 
-                    val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
-                    eglRecorderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig,
-                            recorderSurface, surfaceAttribs, 0)
-                    if (eglRecorderSurface == EGL14.EGL_NO_SURFACE) {
-                        throw RuntimeException("Failed to create EGL recorder surface")
-                    }
+                    currentlyRecording = true
 
                     recordingStartMillis = System.currentTimeMillis()
                     Log.v(TAG, "Recording started")
@@ -580,6 +569,15 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                    session.stopRepeating()
+
+                    cameraTexture.setOnFrameAvailableListener(null)
+                    fragmentBinding.viewFinder.setSurfaceTextureListener(null)
+                    fragmentBinding.captureButton.setOnTouchListener(null)
+
+                    /* Wait until the session signals onReady */
+                    cvRecordingComplete.block()
+
                     // Unlocks screen rotation after recording finished
                     requireActivity().requestedOrientation =
                             ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -590,24 +588,25 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                         delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
                     }
 
-                    EGL14.eglDestroySurface(eglDisplay, eglRecorderSurface)
-                    eglRecorderSurface = null
+                    delay(CameraActivity.ANIMATION_SLOW_MILLIS)
+
+                    EGL14.eglDestroySurface(eglDisplay, eglEncoderSurface)
+                    eglEncoderSurface = null
+                    EGL14.eglDestroySurface(eglDisplay, eglRenderSurface)
+                    eglRenderSurface = null
 
                     cameraTexture.release()
 
                     try {
                         Log.v(TAG, "Recording stopped. Output file: $outputFile")
-                        recorder.stop()
+                        encoder.shutdown()
                     } catch (e: IllegalStateException) {
                         // Avoid crash, do nothing
                     }
 
-                    // Removes recording animation
-                    fragmentBinding.overlay.removeCallbacks(animationTask)
-
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
-                            view.context, arrayOf(outputFile.absolutePath), null, null)
+                            requireView().context, arrayOf(outputFile.absolutePath), null, null)
 
                     // Launch external activity via intent to play video recorded using our provider
                     startActivity(Intent().apply {
@@ -615,13 +614,13 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                         type = MimeTypeMap.getSingleton()
                                 .getMimeTypeFromExtension(outputFile.extension)
                         val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                        data = FileProvider.getUriForFile(view.context, authority, outputFile)
+                        data = FileProvider.getUriForFile(requireView().context, authority,
+                                outputFile)
                         flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
                                 Intent.FLAG_ACTIVITY_CLEAR_TOP
                     })
 
                     // Finishes our current camera screen
-                    delay(CameraActivity.ANIMATION_SLOW_MILLIS)
                     navController.popBackStack()
                 }
             }
@@ -662,9 +661,9 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
     }
 
     /**
-     * Creates a [CameraCaptureSession] with the dynamic range profile set.
+     * Creates a [CameraCaptureSession].
      */
-    private fun setupSessionWithDynamicRangeProfile(
+    private fun setupSession(
             device: CameraDevice,
             targets: List<Surface>,
             handler: Handler? = null,
@@ -674,7 +673,6 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
             val outputConfigs = mutableListOf<OutputConfiguration>()
             for (target in targets) {
                 val outputConfig = OutputConfiguration(target)
-                outputConfig.setDynamicRangeProfile(args.dynamicRange)
                 outputConfig.setTimestampBase(OutputConfiguration.TIMESTAMP_BASE_MONOTONIC)
                 outputConfigs.add(outputConfig)
             }
@@ -705,9 +703,18 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                 Log.e(TAG, exc.message, exc)
                 cont.resumeWithException(exc)
             }
+
+            override fun onReady(session: CameraCaptureSession) {
+                if (!currentlyRecording) {
+                    return
+                }
+
+                currentlyRecording = false
+                cvRecordingComplete.open()
+            }
         }
 
-        setupSessionWithDynamicRangeProfile(device, targets, handler, stateCallback)
+        setupSession(device, targets, handler, stateCallback)
     }
 
     override fun onStop() {
@@ -722,8 +729,7 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
     override fun onDestroy() {
         super.onDestroy()
         cameraThread.quitSafely()
-        recorder.release()
-        recorderSurface.release()
+        encoderSurface.release()
     }
 
     override fun onDestroyView() {
@@ -804,8 +810,8 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
         EGL14.eglSwapBuffers(eglDisplay, eglTextureViewSurface)
     }
 
-    private fun copyRenderToRecord() {
-        EGL14.eglMakeCurrent(eglDisplay, eglRecorderSurface, eglRenderSurface, eglContext)
+    private fun copyRenderToEncode() {
+        EGL14.eglMakeCurrent(eglDisplay, eglEncoderSurface, eglRenderSurface, eglContext)
 
         var viewportWidth = args.width
         var viewportHeight = args.height
@@ -819,27 +825,31 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
         copyTexture(renderTexId, renderTexture, Rect(0, 0, viewportWidth, viewportHeight),
                 passthroughShaderProgram!!)
 
-        EGLExt.eglPresentationTimeANDROID(eglDisplay, eglRecorderSurface,
+        encoder.frameAvailable()
+
+        EGLExt.eglPresentationTimeANDROID(eglDisplay, eglEncoderSurface,
                 cameraTexture.getTimestamp())
-        EGL14.eglSwapBuffers(eglDisplay, eglRecorderSurface)
+        EGL14.eglSwapBuffers(eglDisplay, eglEncoderSurface)
     }
 
     override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
         /** The camera API does not update the tex image. Do so here. */
-        surfaceTexture.updateTexImage()
+        cameraTexture.updateTexImage()
 
         fragmentBinding.viewFinder.post({
             /** Copy from the camera texture to the render texture */
-            copyCameraToRender()
+            if (eglRenderSurface != null) {
+                copyCameraToRender()
+            }
 
             /** Copy from the render texture to the TextureView */
             if (eglTextureViewSurface != null) {
                 copyRenderToPreview()
             }
 
-            /** Copy to the recorder surface if we're currently recording. */
-            if (eglRecorderSurface != null) {
-                copyRenderToRecord()
+            /** Copy to the encoder surface if we're currently recording. */
+            if (eglEncoderSurface != null && currentlyRecording) {
+                copyRenderToEncode()
             }
         })
     }
