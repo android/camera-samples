@@ -26,12 +26,15 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.media.MediaCodec
-import android.media.MediaRecorder
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
 import android.media.MediaScannerConnection
 import android.os.Bundle
+import android.os.ConditionVariable
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
@@ -70,6 +73,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+import com.example.android.camera2.video.EncoderWrapper
+
 class SurfaceViewFragment : Fragment() {
 
     /** Android ViewBinding */
@@ -100,27 +105,14 @@ class SurfaceViewFragment : Fragment() {
     private val outputFile: File by lazy { createFile(requireContext(), "mp4") }
 
     /**
-     * Setup a persistent [Surface] for the recorder so we can use it as an output target for the
-     * camera session without preparing the recorder
+     * Setup a [Surface] for the encoder
      */
-    private val recorderSurface: Surface by lazy {
-
-        // Get a persistent Surface from MediaCodec, don't forget to release when done
-        val surface = MediaCodec.createPersistentInputSurface()
-
-        // Prepare and release a dummy MediaRecorder with our new surface
-        // Required to allocate an appropriately sized buffer before passing the Surface as the
-        //  output target to the capture session
-        createRecorder(surface).apply {
-            prepare()
-            release()
-        }
-
-        surface
+    private val encoderSurface: Surface by lazy {
+        encoder.getInputSurface()
     }
 
-    /** Saves the video recording */
-    private val recorder: MediaRecorder by lazy { createRecorder(recorderSurface) }
+    /** [EncoderWrapper] utility class */
+    private val encoder: EncoderWrapper by lazy { createEncoder() }
 
     /** [HandlerThread] where all camera operations run */
     private val cameraThread = HandlerThread("CameraThread").apply { start() }
@@ -135,10 +127,15 @@ class SurfaceViewFragment : Fragment() {
             fragmentBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
             fragmentBinding.overlay.postDelayed({
-                // Remove white flash animation
-                fragmentBinding.overlay.foreground = null
-                // Restart animation recursively
-                fragmentBinding.overlay.postDelayed(animationTask, CameraActivity.ANIMATION_FAST_MILLIS)
+                if (currentlyRecording) {
+                    // Remove white flash animation
+                    fragmentBinding.overlay.foreground = null
+                    // Restart animation recursively
+                    if (currentlyRecording) {
+                        fragmentBinding.overlay.postDelayed(animationTask,
+                                CameraActivity.ANIMATION_FAST_MILLIS)
+                    }
+                }
             }, CameraActivity.ANIMATION_FAST_MILLIS)
         }
     }
@@ -164,7 +161,7 @@ class SurfaceViewFragment : Fragment() {
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
             // Add the preview and recording surface targets
             addTarget(fragmentBinding.viewFinder.holder.surface)
-            addTarget(recorderSurface)
+            addTarget(encoderSurface)
             // Sets user requested FPS for all targets
             set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(args.fps, args.fps))
         }.build()
@@ -172,8 +169,16 @@ class SurfaceViewFragment : Fragment() {
 
     private var recordingStartMillis: Long = 0L
 
-    /** Live data listener for changes in the device orientation relative to the camera */
-    private lateinit var relativeOrientation: OrientationLiveData
+    /** Orientation of the camera as 0, 90, 180, or 270 degrees */
+    private val orientation: Int by lazy {
+        characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
+    }
+
+    @Volatile
+    private var currentlyRecording = false
+
+    /** Condition variable for blocking until the recording completes */
+    private val cvRecordingComplete = ConditionVariable(false)
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -190,6 +195,7 @@ class SurfaceViewFragment : Fragment() {
 
         fragmentBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+
             override fun surfaceChanged(
                     holder: SurfaceHolder,
                     format: Int,
@@ -209,34 +215,27 @@ class SurfaceViewFragment : Fragment() {
                 fragmentBinding.viewFinder.post { initializeCamera() }
             }
         })
-
-        // Used to rotate the output media to match device orientation
-        relativeOrientation = OrientationLiveData(requireContext(), characteristics).apply {
-            observe(viewLifecycleOwner, Observer {
-                orientation -> Log.d(TAG, "Orientation changed: $orientation")
-            })
-        }
     }
 
-    /** Creates a [MediaRecorder] instance using the provided [Surface] as input */
-    private fun createRecorder(surface: Surface) = MediaRecorder().apply {
-        setAudioSource(MediaRecorder.AudioSource.MIC)
-        setVideoSource(MediaRecorder.VideoSource.SURFACE)
-        setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        setOutputFile(outputFile.absolutePath)
-        setVideoEncodingBitRate(RECORDER_VIDEO_BITRATE)
-        if (args.fps > 0) setVideoFrameRate(args.fps)
-        setVideoSize(args.width, args.height)
-
+    private fun createEncoder(): EncoderWrapper {
         val videoEncoder = when {
-            args.dynamicRange == DynamicRangeProfiles.STANDARD -> MediaRecorder.VideoEncoder.H264
-            args.dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaRecorder.VideoEncoder.HEVC
+            args.dynamicRange == DynamicRangeProfiles.STANDARD -> MediaFormat.MIMETYPE_VIDEO_AVC
+            args.dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaFormat.MIMETYPE_VIDEO_HEVC
             else -> throw IllegalArgumentException("Unknown dynamic range format")
         }
 
-        setVideoEncoder(videoEncoder)
-        setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        setInputSurface(surface)
+        val codecProfile = when {
+            args.dynamicRange == DynamicRangeProfiles.HLG10 ->
+                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10
+            args.dynamicRange == DynamicRangeProfiles.HDR10 ->
+                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
+            args.dynamicRange == DynamicRangeProfiles.HDR10_PLUS ->
+                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus
+            else -> -1
+        }
+
+        return EncoderWrapper(args.width, args.height, RECORDER_VIDEO_BITRATE, args.fps,
+                orientation, videoEncoder, codecProfile, outputFile)
     }
 
     /**
@@ -252,7 +251,7 @@ class SurfaceViewFragment : Fragment() {
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
 
         // Creates list of Surfaces where the camera will output frames
-        val targets = listOf(fragmentBinding.viewFinder.holder.surface, recorderSurface)
+        val targets = listOf(fragmentBinding.viewFinder.holder.surface, encoderSurface)
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
         session = createCaptureSession(camera, targets, cameraHandler)
@@ -271,17 +270,26 @@ class SurfaceViewFragment : Fragment() {
                     requireActivity().requestedOrientation =
                             ActivityInfo.SCREEN_ORIENTATION_LOCKED
 
-                    // Start recording repeating requests, which will stop the ongoing preview
-                    //  repeating requests without having to explicitly call `session.stopRepeating`
-                    session.setRepeatingRequest(recordRequest, null, cameraHandler)
-
-                    // Finalizes recorder setup and starts recording
-                    recorder.apply {
-                        // Sets output orientation based on current sensor value at start time
-                        relativeOrientation.value?.let { setOrientationHint(it) }
-                        prepare()
+                    // Finalizes encoder setup and starts recording
+                    encoder.apply {
                         start()
                     }
+
+                    currentlyRecording = true
+
+                    // Start recording repeating requests, which will stop the ongoing preview
+                    //  repeating requests without having to explicitly call `session.stopRepeating`
+                    session.setRepeatingRequest(recordRequest,
+                            object : CameraCaptureSession.CaptureCallback() {
+                        override fun onCaptureCompleted(session: CameraCaptureSession,
+                                                        request: CaptureRequest,
+                                                        result: TotalCaptureResult) {
+                            if (currentlyRecording) {
+                                encoder.frameAvailable()
+                            }
+                        }
+                    }, cameraHandler)
+
                     recordingStartMillis = System.currentTimeMillis()
                     Log.d(TAG, "Recording started")
 
@@ -290,6 +298,12 @@ class SurfaceViewFragment : Fragment() {
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                    session.stopRepeating()
+
+                    fragmentBinding.captureButton.setOnTouchListener(null)
+
+                    /* Wait until the session signals onReady */
+                    cvRecordingComplete.block()
 
                     // Unlocks screen rotation after recording finished
                     requireActivity().requestedOrientation =
@@ -301,15 +315,18 @@ class SurfaceViewFragment : Fragment() {
                         delay(MIN_REQUIRED_RECORDING_TIME_MILLIS - elapsedTimeMillis)
                     }
 
-                    Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                    recorder.stop()
+                    delay(CameraActivity.ANIMATION_SLOW_MILLIS)
 
-                    // Removes recording animation
-                    fragmentBinding.overlay.removeCallbacks(animationTask)
+                    try {
+                        Log.d(TAG, "Recording stopped. Output file: $outputFile")
+                        encoder.shutdown()
+                    } catch (e: IllegalStateException) {
+                        // Avoid crash, do nothing
+                    }
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
-                            view.context, arrayOf(outputFile.absolutePath), null, null)
+                            requireView().context, arrayOf(outputFile.absolutePath), null, null)
 
                     // Launch external activity via intent to play video recorded using our provider
                     startActivity(Intent().apply {
@@ -322,8 +339,6 @@ class SurfaceViewFragment : Fragment() {
                                 Intent.FLAG_ACTIVITY_CLEAR_TOP
                     })
 
-                    // Finishes our current camera screen
-                    delay(CameraActivity.ANIMATION_SLOW_MILLIS)
                     navController.popBackStack()
                 }
             }
@@ -406,6 +421,16 @@ class SurfaceViewFragment : Fragment() {
                 Log.e(TAG, exc.message, exc)
                 cont.resumeWithException(exc)
             }
+
+            /** Called after all captures have completed - shut down the encoder */
+            override fun onReady(session: CameraCaptureSession) {
+                if (!currentlyRecording) {
+                    return
+                }
+
+                currentlyRecording = false
+                cvRecordingComplete.open()
+            }
         }
 
         setupSessionWithDynamicRangeProfile(device, targets, handler, stateCallback)
@@ -423,8 +448,7 @@ class SurfaceViewFragment : Fragment() {
     override fun onDestroy() {
         super.onDestroy()
         cameraThread.quitSafely()
-        recorder.release()
-        recorderSurface.release()
+        encoderSurface.release()
     }
 
     override fun onDestroyView() {

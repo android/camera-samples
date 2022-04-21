@@ -65,7 +65,7 @@ class FilterFragment : Fragment() {
                     navController.navigate(
                         FilterFragmentDirections.actionFilterToTextureView(
                         args.cameraId, args.width, args.height, args.fps,
-                        args.dynamicRange, item.value))
+                        item.value))
                 }
             }
         }
