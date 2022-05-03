@@ -21,7 +21,6 @@ import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.params.DynamicRangeProfiles
-import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Size
 import android.view.LayoutInflater
@@ -67,12 +66,12 @@ class RecordModeFragment : Fragment() {
                         navController.navigate(
                             RecordModeFragmentDirections.actionRecordModeToFilter(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange))
+                            args.dynamicRange, args.previewStabilization))
                     } else {
                         navController.navigate(
                             RecordModeFragmentDirections.actionRecordModeToSurfaceView(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange))
+                            args.dynamicRange, args.previewStabilization))
                     }
                 }
             }
@@ -84,7 +83,6 @@ class RecordModeFragment : Fragment() {
                 val name: String,
                 val value: Boolean)
 
-        /** Lists all video-capable cameras and supported resolution and FPS combinations */
         @SuppressLint("InlinedApi")
         private fun enumerateRecordModes(): List<RecordModeInfo> {
             val recordModeList: MutableList<RecordModeInfo> = mutableListOf()

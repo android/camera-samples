@@ -20,8 +20,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.params.DynamicRangeProfiles
-import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Size
 import android.view.LayoutInflater
@@ -62,24 +62,42 @@ class DynamicRangeFragment : Fragment() {
             val dynamicRangeList = enumerateDynamicRangeProfiles(cameraManager, args.cameraId)
 
             val layoutId = android.R.layout.simple_list_item_1
-            adapter = GenericListAdapter(dynamicRangeList, itemLayoutId = layoutId) { view, item, _ ->
+            adapter = GenericListAdapter(dynamicRangeList, itemLayoutId = layoutId) {
+                    view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
-                    navigate(item.value)
+                    navigate(item.value, cameraManager)
                 }
             }
         }
     }
 
-    private fun navigate(dynamicRangeProfile: Long) {
-        val navController = Navigation.findNavController(requireActivity(), R.id.fragment_container)
-        if (dynamicRangeProfile == DynamicRangeProfiles.STANDARD) {
-            navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
-                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
+    private fun navigate(dynamicRangeProfile: Long, cameraManager: CameraManager) {
+        val navController =
+            Navigation.findNavController(requireActivity(), R.id.fragment_container)
+
+        if (supportsPreviewStabilization(args.cameraId, cameraManager)) {
+            navController.navigate(
+                    DynamicRangeFragmentDirections.actionDynamicRangeToPreviewStabilization(
+                            args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
+        } else if (dynamicRangeProfile == DynamicRangeProfiles.STANDARD) {
+            navController.navigate(
+                    DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
+                            args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile,
+                            false))
         } else {
             navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToSurfaceView(
-                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
+                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile, false))
         }
+    }
+
+    private fun supportsPreviewStabilization(cameraId: String,
+            cameraManager: CameraManager) : Boolean {
+        val characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
+        val previewStabilizationModes = characteristics.get(
+            CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)!!
+        return previewStabilizationModes.contains(
+                CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
     }
 
     companion object {
@@ -104,7 +122,6 @@ class DynamicRangeFragment : Fragment() {
             else -> "UNKNOWN"
         }
 
-        /** Lists all video-capable cameras and supported resolution and FPS combinations */
         @SuppressLint("InlinedApi")
         private fun enumerateDynamicRangeProfiles(cameraManager: CameraManager,
                                                   cameraId: String): List<DynamicRangeInfo> {

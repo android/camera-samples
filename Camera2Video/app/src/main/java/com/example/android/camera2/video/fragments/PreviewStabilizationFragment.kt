@@ -18,8 +18,6 @@ package com.example.android.camera2.video.fragments
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.os.Bundle
 import android.util.Size
@@ -36,11 +34,11 @@ import com.example.android.camera.utils.GenericListAdapter
 import com.example.android.camera2.video.R
 
 /**
- * In this [Fragment] we let users pick whether or not the portrait filter is on.
+ * In this [Fragment] we let users pick whether or not preview stabilization is on.
  */
-class FilterFragment : Fragment() {
+class PreviewStabilizationFragment : Fragment() {
 
-    private val args: FilterFragmentArgs by navArgs()
+    private val args: PreviewStabilizationFragmentArgs by navArgs()
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -59,14 +57,27 @@ class FilterFragment : Fragment() {
             adapter = GenericListAdapter(modeList, itemLayoutId = layoutId) { view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
-                    val navController =
-                            Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                    navController.navigate(
-                        FilterFragmentDirections.actionFilterToTextureView(
-                        args.cameraId, args.width, args.height, args.fps,
-                        args.previewStabilization, item.value))
+                    navigate(item.value)
                 }
             }
+        }
+    }
+
+    private fun navigate(stabilizationOn: Boolean) {
+        val navController =
+                Navigation.findNavController(requireActivity(), R.id.fragment_container)
+
+        if (args.dynamicRange == DynamicRangeProfiles.STANDARD) {
+            navController.navigate(
+                    PreviewStabilizationFragmentDirections.actionPreviewStabilizationToRecordMode(
+                    args.cameraId, args.width, args.height, args.fps,
+                    DynamicRangeProfiles.STANDARD, stabilizationOn))
+        } else {
+            navController.navigate(
+                    PreviewStabilizationFragmentDirections.actionPreviewStabilizationToSurfaceView(
+                    args.cameraId, args.width, args.height, args.fps,
+                    args.dynamicRange, stabilizationOn)
+            )
         }
     }
 
@@ -79,8 +90,8 @@ class FilterFragment : Fragment() {
         private fun enumerateModes(): List<ModeInfo> {
             val modeList: MutableList<ModeInfo> = mutableListOf()
 
-            modeList.add(ModeInfo("Portrait Filter On", true))
-            modeList.add(ModeInfo("Portrait Filter Off", false))
+            modeList.add(ModeInfo("Stabilization On", true))
+            modeList.add(ModeInfo("Stabilization Off", false))
 
             return modeList
         }

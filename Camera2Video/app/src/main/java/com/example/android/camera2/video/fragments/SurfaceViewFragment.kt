@@ -152,6 +152,11 @@ class SurfaceViewFragment : Fragment() {
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
             // Add the preview surface target
             addTarget(fragmentBinding.viewFinder.holder.surface)
+
+            if (args.previewStabilization) {
+                set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
+            }
         }.build()
     }
 
@@ -164,6 +169,11 @@ class SurfaceViewFragment : Fragment() {
             addTarget(encoderSurface)
             // Sets user requested FPS for all targets
             set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(args.fps, args.fps))
+
+            if (args.previewStabilization) {
+                set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
+            }
         }.build()
     }
 
