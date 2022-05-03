@@ -43,6 +43,10 @@
             app:destination="@id/dynamic_range_fragment" />
 
         <action
+            android:id="@+id/action_selector_to_preview_stabilization"
+            app:destination="@id/preview_stabilization_fragment" />
+
+        <action
             android:id="@+id/action_selector_to_record_mode"
             app:launchSingleTop="true"
             app:destination="@id/record_mode_fragment" />
@@ -77,12 +81,55 @@
             app:argType="integer" />
 
         <action
+            android:id="@+id/action_dynamic_range_to_preview_stabilization"
+            app:launchSingleTop="true"
+            app:destination="@id/preview_stabilization_fragment" />
+
+        <action
             android:id="@+id/action_dynamic_range_to_record_mode"
             app:launchSingleTop="true"
             app:destination="@id/record_mode_fragment" />
 
         <action
             android:id="@+id/action_dynamic_range_to_surface_view"
+            app:launchSingleTop="true"
+            app:destination="@id/surface_view_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/preview_stabilization_fragment"
+        android:name="com.example.android.camera2.video.fragments.PreviewStabilizationFragment"
+        android:label="PreviewStabilization" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_preview_stabilization_to_record_mode"
+            app:launchSingleTop="true"
+            app:destination="@id/record_mode_fragment" />
+
+        <action
+            android:id="@+id/action_preview_stabilization_to_surface_view"
             app:launchSingleTop="true"
             app:destination="@id/surface_view_fragment" />
 
@@ -113,6 +160,10 @@
         <argument
             android:name="dynamicRange"
             app:argType="long" />
+
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
 
         <action
             android:id="@+id/action_record_mode_to_surface_view"
@@ -152,6 +203,10 @@
             android:name="dynamicRange"
             app:argType="long" />
 
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
+
         <action
             android:id="@+id/action_surface_view_to_permissions"
             app:destination="@id/permissions_fragment"
@@ -186,6 +241,10 @@
             android:name="dynamicRange"
             app:argType="long" />
 
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
+
         <action
             android:id="@+id/action_filter_to_texture_view"
             app:launchSingleTop="true"
@@ -214,6 +273,10 @@
         <argument
             android:name="fps"
             app:argType="integer" />
+
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
 
         <argument
             android:name="filterOn"

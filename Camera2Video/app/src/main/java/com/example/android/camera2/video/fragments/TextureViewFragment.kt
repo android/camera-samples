@@ -264,6 +264,11 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
         session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
             // Add the preview surface target
             addTarget(cameraSurface)
+
+            if (args.previewStabilization) {
+                set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
+            }
         }.build()
     }
 
