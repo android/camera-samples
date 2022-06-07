@@ -560,9 +560,7 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                     }
 
                     // Finalizes encoder setup and starts recording
-                    encoder.apply {
-                        start()
-                    }
+                    encoder.start()
 
                     currentlyRecording = true
 
@@ -574,6 +572,9 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                    /* Wait for at least one frame to process so we don't have an empty video */
+                    encoder.waitForFirstFrame()
+
                     session.stopRepeating()
 
                     cameraTexture.setOnFrameAvailableListener(null)
@@ -602,12 +603,8 @@ class TextureViewFragment : Fragment(), SurfaceTexture.OnFrameAvailableListener 
 
                     cameraTexture.release()
 
-                    try {
-                        Log.v(TAG, "Recording stopped. Output file: $outputFile")
-                        encoder.shutdown()
-                    } catch (e: IllegalStateException) {
-                        // Avoid crash, do nothing
-                    }
+                    Log.v(TAG, "Recording stopped. Output file: $outputFile")
+                    encoder.shutdown()
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
