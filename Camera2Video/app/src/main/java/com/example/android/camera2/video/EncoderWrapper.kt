@@ -144,6 +144,10 @@ class EncoderWrapper(width: Int,
                 EncoderThread.EncoderHandler.MSG_FRAME_AVAILABLE))
     }
 
+    public fun waitForFirstFrame() {
+        mEncoderThread.waitForFirstFrame()
+    }
+
     /**
      * Object that encapsulates the encoder thread.
      * <p>
@@ -208,6 +212,21 @@ class EncoderWrapper(width: Int,
         public fun waitUntilReady() {
             synchronized (mLock) {
                 while (!mReady) {
+                    try {
+                        mLock.wait()
+                    } catch (ie: InterruptedException) { /* not expected */ }
+                }
+            }
+        }
+
+        /**
+         * Waits until the encoder has processed a single frame.
+         * <p>
+         * Call from non-encoder thread.
+         */
+        public fun waitForFirstFrame() {
+            synchronized (mLock) {
+                while (mFrameNum < 1) {
                     try {
                         mLock.wait()
                     } catch (ie: InterruptedException) { /* not expected */ }
@@ -306,7 +325,10 @@ class EncoderWrapper(width: Int,
         fun frameAvailable() {
             if (VERBOSE) Log.d(TAG, "frameAvailable")
             drainEncoder()
-            mFrameNum++
+            synchronized (mLock) {
+                mFrameNum++
+                mLock.notify()
+            }
         }
 
         /**

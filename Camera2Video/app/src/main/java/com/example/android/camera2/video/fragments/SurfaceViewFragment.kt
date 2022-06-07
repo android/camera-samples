@@ -281,9 +281,7 @@ class SurfaceViewFragment : Fragment() {
                             ActivityInfo.SCREEN_ORIENTATION_LOCKED
 
                     // Finalizes encoder setup and starts recording
-                    encoder.apply {
-                        start()
-                    }
+                    encoder.start()
 
                     currentlyRecording = true
 
@@ -308,6 +306,9 @@ class SurfaceViewFragment : Fragment() {
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                    /* Wait for at least one frame to process so we don't have an empty video */
+                    encoder.waitForFirstFrame()
+
                     session.stopRepeating()
 
                     fragmentBinding.captureButton.setOnTouchListener(null)
@@ -327,12 +328,8 @@ class SurfaceViewFragment : Fragment() {
 
                     delay(CameraActivity.ANIMATION_SLOW_MILLIS)
 
-                    try {
-                        Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                        encoder.shutdown()
-                    } catch (e: IllegalStateException) {
-                        // Avoid crash, do nothing
-                    }
+                    Log.d(TAG, "Recording stopped. Output file: $outputFile")
+                    encoder.shutdown()
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
