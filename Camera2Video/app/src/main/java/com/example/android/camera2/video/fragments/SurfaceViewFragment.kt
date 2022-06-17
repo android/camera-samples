@@ -199,6 +199,23 @@ class SurfaceViewFragment : Fragment() {
         return fragmentBinding.root
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // If we're displaying HDR, set the screen brightness to maximum. Otherwise, the preview
+        // image will appear darker than video playback. It is up to the app to decide whether
+        // this is appropriate - high brightness with HDR capture may dissipate a lot of heat.
+        // In dark ambient environments, setting the brightness too high may make it uncomfortable
+        // for users to view the screen, so apps will need to calibrate this depending on their
+        // use case.
+        if (args.dynamicRange != DynamicRangeProfiles.STANDARD) {
+            val window = requireActivity().getWindow()
+            var params = window.getAttributes()
+            params.screenBrightness = 1.0f
+            window.setAttributes(params)
+        }
+
+        super.onCreate(savedInstanceState)
+    }
+
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
