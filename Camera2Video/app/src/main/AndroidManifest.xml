@@ -29,12 +29,14 @@
         android:allowBackup="true"
         android:label="@string/app_name"
         android:icon="@drawable/ic_launcher"
+        android:exported="false"
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
 
         <activity
             android:name="com.example.android.camera2.video.CameraActivity"
             android:clearTaskOnLaunch="true"
-            android:theme="@style/AppTheme">
+            android:theme="@style/AppTheme"
+            android:exported="false">
 
             <!-- Main app intent filter -->
             <intent-filter>

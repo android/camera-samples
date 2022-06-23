@@ -20,6 +20,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.params.DynamicRangeProfiles
 import android.media.MediaRecorder
 import android.os.Bundle
 import android.util.Size
@@ -62,9 +64,48 @@ class SelectorFragment : Fragment() {
             adapter = GenericListAdapter(cameraList, itemLayoutId = layoutId) { view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
-                    Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                            .navigate(SelectorFragmentDirections.actionSelectorToCamera(
-                                    item.cameraId, item.size.width, item.size.height, item.fps))
+                    var dynamicRangeProfiles: DynamicRangeProfiles? = null
+                    var supportsPreviewStabilization = false
+
+                    // DynamicRangeProfiles is introduced in android Tiramisu. If the SDK residing on
+                    // our device is older, do not call the non-existant paths.
+                    if (android.os.Build.VERSION.SDK_INT >=
+                            android.os.Build.VERSION_CODES.TIRAMISU) {
+                        val characteristics = cameraManager.getCameraCharacteristics(item.cameraId)
+                        dynamicRangeProfiles = characteristics.get(
+                                CameraCharacteristics.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES)
+                        val previewStabilizationModes = characteristics.get(
+                                CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)!!
+                        supportsPreviewStabilization = previewStabilizationModes.contains(
+                                CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
+                    }
+
+                    val navController =
+                        Navigation.findNavController(requireActivity(), R.id.fragment_container)
+
+                    // If possible, navigate to a second selector for picking a dynamic range.
+                    // Otherwise continue on to video recording.
+                    if (dynamicRangeProfiles != null) {
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToDynamicRange(
+                            item.cameraId, item.size.width, item.size.height, item.fps))
+                    } else if (supportsPreviewStabilization) {
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToPreviewStabilization(
+                            item.cameraId, item.size.width, item.size.height, item.fps,
+                            DynamicRangeProfiles.STANDARD)
+                        )
+                    } else if (android.os.Build.VERSION.SDK_INT >= 29) {
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToRecordMode(
+                            item.cameraId, item.size.width, item.size.height, item.fps,
+                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
+                    } else {
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToSurfaceView(
+                            item.cameraId, item.size.width, item.size.height, item.fps,
+                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
+                    }
                 }
             }
         }
