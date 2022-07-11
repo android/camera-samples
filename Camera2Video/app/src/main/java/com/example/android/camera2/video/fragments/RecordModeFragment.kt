@@ -69,9 +69,10 @@ class RecordModeFragment : Fragment() {
                             args.dynamicRange, args.previewStabilization))
                     } else {
                         navController.navigate(
-                            RecordModeFragmentDirections.actionRecordModeToSurfaceView(
+                            RecordModeFragmentDirections.actionRecordModeToPreview(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization))
+                            args.dynamicRange, args.previewStabilization, false,
+                            false))
                     }
                 }
             }
@@ -87,8 +88,8 @@ class RecordModeFragment : Fragment() {
         private fun enumerateRecordModes(): List<RecordModeInfo> {
             val recordModeList: MutableList<RecordModeInfo> = mutableListOf()
 
-            recordModeList.add(RecordModeInfo("Surface View", false))
-            recordModeList.add(RecordModeInfo("Texture View", true))
+            recordModeList.add(RecordModeInfo("Multi-stream", false))
+            recordModeList.add(RecordModeInfo("Single-stream", true))
 
             return recordModeList
         }

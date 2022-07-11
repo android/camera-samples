@@ -62,9 +62,10 @@ class FilterFragment : Fragment() {
                     val navController =
                             Navigation.findNavController(requireActivity(), R.id.fragment_container)
                     navController.navigate(
-                        FilterFragmentDirections.actionFilterToTextureView(
+                        FilterFragmentDirections.actionFilterToPreview(
                         args.cameraId, args.width, args.height, args.fps,
-                        args.previewStabilization, item.value))
+                        DynamicRangeProfiles.STANDARD, args.previewStabilization,
+                        item.value, true))
                 }
             }
         }
