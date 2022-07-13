@@ -56,7 +56,7 @@ abstract class Pipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
 
     open public fun clearFrameListener() { }
 
-    open public fun clearSurfaces() { }
+    open public fun cleanup() { }
 
     open public fun startRecording() { }
 

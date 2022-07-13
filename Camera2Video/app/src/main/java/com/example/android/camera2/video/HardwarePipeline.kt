@@ -52,6 +52,8 @@ import android.os.Bundle
 import android.os.ConditionVariable
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
+import android.os.Message
 import android.util.Log
 import android.util.Range
 import android.util.Size
@@ -151,95 +153,60 @@ private val FULLSCREEN_QUAD = floatArrayOf(
 class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
         characteristics: CameraCharacteristics, encoder: EncoderWrapper,
         viewFinder: AutoFitSurfaceView) : Pipeline(width, height, fps, filterOn,
-                characteristics, encoder, viewFinder),
-        SurfaceTexture.OnFrameAvailableListener {
-
-    private var previewSize = Size(0, 0)
-
-    /** OpenGL texture for the SurfaceTexture provided to the camera */
-    private val cameraTexId: Int by lazy {
-        createTexture()
+                characteristics, encoder, viewFinder) {
+    private val renderThread: HandlerThread by lazy {
+        val renderThread = HandlerThread("Camera2Video.RenderThread")
+        renderThread.start()
+        renderThread
     }
 
-    /** The SurfaceTexture provided to the camera for capture */
-    private val cameraTexture: SurfaceTexture by lazy {
-        val texture = SurfaceTexture(cameraTexId)
-        texture.setOnFrameAvailableListener(this)
-        texture.setDefaultBufferSize(width, height)
-        texture
-    }
-
-    /** The above SurfaceTexture cast as a Surface */
-    private val cameraSurface: Surface by lazy {
-        Surface(cameraTexture)
-    }
-
-    /** OpenGL texture that will combine the camera output with rendering */
-    private val renderTexId: Int by lazy {
-        createTexture()
-    }
-
-    /** The SurfaceTexture we're rendering to */
-    private val renderTexture: SurfaceTexture by lazy {
-        val texture = SurfaceTexture(renderTexId)
-        texture.setDefaultBufferSize(width, height)
-        texture
-    }
-
-    /** The above SurfaceTexture cast as a Surface */
-    private val renderSurface: Surface by lazy {
-        Surface(renderTexture)
-    }
-
-    private var recordingStartMillis: Long = 0L
-
-    /** Storage space for setting the texMatrix uniform */
-    private val texMatrix = FloatArray(16)
-
-    /** Orientation of the camera as 0, 90, 180, or 270 degrees */
-    private val orientation: Int by lazy {
-        characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
-    }
-
-    @Volatile
-    private var currentlyRecording = false
-
-    /** Condition variable for blocking until the recording completes */
-    private val cvRecordingComplete = ConditionVariable(false)
-
-    /** EGL / OpenGL data. */
-    private var eglDisplay = EGL14.EGL_NO_DISPLAY;
-    private var eglContext = EGL14.EGL_NO_CONTEXT;
-    private var eglConfig: EGLConfig? = null;
-    private var eglRenderSurface: EGLSurface? = null
-    private var eglEncoderSurface: EGLSurface? = null
-    private var eglWindowSurface: EGLSurface? = null
-    private var vertexShader = 0
-    private var passthroughFragmentShader = 0
-    private var portraitFragmentShader = 0
+    private val renderHandler = RenderHandler(renderThread.getLooper(),
+            width, height, fps, filterOn, characteristics, encoder)
 
     override fun createRecordRequest(session: CameraCaptureSession,
             previewStabilization: Boolean) : CaptureRequest {
-        // Capture request holds references to target surfaces
-        return session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-            // Add the preview surface target
-            addTarget(cameraSurface)
-
-            set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(fps, fps))
-
-            if (previewStabilization) {
-                set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
-                        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
-            }
-        }.build()
+        return renderHandler.createRecordRequest(session, previewStabilization)
     }
 
     override fun startRecording() {
-        currentlyRecording = true
+        renderHandler.startRecording()
     }
 
     override fun stopRecording() {
-        currentlyRecording = false
+        renderHandler.stopRecording()
+    }
+
+    override fun destroyWindowSurface() {
+        renderHandler.sendMessage(renderHandler.obtainMessage(
+                RenderHandler.MSG_DESTROY_WINDOW_SURFACE))
+    }
+
+    override fun setPreviewSize(previewSize: Size) {
+        renderHandler.setPreviewSize(previewSize)
+    }
+
+    override fun createResources(surface: Surface) {
+        renderHandler.sendMessage(renderHandler.obtainMessage(
+                RenderHandler.MSG_CREATE_RESOURCES, 0, 0, surface))
+    }
+
+    override fun getTargets(): List<Surface> {
+        return renderHandler.getTargets()
+    }
+
+    override fun actionDown(encoderSurface: Surface) {
+        renderHandler.sendMessage(renderHandler.obtainMessage(
+                RenderHandler.MSG_ACTION_DOWN, 0, 0, encoderSurface))
+    }
+
+    override fun clearFrameListener() {
+        renderHandler.sendMessage(renderHandler.obtainMessage(
+                RenderHandler.MSG_CLEAR_FRAME_LISTENER))
+    }
+
+    override fun cleanup() {
+        renderHandler.sendMessage(renderHandler.obtainMessage(
+                RenderHandler.MSG_CLEANUP))
     }
 
     private class ShaderProgram(id: Int,
@@ -274,279 +241,391 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
         }
     }
 
-    private var passthroughShaderProgram: ShaderProgram? = null
-    private var portraitShaderProgram: ShaderProgram? = null
-
-    /** Initialize the EGL display, context, and render surface */
-    private fun initEGL() {
-        eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
-        if (eglDisplay == EGL14.EGL_NO_DISPLAY) {
-            throw RuntimeException("unable to get EGL14 display")
+    private class RenderHandler(looper: Looper, width: Int, height: Int, fps: Int,
+            filterOn: Boolean, characteristics: CameraCharacteristics, encoder: EncoderWrapper):
+            Handler(looper), SurfaceTexture.OnFrameAvailableListener {
+        companion object {
+            val MSG_CREATE_RESOURCES = 0
+            val MSG_DESTROY_WINDOW_SURFACE = 1
+            val MSG_ACTION_DOWN = 2
+            val MSG_CLEAR_FRAME_LISTENER = 3
+            val MSG_CLEANUP = 4
+            val MSG_ON_FRAME_AVAILABLE = 5
         }
 
-        val version = intArrayOf(0, 0)
-        if (!EGL14.eglInitialize(eglDisplay, version, 0, version, 1)) {
-            eglDisplay = null;
-            throw RuntimeException("unable to initialize EGL14")
+        private val width = width
+        private val height = height
+        private val fps = fps
+        private val filterOn = filterOn
+        private val characteristics = characteristics
+        private val encoder = encoder
+
+        private var previewSize = Size(0, 0)
+
+        /** OpenGL texture for the SurfaceTexture provided to the camera */
+        private var cameraTexId: Int = 0
+
+        /** The SurfaceTexture provided to the camera for capture */
+        private lateinit var cameraTexture: SurfaceTexture
+
+        /** The above SurfaceTexture cast as a Surface */
+        private lateinit var cameraSurface: Surface
+
+        /** OpenGL texture that will combine the camera output with rendering */
+        private var renderTexId: Int = 0
+
+        /** The SurfaceTexture we're rendering to */
+        private lateinit var renderTexture: SurfaceTexture
+
+        /** The above SurfaceTexture cast as a Surface */
+        private lateinit var renderSurface: Surface
+
+        /** Storage space for setting the texMatrix uniform */
+        private val texMatrix = FloatArray(16)
+
+        /** Orientation of the camera as 0, 90, 180, or 270 degrees */
+        private val orientation: Int by lazy {
+            characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
         }
 
-        val configAttribList = intArrayOf(
-            EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
-            EGL14.EGL_RED_SIZE, 8,
-            EGL14.EGL_GREEN_SIZE, 8,
-            EGL14.EGL_BLUE_SIZE, 8,
-            EGL14.EGL_ALPHA_SIZE, 8,
-            EGL14.EGL_DEPTH_SIZE, 0,
-            EGL14.EGL_STENCIL_SIZE, 0,
-            EGLExt.EGL_RECORDABLE_ANDROID, 1,
-            EGL14.EGL_NONE
-        )
+        @Volatile
+        private var currentlyRecording = false
 
-        val configs = arrayOfNulls<EGLConfig>(1);
-        val numConfigs = intArrayOf(1);
-        EGL14.eglChooseConfig(eglDisplay, configAttribList, 0, configs,
-                0, configs.size, numConfigs, 0)
-        eglConfig = configs[0]!!
+        /** EGL / OpenGL data. */
+        private var eglDisplay = EGL14.EGL_NO_DISPLAY;
+        private var eglContext = EGL14.EGL_NO_CONTEXT;
+        private var eglConfig: EGLConfig? = null;
+        private var eglRenderSurface: EGLSurface? = null
+        private var eglEncoderSurface: EGLSurface? = null
+        private var eglWindowSurface: EGLSurface? = null
+        private var vertexShader = 0
+        private var passthroughFragmentShader = 0
+        private var portraitFragmentShader = 0
 
-        val contextAttribList = intArrayOf(
-            EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
-            EGL14.EGL_NONE
-        )
+        private var passthroughShaderProgram: ShaderProgram? = null
+        private var portraitShaderProgram: ShaderProgram? = null
 
-        eglContext = EGL14.eglCreateContext(eglDisplay, eglConfig, EGL14.EGL_NO_CONTEXT,
-                contextAttribList, 0)
-        if (eglContext == EGL14.EGL_NO_CONTEXT) {
-            throw RuntimeException("Failed to create EGL context")
+        private val cvResourcesCreated = ConditionVariable(false)
+
+        public fun startRecording() {
+            currentlyRecording = true
         }
 
-        val clientVersion = intArrayOf(0)
-        EGL14.eglQueryContext(eglDisplay, eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION,
-                clientVersion, 0)
-        Log.v(TAG, "EGLContext created, client version " + clientVersion[0])
-
-        val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
-        eglRenderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, renderSurface,
-                surfaceAttribs, 0)
-        if (eglRenderSurface == EGL14.EGL_NO_SURFACE) {
-            throw RuntimeException("Failed to create EGL render surface")
-        }
-    }
-
-    private fun createShaderResources() {
-        vertexShader = createShader(GLES20.GL_VERTEX_SHADER, TRANSFORM_VSHADER)
-        passthroughFragmentShader = createShader(GLES20.GL_FRAGMENT_SHADER, PASSTHROUGH_FSHADER)
-        portraitFragmentShader = createShader(GLES20.GL_FRAGMENT_SHADER, PORTRAIT_FSHADER)
-        passthroughShaderProgram = createShaderProgram(passthroughFragmentShader)
-        portraitShaderProgram = createShaderProgram(portraitFragmentShader)
-    }
-
-    /** Creates the shader program used to copy data from one texture to another */
-    private fun createShaderProgram(fragmentShader: Int): ShaderProgram {
-        var shaderProgram = GLES20.glCreateProgram()
-        GLES20.glAttachShader(shaderProgram, vertexShader)
-        GLES20.glAttachShader(shaderProgram, fragmentShader)
-        GLES20.glLinkProgram(shaderProgram)
-        val linkStatus = intArrayOf(0)
-        GLES20.glGetProgramiv(shaderProgram, GLES20.GL_LINK_STATUS, linkStatus, 0)
-        if (linkStatus[0] == 0) {
-            val msg = "Could not link program: " + GLES20.glGetProgramInfoLog(shaderProgram)
-            GLES20.glDeleteProgram(shaderProgram)
-            shaderProgram = 0
-            throw RuntimeException(msg)
+        public fun stopRecording() {
+            currentlyRecording = false
         }
 
-        var vPositionLoc = GLES20.glGetAttribLocation(shaderProgram, "vPosition")
-        var texMatrixLoc = GLES20.glGetUniformLocation(shaderProgram, "texMatrix")
+        public fun createRecordRequest(session: CameraCaptureSession,
+                previewStabilization: Boolean) : CaptureRequest {
+            cvResourcesCreated.block()
 
-        return ShaderProgram(shaderProgram, vPositionLoc, texMatrixLoc)
-    }
+            // Capture request holds references to target surfaces
+            return session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                // Add the preview surface target
+                addTarget(cameraSurface)
 
-    /** Create a shader given its type and source string */
-    private fun createShader(type: Int, source: String): Int {
-        var shader = GLES20.glCreateShader(type)
-        GLES20.glShaderSource(shader, source)
-        GLES20.glCompileShader(shader)
-        val compiled = intArrayOf(0)
-        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0)
-        if (compiled[0] == 0) {
-            val msg = "Could not compile shader " + type + ": " + GLES20.glGetShaderInfoLog(shader)
-            GLES20.glDeleteShader(shader)
-            throw RuntimeException(msg)
-        }
-        return shader
-    }
+                set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(fps, fps))
 
-    /** Create an OpenGL texture */
-    private fun createTexture(): Int {
-        /* Check that EGL has been initialized. */
-        if (eglDisplay == null) {
-            throw IllegalStateException("EGL not initialized before call to createTexture()");
+                if (previewStabilization) {
+                    set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                            CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
+                }
+            }.build()
         }
 
-        val buffer = IntBuffer.allocate(1)
-        GLES20.glGenTextures(1, buffer)
-        val texId = buffer.get(0)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER,
-                GLES20.GL_NEAREST)
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER,
-                GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S,
-                GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T,
-                GLES20.GL_CLAMP_TO_EDGE)
-        return texId
-    }
-
-    override fun destroyWindowSurface() {
-        EGL14.eglDestroySurface(eglDisplay, eglWindowSurface)
-        eglWindowSurface = null
-    }
-
-    override fun setPreviewSize(previewSize: Size) {
-        this.previewSize = previewSize
-    }
-
-    override fun createResources(surface: Surface) {
-        if (eglContext == EGL14.EGL_NO_CONTEXT) {
-            initEGL()
+        public fun setPreviewSize(previewSize: Size) {
+            this.previewSize = previewSize
         }
 
-        val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
-        eglWindowSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, surface,
-                surfaceAttribs, 0)
-        if (eglWindowSurface == EGL14.EGL_NO_SURFACE) {
-            throw RuntimeException("Failed to create EGL texture view surface")
+        public fun getTargets(): List<Surface> {
+            cvResourcesCreated.block()
+
+            return listOf(cameraSurface)
         }
 
-        EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglWindowSurface, eglContext)
+        /** Initialize the EGL display, context, and render surface */
+        private fun initEGL() {
+            eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+            if (eglDisplay == EGL14.EGL_NO_DISPLAY) {
+                throw RuntimeException("unable to get EGL14 display")
+            }
 
-        if (passthroughShaderProgram == null) {
-            createShaderResources()
-        }
-    }
+            val version = intArrayOf(0, 0)
+            if (!EGL14.eglInitialize(eglDisplay, version, 0, version, 1)) {
+                eglDisplay = null;
+                throw RuntimeException("unable to initialize EGL14")
+            }
 
-    override fun getTargets(): List<Surface> {
-        return listOf(cameraSurface)
-    }
+            val configAttribList = intArrayOf(
+                EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
+                EGL14.EGL_RED_SIZE, 8,
+                EGL14.EGL_GREEN_SIZE, 8,
+                EGL14.EGL_BLUE_SIZE, 8,
+                EGL14.EGL_ALPHA_SIZE, 8,
+                EGL14.EGL_DEPTH_SIZE, 0,
+                EGL14.EGL_STENCIL_SIZE, 0,
+                EGLExt.EGL_RECORDABLE_ANDROID, 1,
+                EGL14.EGL_NONE
+            )
 
-    override fun actionDown(encoderSurface: Surface) {
-        val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
-        eglEncoderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig,
-                encoderSurface, surfaceAttribs, 0)
-        if (eglEncoderSurface == EGL14.EGL_NO_SURFACE) {
-            throw RuntimeException("Failed to create EGL encoder surface")
-        }
-    }
+            val configs = arrayOfNulls<EGLConfig>(1);
+            val numConfigs = intArrayOf(1);
+            EGL14.eglChooseConfig(eglDisplay, configAttribList, 0, configs,
+                    0, configs.size, numConfigs, 0)
+            eglConfig = configs[0]!!
 
-    override fun clearFrameListener() {
-        cameraTexture.setOnFrameAvailableListener(null)
-    }
+            val contextAttribList = intArrayOf(
+                EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
+                EGL14.EGL_NONE
+            )
 
-    override fun clearSurfaces() {
-        EGL14.eglDestroySurface(eglDisplay, eglEncoderSurface)
-        eglEncoderSurface = null
-        EGL14.eglDestroySurface(eglDisplay, eglRenderSurface)
-        eglRenderSurface = null
+            eglContext = EGL14.eglCreateContext(eglDisplay, eglConfig, EGL14.EGL_NO_CONTEXT,
+                    contextAttribList, 0)
+            if (eglContext == EGL14.EGL_NO_CONTEXT) {
+                throw RuntimeException("Failed to create EGL context")
+            }
 
-        cameraTexture.release()
-    }
+            val clientVersion = intArrayOf(0)
+            EGL14.eglQueryContext(eglDisplay, eglContext, EGL14.EGL_CONTEXT_CLIENT_VERSION,
+                    clientVersion, 0)
+            Log.v(TAG, "EGLContext created, client version " + clientVersion[0])
 
-    private fun copyTexture(texId: Int, texture: SurfaceTexture, viewportRect: Rect,
-            shaderProgram: ShaderProgram) {
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
-        checkGlError("glClearColor")
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-        checkGlError("glClear")
-
-        shaderProgram.useProgram()
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        checkGlError("glActiveTexture")
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
-        checkGlError("glBindTexture")
-
-        texture.getTransformMatrix(texMatrix)
-        shaderProgram.setTexMatrix(texMatrix)
-
-        shaderProgram.setVertexAttribArray(FULLSCREEN_QUAD)
-
-        GLES20.glViewport(viewportRect.left, viewportRect.top, viewportRect.right,
-                viewportRect.bottom)
-        checkGlError("glViewport")
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-        checkGlError("glDrawArrays")
-    }
-
-    private fun copyCameraToRender() {
-        EGL14.eglMakeCurrent(eglDisplay, eglRenderSurface, eglRenderSurface, eglContext)
-
-        var shaderProgram = passthroughShaderProgram
-        if (filterOn) {
-            shaderProgram = portraitShaderProgram
+            val tmpSurfaceAttribs = intArrayOf(
+                    EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE)
+            val tmpSurface = EGL14.eglCreatePbufferSurface(
+                    eglDisplay, eglConfig, tmpSurfaceAttribs, /*offset*/ 0)
+            EGL14.eglMakeCurrent(eglDisplay, tmpSurface, tmpSurface, eglContext)
         }
 
-        copyTexture(cameraTexId, cameraTexture, Rect(0, 0, width, height),
-            shaderProgram!!)
+        private fun createResources(surface: Surface) {
+            if (eglContext == EGL14.EGL_NO_CONTEXT) {
+                initEGL()
+            }
 
-        EGL14.eglSwapBuffers(eglDisplay, eglRenderSurface)
-        renderTexture.updateTexImage()
-    }
+            val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
+            eglWindowSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, surface,
+                    surfaceAttribs, 0)
+            if (eglWindowSurface == EGL14.EGL_NO_SURFACE) {
+                throw RuntimeException("Failed to create EGL texture view surface")
+            }
 
-    private fun copyRenderToPreview() {
-        EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglRenderSurface, eglContext)
+            EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglWindowSurface, eglContext)
 
-        val cameraAspectRatio = width.toFloat() / height.toFloat()
-        val previewAspectRatio = previewSize.width.toFloat() / previewSize.height.toFloat()
-        var viewportWidth = previewSize.width
-        var viewportHeight = previewSize.height
-        var viewportX = 0
-        var viewportY = 0
+            cameraTexId = createTexture()
+            cameraTexture = SurfaceTexture(cameraTexId)
+            cameraTexture.setOnFrameAvailableListener(this)
+            cameraTexture.setDefaultBufferSize(width, height)
+            cameraSurface = Surface(cameraTexture)
 
-        /** The camera display is not the same size as the video. Letterbox the preview so that
-            we can see exactly how the video will turn out. */
-        if (previewAspectRatio < cameraAspectRatio) {
-            /** Avoid vertical stretching */
-            viewportHeight = (viewportWidth.toFloat() / cameraAspectRatio).toInt()
-            viewportY = (previewSize.height - viewportHeight) / 2
-        } else {
-            /** Avoid horizontal stretching */
-            viewportWidth = (viewportHeight.toFloat() * cameraAspectRatio).toInt()
-            viewportX = (previewSize.width - viewportWidth) / 2
+            renderTexId = createTexture()
+            renderTexture = SurfaceTexture(renderTexId)
+            renderTexture.setDefaultBufferSize(width, height)
+            renderSurface = Surface(renderTexture)
+
+            eglRenderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, renderSurface,
+                    surfaceAttribs, 0)
+            if (eglRenderSurface == EGL14.EGL_NO_SURFACE) {
+                throw RuntimeException("Failed to create EGL render surface")
+            }
+
+            if (passthroughShaderProgram == null) {
+                createShaderResources()
+            }
+
+            cvResourcesCreated.open()
         }
 
-        copyTexture(renderTexId, renderTexture, Rect(viewportX, viewportY, viewportWidth,
-                viewportHeight), passthroughShaderProgram!!)
-
-        EGL14.eglSwapBuffers(eglDisplay, eglWindowSurface)
-    }
-
-    private fun copyRenderToEncode() {
-        EGL14.eglMakeCurrent(eglDisplay, eglEncoderSurface, eglRenderSurface, eglContext)
-
-        var viewportWidth = width
-        var viewportHeight = height
-
-        /** Swap width and height if the camera is rotated on its side. */
-        if (orientation == 90 || orientation == 270) {
-            viewportWidth = height
-            viewportHeight = width
+        private fun createShaderResources() {
+            vertexShader = createShader(GLES20.GL_VERTEX_SHADER, TRANSFORM_VSHADER)
+            passthroughFragmentShader = createShader(GLES20.GL_FRAGMENT_SHADER, PASSTHROUGH_FSHADER)
+            portraitFragmentShader = createShader(GLES20.GL_FRAGMENT_SHADER, PORTRAIT_FSHADER)
+            passthroughShaderProgram = createShaderProgram(passthroughFragmentShader)
+            portraitShaderProgram = createShaderProgram(portraitFragmentShader)
         }
 
-        copyTexture(renderTexId, renderTexture, Rect(0, 0, viewportWidth, viewportHeight),
-                passthroughShaderProgram!!)
+        /** Creates the shader program used to copy data from one texture to another */
+        private fun createShaderProgram(fragmentShader: Int): ShaderProgram {
+            var shaderProgram = GLES20.glCreateProgram()
+            GLES20.glAttachShader(shaderProgram, vertexShader)
+            GLES20.glAttachShader(shaderProgram, fragmentShader)
+            GLES20.glLinkProgram(shaderProgram)
+            val linkStatus = intArrayOf(0)
+            GLES20.glGetProgramiv(shaderProgram, GLES20.GL_LINK_STATUS, linkStatus, 0)
+            if (linkStatus[0] == 0) {
+                val msg = "Could not link program: " + GLES20.glGetProgramInfoLog(shaderProgram)
+                GLES20.glDeleteProgram(shaderProgram)
+                shaderProgram = 0
+                throw RuntimeException(msg)
+            }
 
-        encoder.frameAvailable()
+            var vPositionLoc = GLES20.glGetAttribLocation(shaderProgram, "vPosition")
+            var texMatrixLoc = GLES20.glGetUniformLocation(shaderProgram, "texMatrix")
 
-        EGLExt.eglPresentationTimeANDROID(eglDisplay, eglEncoderSurface,
-                cameraTexture.getTimestamp())
-        EGL14.eglSwapBuffers(eglDisplay, eglEncoderSurface)
-    }
+            return ShaderProgram(shaderProgram, vPositionLoc, texMatrixLoc)
+        }
 
-    override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
-        /** The camera API does not update the tex image. Do so here. */
-        cameraTexture.updateTexImage()
+        /** Create a shader given its type and source string */
+        private fun createShader(type: Int, source: String): Int {
+            var shader = GLES20.glCreateShader(type)
+            GLES20.glShaderSource(shader, source)
+            GLES20.glCompileShader(shader)
+            val compiled = intArrayOf(0)
+            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                val msg = "Could not compile shader " + type + ": " + GLES20.glGetShaderInfoLog(shader)
+                GLES20.glDeleteShader(shader)
+                throw RuntimeException(msg)
+            }
+            return shader
+        }
 
-        viewFinder.post({
+        /** Create an OpenGL texture */
+        private fun createTexture(): Int {
+            /* Check that EGL has been initialized. */
+            if (eglDisplay == null) {
+                throw IllegalStateException("EGL not initialized before call to createTexture()");
+            }
+
+            val buffer = IntBuffer.allocate(1)
+            GLES20.glGenTextures(1, buffer)
+            val texId = buffer.get(0)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
+            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER,
+                    GLES20.GL_NEAREST)
+            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER,
+                    GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S,
+                    GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T,
+                    GLES20.GL_CLAMP_TO_EDGE)
+            return texId
+        }
+
+        private fun destroyWindowSurface() {
+            EGL14.eglDestroySurface(eglDisplay, eglWindowSurface)
+            eglWindowSurface = null
+        }
+
+        private fun copyTexture(texId: Int, texture: SurfaceTexture, viewportRect: Rect,
+                shaderProgram: ShaderProgram) {
+            GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+            checkGlError("glClearColor")
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+            checkGlError("glClear")
+
+            shaderProgram.useProgram()
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            checkGlError("glActiveTexture")
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
+            checkGlError("glBindTexture")
+
+            texture.getTransformMatrix(texMatrix)
+            shaderProgram.setTexMatrix(texMatrix)
+
+            shaderProgram.setVertexAttribArray(FULLSCREEN_QUAD)
+
+            GLES20.glViewport(viewportRect.left, viewportRect.top, viewportRect.right,
+                    viewportRect.bottom)
+            checkGlError("glViewport")
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+            checkGlError("glDrawArrays")
+        }
+
+        private fun copyCameraToRender() {
+            EGL14.eglMakeCurrent(eglDisplay, eglRenderSurface, eglRenderSurface, eglContext)
+
+            var shaderProgram = passthroughShaderProgram
+            if (filterOn) {
+                shaderProgram = portraitShaderProgram
+            }
+
+            copyTexture(cameraTexId, cameraTexture, Rect(0, 0, width, height),
+                shaderProgram!!)
+
+            EGL14.eglSwapBuffers(eglDisplay, eglRenderSurface)
+            renderTexture.updateTexImage()
+        }
+
+        private fun copyRenderToPreview() {
+            EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglRenderSurface, eglContext)
+
+            val cameraAspectRatio = width.toFloat() / height.toFloat()
+            val previewAspectRatio = previewSize.width.toFloat() / previewSize.height.toFloat()
+            var viewportWidth = previewSize.width
+            var viewportHeight = previewSize.height
+            var viewportX = 0
+            var viewportY = 0
+
+            /** The camera display is not the same size as the video. Letterbox the preview so that
+                we can see exactly how the video will turn out. */
+            if (previewAspectRatio < cameraAspectRatio) {
+                /** Avoid vertical stretching */
+                viewportHeight = (viewportWidth.toFloat() / cameraAspectRatio).toInt()
+                viewportY = (previewSize.height - viewportHeight) / 2
+            } else {
+                /** Avoid horizontal stretching */
+                viewportWidth = (viewportHeight.toFloat() * cameraAspectRatio).toInt()
+                viewportX = (previewSize.width - viewportWidth) / 2
+            }
+
+            copyTexture(renderTexId, renderTexture, Rect(viewportX, viewportY, viewportWidth,
+                    viewportHeight), passthroughShaderProgram!!)
+
+            EGL14.eglSwapBuffers(eglDisplay, eglWindowSurface)
+        }
+
+        private fun copyRenderToEncode() {
+            EGL14.eglMakeCurrent(eglDisplay, eglEncoderSurface, eglRenderSurface, eglContext)
+
+            var viewportWidth = width
+            var viewportHeight = height
+
+            /** Swap width and height if the camera is rotated on its side. */
+            if (orientation == 90 || orientation == 270) {
+                viewportWidth = height
+                viewportHeight = width
+            }
+
+            copyTexture(renderTexId, renderTexture, Rect(0, 0, viewportWidth, viewportHeight),
+                    passthroughShaderProgram!!)
+
+            encoder.frameAvailable()
+
+            EGLExt.eglPresentationTimeANDROID(eglDisplay, eglEncoderSurface,
+                    cameraTexture.getTimestamp())
+            EGL14.eglSwapBuffers(eglDisplay, eglEncoderSurface)
+        }
+
+        private fun actionDown(encoderSurface: Surface) {
+            val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
+            eglEncoderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig,
+                    encoderSurface, surfaceAttribs, 0)
+            if (eglEncoderSurface == EGL14.EGL_NO_SURFACE) {
+                val error = EGL14.eglGetError()
+                throw RuntimeException("Failed to create EGL encoder surface"
+                        + ": eglGetError = 0x" + Integer.toHexString(error))
+            }
+        }
+
+        private fun clearFrameListener() {
+            cameraTexture.setOnFrameAvailableListener(null)
+        }
+
+        private fun cleanup() {
+            EGL14.eglDestroySurface(eglDisplay, eglEncoderSurface)
+            eglEncoderSurface = null
+            EGL14.eglDestroySurface(eglDisplay, eglRenderSurface)
+            eglRenderSurface = null
+
+            cameraTexture.release()
+
+            EGL14.eglDestroyContext(eglDisplay, eglContext)
+        }
+
+        private fun onFrameAvailableImpl(surfaceTexture: SurfaceTexture) {
+            /** The camera API does not update the tex image. Do so here. */
+            cameraTexture.updateTexImage()
+
             /** Copy from the camera texture to the render texture */
             if (eglRenderSurface != null) {
                 copyCameraToRender()
@@ -561,7 +640,22 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             if (eglEncoderSurface != null && currentlyRecording) {
                 copyRenderToEncode()
             }
-        })
+        }
+
+        override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
+            sendMessage(obtainMessage(MSG_ON_FRAME_AVAILABLE, 0, 0, surfaceTexture))
+        }
+
+        public override fun handleMessage(msg: Message) {
+            when (msg.what) {
+                MSG_CREATE_RESOURCES -> createResources(msg.obj as Surface)
+                MSG_DESTROY_WINDOW_SURFACE -> destroyWindowSurface()
+                MSG_ACTION_DOWN -> actionDown(msg.obj as Surface)
+                MSG_CLEAR_FRAME_LISTENER -> clearFrameListener()
+                MSG_CLEANUP -> cleanup()
+                MSG_ON_FRAME_AVAILABLE -> onFrameAvailableImpl(msg.obj as SurfaceTexture)
+            }
+        }
     }
 
     companion object {

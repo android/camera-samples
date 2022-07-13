@@ -137,11 +137,11 @@ class PreviewFragment : Fragment() {
             fragmentBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
             fragmentBinding.overlay.postDelayed({
-                if (currentlyRecording) {
+                if (isCurrentlyRecording()) {
                     // Remove white flash animation
                     fragmentBinding.overlay.foreground = null
                     // Restart animation recursively
-                    if (currentlyRecording) {
+                    if (isCurrentlyRecording()) {
                         fragmentBinding.overlay.postDelayed(animationTask,
                                 CameraActivity.ANIMATION_FAST_MILLIS)
                     }
@@ -174,9 +174,13 @@ class PreviewFragment : Fragment() {
     }
 
     @Volatile
-    private var currentlyRecording = false
+    private var recordingStarted = false
+
+    @Volatile
+    private var recordingComplete = false
 
     /** Condition variable for blocking until the recording completes */
+    private val cvRecordingStarted = ConditionVariable(false)
     private val cvRecordingComplete = ConditionVariable(false)
 
     override fun onCreateView(
@@ -238,6 +242,10 @@ class PreviewFragment : Fragment() {
                 }
             }
         })
+    }
+
+    private fun isCurrentlyRecording(): Boolean {
+        return recordingStarted && !recordingComplete
     }
 
     private fun createEncoder(): EncoderWrapper {
@@ -304,43 +312,47 @@ class PreviewFragment : Fragment() {
             when (event.action) {
 
                 MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
+                    /* If the recording was already started in the past, do nothing. */
+                    if (!recordingStarted) {
+                        // Prevents screen rotation during the video recording
+                        requireActivity().requestedOrientation =
+                                ActivityInfo.SCREEN_ORIENTATION_LOCKED
 
-                    // Prevents screen rotation during the video recording
-                    requireActivity().requestedOrientation =
-                            ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                        pipeline.actionDown(encoderSurface)
 
-                    pipeline.actionDown(encoderSurface)
+                        // Finalizes encoder setup and starts recording
+                        recordingStarted = true
+                        encoder.start()
+                        cvRecordingStarted.open()
+                        pipeline.startRecording()
 
-                    // Finalizes encoder setup and starts recording
-                    encoder.start()
-
-                    currentlyRecording = true
-
-                    pipeline.startRecording()
-
-                    // Start recording repeating requests, which will stop the ongoing preview
-                    //  repeating requests without having to explicitly call `session.stopRepeating`
-                    if (previewRequest != null) {
-                        session.setRepeatingRequest(recordRequest,
-                                object : CameraCaptureSession.CaptureCallback() {
-                            override fun onCaptureCompleted(session: CameraCaptureSession,
-                                                            request: CaptureRequest,
-                                                            result: TotalCaptureResult) {
-                                if (currentlyRecording) {
-                                    encoder.frameAvailable()
+                        // Start recording repeating requests, which will stop the ongoing preview
+                        //  repeating requests without having to explicitly call
+                        //  `session.stopRepeating`
+                        if (previewRequest != null) {
+                            session.setRepeatingRequest(recordRequest,
+                                    object : CameraCaptureSession.CaptureCallback() {
+                                override fun onCaptureCompleted(session: CameraCaptureSession,
+                                                                request: CaptureRequest,
+                                                                result: TotalCaptureResult) {
+                                    if (isCurrentlyRecording()) {
+                                        encoder.frameAvailable()
+                                    }
                                 }
-                            }
-                        }, cameraHandler)
+                            }, cameraHandler)
+                        }
+
+                        recordingStartMillis = System.currentTimeMillis()
+                        Log.d(TAG, "Recording started")
+
+                        // Starts recording animation
+                        fragmentBinding.overlay.post(animationTask)
                     }
-
-                    recordingStartMillis = System.currentTimeMillis()
-                    Log.d(TAG, "Recording started")
-
-                    // Starts recording animation
-                    fragmentBinding.overlay.post(animationTask)
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                    cvRecordingStarted.block()
+
                     /* Wait for at least one frame to process so we don't have an empty video */
                     encoder.waitForFirstFrame()
 
@@ -364,10 +376,10 @@ class PreviewFragment : Fragment() {
 
                     delay(CameraActivity.ANIMATION_SLOW_MILLIS)
 
-                    pipeline.clearSurfaces()
-
                     Log.d(TAG, "Recording stopped. Output file: $outputFile")
                     encoder.shutdown()
+
+                    pipeline.cleanup()
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
@@ -469,11 +481,11 @@ class PreviewFragment : Fragment() {
 
             /** Called after all captures have completed - shut down the encoder */
             override fun onReady(session: CameraCaptureSession) {
-                if (!currentlyRecording) {
+                if (!isCurrentlyRecording()) {
                     return
                 }
 
-                currentlyRecording = false
+                recordingComplete = true
                 pipeline.stopRecording()
                 cvRecordingComplete.open()
             }
