@@ -102,9 +102,10 @@ class SelectorFragment : Fragment() {
                             DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
                     } else {
                         navController.navigate(
-                            SelectorFragmentDirections.actionSelectorToSurfaceView(
+                            SelectorFragmentDirections.actionSelectorToPreview(
                             item.cameraId, item.size.width, item.size.height, item.fps,
-                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
+                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false,
+                            false, false))
                     }
                 }
             }

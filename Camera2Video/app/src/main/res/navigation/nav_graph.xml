@@ -52,9 +52,9 @@
             app:destination="@id/record_mode_fragment" />
 
         <action
-            android:id="@+id/action_selector_to_surface_view"
+            android:id="@+id/action_selector_to_preview"
             app:launchSingleTop="true"
-            app:destination="@id/surface_view_fragment" />
+            app:destination="@id/preview_fragment" />
 
     </fragment>
 
@@ -91,9 +91,9 @@
             app:destination="@id/record_mode_fragment" />
 
         <action
-            android:id="@+id/action_dynamic_range_to_surface_view"
+            android:id="@+id/action_dynamic_range_to_preview"
             app:launchSingleTop="true"
-            app:destination="@id/surface_view_fragment" />
+            app:destination="@id/preview_fragment" />
 
     </fragment>
 
@@ -129,9 +129,9 @@
             app:destination="@id/record_mode_fragment" />
 
         <action
-            android:id="@+id/action_preview_stabilization_to_surface_view"
+            android:id="@+id/action_preview_stabilization_to_preview"
             app:launchSingleTop="true"
-            app:destination="@id/surface_view_fragment" />
+            app:destination="@id/preview_fragment" />
 
     </fragment>
 
@@ -166,52 +166,14 @@
             app:argType="boolean" />
 
         <action
-            android:id="@+id/action_record_mode_to_surface_view"
+            android:id="@+id/action_record_mode_to_preview"
             app:launchSingleTop="true"
-            app:destination="@id/surface_view_fragment" />
+            app:destination="@id/preview_fragment" />
 
         <action
             android:id="@+id/action_record_mode_to_filter"
             app:launchSingleTop="true"
             app:destination="@id/filter_fragment" />
-
-    </fragment>
-
-    <fragment
-        android:id="@+id/surface_view_fragment"
-        android:name="com.example.android.camera2.video.fragments.SurfaceViewFragment"
-        android:label="SurfaceView" >
-
-        <argument
-            android:name="camera_id"
-            app:argType="string"
-            app:nullable="false"/>
-
-        <argument
-            android:name="width"
-            app:argType="integer" />
-
-        <argument
-            android:name="height"
-            app:argType="integer" />
-
-        <argument
-            android:name="fps"
-            app:argType="integer" />
-
-        <argument
-            android:name="dynamicRange"
-            app:argType="long" />
-
-        <argument
-            android:name="previewStabilization"
-            app:argType="boolean" />
-
-        <action
-            android:id="@+id/action_surface_view_to_permissions"
-            app:destination="@id/permissions_fragment"
-            app:popUpTo="@id/surface_view_fragment"
-            app:popUpToInclusive="true"/>
 
     </fragment>
 
@@ -246,16 +208,16 @@
             app:argType="boolean" />
 
         <action
-            android:id="@+id/action_filter_to_texture_view"
+            android:id="@+id/action_filter_to_preview"
             app:launchSingleTop="true"
-            app:destination="@id/texture_view_fragment" />
+            app:destination="@id/preview_fragment" />
 
     </fragment>
 
     <fragment
-        android:id="@+id/texture_view_fragment"
-        android:name="com.example.android.camera2.video.fragments.TextureViewFragment"
-        android:label="TextureView" >
+        android:id="@+id/preview_fragment"
+        android:name="com.example.android.camera2.video.fragments.PreviewFragment"
+        android:label="Preview" >
 
         <argument
             android:name="camera_id"
@@ -275,6 +237,10 @@
             app:argType="integer" />
 
         <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <argument
             android:name="previewStabilization"
             app:argType="boolean" />
 
@@ -282,11 +248,15 @@
             android:name="filterOn"
             app:argType="boolean" />
 
+        <argument
+            android:name="useHardware"
+            app:argType="boolean" />
+
         <action
-            android:id="@+id/action_texture_view_to_permissions"
+            android:id="@+id/action_preview_to_permissions"
             app:destination="@id/permissions_fragment"
-            app:popUpTo="@id/texture_view_fragment"
-            app:popUpToInclusive="true" />
+            app:popUpTo="@id/preview_fragment"
+            app:popUpToInclusive="true"/>
 
     </fragment>
 
