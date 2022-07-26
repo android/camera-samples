@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.ColorSpace
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.SurfaceTexture
@@ -29,6 +30,7 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.HardwareBuffer
 import android.media.Image
@@ -41,13 +43,15 @@ import android.media.MediaScannerConnection
 import android.opengl.EGL14
 import android.opengl.EGL14.EGL_CONTEXT_CLIENT_VERSION
 import android.opengl.EGL14.EGL_OPENGL_ES2_BIT
+import android.opengl.EGL15
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
 import android.opengl.EGLDisplay
 import android.opengl.EGLExt
+import android.opengl.EGLImage
 import android.opengl.EGLSurface
 import android.opengl.GLES11Ext
-import android.opengl.GLES20
+import android.opengl.GLES30
 import android.os.Bundle
 import android.os.ConditionVariable
 import android.os.Handler
@@ -111,6 +115,59 @@ void main() {
 }
 """
 
+/**
+ * Fragment shaders
+ */
+private val INCLUDE_HLG_EOTF = """
+// BT.2100 / BT.2020 HLG EOTF for one channel.
+highp float hlgEotfSingleChannel(highp float hlgChannel) {
+  // Specification:
+  // https://www.khronos.org/registry/DataFormat/specs/1.3/dataformat.1.3.inline.html#TRANSFER_HLG
+  // Reference implementation:
+  // https://cs.android.com/android/platform/superproject/+/master:frameworks/native/libs/renderengine/gl/ProgramCache.cpp;l=265-279;drc=de09f10aa504fd8066370591a00c9ff1cafbb7fa
+  const highp float a = 0.17883277;
+  const highp float b = 0.28466892;
+  const highp float c = 0.55991073;
+  return hlgChannel <= 0.5 ? hlgChannel * hlgChannel / 3.0 :
+      (b + exp((hlgChannel - c) / a)) / 12.0;
+}
+
+// BT.2100 / BT.2020 HLG EOTF.
+highp vec3 hlgEotf(highp vec3 hlgColor) {
+  return vec3(
+      hlgEotfSingleChannel(hlgColor.r),
+      hlgEotfSingleChannel(hlgColor.g),
+      hlgEotfSingleChannel(hlgColor.b)
+  );
+}
+"""
+
+private val INCLUDE_YUV_TO_RGB = """
+vec3 yuvToRgb(vec3 yuv) {
+  const mat3 yuvToRgbColorTransform = mat3(
+    1.1689f, 1.1689f, 1.1689f,
+    0.0000f, -0.1881f, 2.1502f,
+    1.6853f, -0.6530f, 0.0000f
+  );
+  const vec3 yuvOffset = vec3(0.0625, 0.5, 0.5);
+  yuv = yuv - yuvOffset;
+  return clamp(yuvToRgbColorTransform * yuv, 0.0, 1.0);
+}
+"""
+
+private val TRANSFORM_HDR_VSHADER = """#version 300 es
+in vec4 vPosition;
+uniform mat4 texMatrix;
+out vec2 vTextureCoord;
+out vec4 outPosition;
+void main() {
+    outPosition = vPosition;
+    vec4 texCoord = vec4((vPosition.xy + vec2(1.0, 1.0)) / 2.0, 0.0, 1.0);
+    vTextureCoord = (texMatrix * texCoord).xy;
+    gl_Position = vPosition;
+}
+"""
+
 /** Passthrough fragment shader, simply copies from the source texture */
 private val PASSTHROUGH_FSHADER = """
 #extension GL_OES_EGL_image_external : require
@@ -119,6 +176,145 @@ varying vec2 vTextureCoord;
 uniform samplerExternalOES sTexture;
 void main() {
     gl_FragColor = texture2D(sTexture, vTextureCoord);
+}
+"""
+
+private val PASSTHROUGH_HDR_FSHADER = """#version 300 es
+#extension GL_OES_EGL_image_external : require
+precision mediump float;
+in vec2 vTextureCoord;
+uniform samplerExternalOES sTexture;
+out vec4 outColor;
+void main() {
+    outColor = texture(sTexture, vTextureCoord);
+}
+"""
+
+private val YUV_TO_RGB_PASSTHROUGH_HDR_FSHADER = """#version 300 es
+#extension GL_EXT_YUV_target : require
+#extension GL_OES_EGL_image_external : require
+precision mediump float;
+uniform __samplerExternal2DY2YEXT sTexture;
+in vec2 vTextureCoord;
+out vec4 outColor;
+""" + INCLUDE_YUV_TO_RGB +
+"""
+void main() {
+    vec4 color = texture(sTexture, vTextureCoord);
+    color.rgb = yuvToRgb(color.rgb);
+    outColor = color;
+}
+"""
+
+private val YUV_TO_RGB_PORTRAIT_HDR_FSHADER = """#version 300 es
+#extension GL_EXT_YUV_target : require
+#extension GL_OES_EGL_image_external : require
+precision mediump float;
+uniform __samplerExternal2DY2YEXT sTexture;
+in vec2 vTextureCoord;
+out vec4 outColor;
+""" + INCLUDE_YUV_TO_RGB +
+"""
+// BT.2100 / BT.2020 HLG OETF for one channel.
+highp float hlgOetfSingleChannel(highp float linearChannel) {
+  // Specification:
+  // https://www.khronos.org/registry/DataFormat/specs/1.3/dataformat.1.3.inline.html#TRANSFER_HLG
+  // Reference implementation:
+  // https://cs.android.com/android/platform/superproject/+/master:frameworks/native/libs/renderengine/gl/ProgramCache.cpp;l=529-543;drc=de09f10aa504fd8066370591a00c9ff1cafbb7fa
+  const highp float a = 0.17883277;
+  const highp float b = 0.28466892;
+  const highp float c = 0.55991073;
+
+  return linearChannel <= 1.0 / 12.0 ? sqrt(3.0 * linearChannel) :
+      a * log(12.0 * linearChannel - b) + c;
+}
+
+// BT.2100 / BT.2020 HLG OETF.
+highp vec3 hlgOetf(highp vec3 linearColor) {
+  return vec3(
+      hlgOetfSingleChannel(linearColor.r),
+      hlgOetfSingleChannel(linearColor.g),
+      hlgOetfSingleChannel(linearColor.b)
+  );
+}
+""" + INCLUDE_HLG_EOTF +
+"""
+void main() {
+    vec4 color = texture(sTexture, vTextureCoord);
+
+    // Convert from YUV to RGB
+    color.rgb = yuvToRgb(color.rgb);
+
+    // Convert from HLG to linear
+    color.rgb = hlgEotf(color.rgb);
+
+    // Apply the portrait effect. Use gamma 2.4, roughly equivalent to what we expect in sRGB
+    float x = vTextureCoord.x * 2.0 - 1.0, y = vTextureCoord.y * 2.0 - 1.0;
+    float r = sqrt(x * x + y * y);
+    color.rgb *= pow(1.0f - r, 2.4f);
+
+    // Convert back to HLG
+    color.rgb = hlgOetf(color.rgb);
+    outColor = color;
+}
+"""
+
+private val HLG_TO_LINEAR_HDR_FSHADER = """#version 300 es
+#extension GL_OES_EGL_image_external : require
+precision mediump float;
+uniform samplerExternalOES sTexture;
+in vec2 vTextureCoord;
+out vec4 outColor;
+""" + INCLUDE_HLG_EOTF +
+"""
+void main() {
+    vec4 color = texture(sTexture, vTextureCoord);
+
+    // Convert from HLG electrical to linear optical [0.0, 1.0]
+    color.rgb = hlgEotf(color.rgb);
+
+    outColor = color;
+}
+"""
+
+private val HLG_TO_PQ_HDR_FSHADER = """#version 300 es
+#extension GL_OES_EGL_image_external : require
+precision mediump float;
+uniform samplerExternalOES sTexture;
+in vec2 vTextureCoord;
+out vec4 outColor;
+""" + INCLUDE_HLG_EOTF +
+"""
+// BT.2100 / BT.2020, PQ / ST2084 OETF.
+highp vec3 pqOetf(highp vec3 linearColor) {
+  // Specification:
+  // https://registry.khronos.org/DataFormat/specs/1.3/dataformat.1.3.inline.html#TRANSFER_PQ
+  // Reference implementation:
+  // https://cs.android.com/android/platform/superproject/+/master:frameworks/native/libs/renderengine/gl/ProgramCache.cpp;l=514-527;drc=de09f10aa504fd8066370591a00c9ff1cafbb7fa
+  const highp float m1 = (2610.0 / 16384.0);
+  const highp float m2 = (2523.0 / 4096.0) * 128.0;
+  const highp float c1 = (3424.0 / 4096.0);
+  const highp float c2 = (2413.0 / 4096.0) * 32.0;
+  const highp float c3 = (2392.0 / 4096.0) * 32.0;
+
+  highp vec3 temp = pow(linearColor, vec3(m1));
+  temp = (c1 + c2 * temp) / (1.0 + c3 * temp);
+  return pow(temp, vec3(m2));
+}
+
+void main() {
+    vec4 color = texture(sTexture, vTextureCoord);
+
+    // Convert from HLG electrical to linear optical [0.0, 1.0]
+    color.rgb = hlgEotf(color.rgb);
+
+    // HLG has a different L = 1 than PQ, which is 10,000 cd/m^2.
+    color.rgb /= 40.0f;
+
+    // Convert from linear optical [0.0, 1.0] to PQ electrical
+    color.rgb = pqOetf(color.rgb);
+
+    outColor = color;
 }
 """
 
@@ -131,7 +327,6 @@ void main() {
     float x = vTextureCoord.x * 2.0 - 1.0, y = vTextureCoord.y * 2.0 - 1.0;
     vec4 color = texture2D(sTexture, vTextureCoord);
     float r = sqrt(x * x + y * y);
-    float theta = atan(y, x);
     gl_FragColor = color * (1.0 - r);
 }
 """
@@ -150,9 +345,23 @@ private val FULLSCREEN_QUAD = floatArrayOf(
      1.0f,  1.0f,  // 3 top right
 )
 
-class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
-        characteristics: CameraCharacteristics, encoder: EncoderWrapper,
-        viewFinder: AutoFitSurfaceView) : Pipeline(width, height, fps, filterOn,
+private val EGL_GL_COLORSPACE_KHR               = 0x309D
+private val EGL_GL_COLORSPACE_BT2020_LINEAR_EXT = 0x333F
+private val EGL_GL_COLORSPACE_BT2020_PQ_EXT     = 0x3340
+private val EGL_SMPTE2086_DISPLAY_PRIMARY_RX_EXT       = 0x3341
+private val EGL_SMPTE2086_DISPLAY_PRIMARY_RY_EXT       = 0x3342
+private val EGL_SMPTE2086_DISPLAY_PRIMARY_GX_EXT       = 0x3343
+private val EGL_SMPTE2086_DISPLAY_PRIMARY_GY_EXT       = 0x3344
+private val EGL_SMPTE2086_DISPLAY_PRIMARY_BX_EXT       = 0x3345
+private val EGL_SMPTE2086_DISPLAY_PRIMARY_BY_EXT       = 0x3346
+private val EGL_SMPTE2086_WHITE_POINT_X_EXT            = 0x3347
+private val EGL_SMPTE2086_WHITE_POINT_Y_EXT            = 0x3348
+private val EGL_SMPTE2086_MAX_LUMINANCE_EXT            = 0x3349
+private val EGL_SMPTE2086_MIN_LUMINANCE_EXT            = 0x334A
+
+class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, transfer: Int,
+        dynamicRange: Long, characteristics: CameraCharacteristics, encoder: EncoderWrapper,
+        viewFinder: AutoFitSurfaceView) : Pipeline(width, height, fps, filterOn, dynamicRange,
                 characteristics, encoder, viewFinder) {
     private val renderThread: HandlerThread by lazy {
         val renderThread = HandlerThread("Camera2Video.RenderThread")
@@ -161,7 +370,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
     }
 
     private val renderHandler = RenderHandler(renderThread.getLooper(),
-            width, height, fps, filterOn, characteristics, encoder)
+            width, height, fps, filterOn, transfer, dynamicRange, characteristics, encoder)
 
     override fun createRecordRequest(session: CameraCaptureSession,
             previewStabilization: Boolean) : CaptureRequest {
@@ -224,26 +433,27 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             nativeBuffer.position(0)
             vertexBuffer.position(0)
 
-            GLES20.glEnableVertexAttribArray(vPositionLoc)
+            GLES30.glEnableVertexAttribArray(vPositionLoc)
             checkGlError("glEnableVertexAttribArray")
-            GLES20.glVertexAttribPointer(vPositionLoc, 2, GLES20.GL_FLOAT, false, 8, vertexBuffer)
+            GLES30.glVertexAttribPointer(vPositionLoc, 2, GLES30.GL_FLOAT, false, 8, vertexBuffer)
             checkGlError("glVertexAttribPointer")
         }
 
         public fun setTexMatrix(texMatrix: FloatArray) {
-            GLES20.glUniformMatrix4fv(texMatrixLoc, 1, false, texMatrix, 0)
+            GLES30.glUniformMatrix4fv(texMatrixLoc, 1, false, texMatrix, 0)
             checkGlError("glUniformMatrix4fv")
         }
 
         public fun useProgram() {
-            GLES20.glUseProgram(id)
+            GLES30.glUseProgram(id)
             checkGlError("glUseProgram")
         }
     }
 
     private class RenderHandler(looper: Looper, width: Int, height: Int, fps: Int,
-            filterOn: Boolean, characteristics: CameraCharacteristics, encoder: EncoderWrapper):
-            Handler(looper), SurfaceTexture.OnFrameAvailableListener {
+            filterOn: Boolean, transfer: Int, dynamicRange: Long,
+            characteristics: CameraCharacteristics, encoder: EncoderWrapper): Handler(looper),
+            SurfaceTexture.OnFrameAvailableListener {
         companion object {
             val MSG_CREATE_RESOURCES = 0
             val MSG_DESTROY_WINDOW_SURFACE = 1
@@ -257,6 +467,8 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
         private val height = height
         private val fps = fps
         private val filterOn = filterOn
+        private val transfer = transfer
+        private val dynamicRange = dynamicRange
         private val characteristics = characteristics
         private val encoder = encoder
 
@@ -270,6 +482,8 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
 
         /** The above SurfaceTexture cast as a Surface */
         private lateinit var cameraSurface: Surface
+
+        private lateinit var cameraImage: EGLImage
 
         /** OpenGL texture that will combine the camera output with rendering */
         private var renderTexId: Int = 0
@@ -292,18 +506,20 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
         private var currentlyRecording = false
 
         /** EGL / OpenGL data. */
-        private var eglDisplay = EGL14.EGL_NO_DISPLAY;
-        private var eglContext = EGL14.EGL_NO_CONTEXT;
-        private var eglConfig: EGLConfig? = null;
+        private var eglDisplay = EGL14.EGL_NO_DISPLAY
+        private var eglContext = EGL14.EGL_NO_CONTEXT
+        private var eglConfig: EGLConfig? = null
         private var eglRenderSurface: EGLSurface? = null
         private var eglEncoderSurface: EGLSurface? = null
         private var eglWindowSurface: EGLSurface? = null
         private var vertexShader = 0
-        private var passthroughFragmentShader = 0
-        private var portraitFragmentShader = 0
+        private var cameraToRenderFragmentShader = 0
+        private var renderToPreviewFragmentShader = 0
+        private var renderToEncodeFragmentShader = 0
 
-        private var passthroughShaderProgram: ShaderProgram? = null
-        private var portraitShaderProgram: ShaderProgram? = null
+        private var cameraToRenderShaderProgram: ShaderProgram? = null
+        private var renderToPreviewShaderProgram: ShaderProgram? = null
+        private var renderToEncodeShaderProgram: ShaderProgram? = null
 
         private val cvResourcesCreated = ConditionVariable(false)
 
@@ -349,33 +565,78 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             if (eglDisplay == EGL14.EGL_NO_DISPLAY) {
                 throw RuntimeException("unable to get EGL14 display")
             }
+            checkEglError("eglGetDisplay")
 
             val version = intArrayOf(0, 0)
             if (!EGL14.eglInitialize(eglDisplay, version, 0, version, 1)) {
-                eglDisplay = null;
-                throw RuntimeException("unable to initialize EGL14")
+                eglDisplay = null
+                throw RuntimeException("Unable to initialize EGL14")
+            }
+            checkEglError("eglInitialize")
+
+            val eglVersion = version[0] * 10 + version[1]
+            Log.i(TAG, "eglVersion: " + eglVersion)
+
+            /** Check that the necessary extensions for color spaces are supported if HDR is enabled */
+            if (isHDR()) {
+                val requiredExtensionsList = mutableListOf<String>("EGL_KHR_gl_colorspace")
+                if (transfer == TransferFragment.PQ_ID) {
+                    requiredExtensionsList.add("EGL_EXT_gl_colorspace_bt2020_pq")
+                } else if (transfer == TransferFragment.LINEAR_ID) {
+                    requiredExtensionsList.add("EGL_EXT_gl_colorspace_bt2020_linear")
+                }
+
+                val eglExtensions = EGL14.eglQueryString(eglDisplay, EGL14.EGL_EXTENSIONS)
+
+                for (requiredExtension in requiredExtensionsList) {
+                    if (!eglExtensions.contains(requiredExtension)) {
+                        Log.e(TAG, "EGL extension not supported: " + requiredExtension)
+                        Log.e(TAG, "Supported extensions: ")
+                        Log.e(TAG, eglExtensions)
+                        throw RuntimeException("EGL extension not supported: " + requiredExtension)
+                    }
+                }
+            }
+
+            Log.i(TAG, "isHDR: " + isHDR())
+            if (isHDR()) {
+                Log.i(TAG, "Preview transfer: " + TransferFragment.idToStr(transfer))
+            }
+
+            var renderableType = EGL14.EGL_OPENGL_ES2_BIT
+            if (isHDR()) {
+                renderableType = EGLExt.EGL_OPENGL_ES3_BIT_KHR
+            }
+
+            var rgbBits = 8
+            var alphaBits = 8
+            if (isHDR()) {
+                rgbBits = 10
+                alphaBits = 2
             }
 
             val configAttribList = intArrayOf(
-                EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
-                EGL14.EGL_RED_SIZE, 8,
-                EGL14.EGL_GREEN_SIZE, 8,
-                EGL14.EGL_BLUE_SIZE, 8,
-                EGL14.EGL_ALPHA_SIZE, 8,
-                EGL14.EGL_DEPTH_SIZE, 0,
-                EGL14.EGL_STENCIL_SIZE, 0,
-                EGLExt.EGL_RECORDABLE_ANDROID, 1,
+                EGL14.EGL_RENDERABLE_TYPE, renderableType,
+                EGL14.EGL_RED_SIZE, rgbBits,
+                EGL14.EGL_GREEN_SIZE, rgbBits,
+                EGL14.EGL_BLUE_SIZE, rgbBits,
+                EGL14.EGL_ALPHA_SIZE, alphaBits,
                 EGL14.EGL_NONE
             )
 
-            val configs = arrayOfNulls<EGLConfig>(1);
-            val numConfigs = intArrayOf(1);
+            val configs = arrayOfNulls<EGLConfig>(1)
+            val numConfigs = intArrayOf(1)
             EGL14.eglChooseConfig(eglDisplay, configAttribList, 0, configs,
                     0, configs.size, numConfigs, 0)
             eglConfig = configs[0]!!
 
+            var requestedVersion = 2
+            if (isHDR()) {
+                requestedVersion = 3
+            }
+
             val contextAttribList = intArrayOf(
-                EGL14.EGL_CONTEXT_CLIENT_VERSION, 2,
+                EGL14.EGL_CONTEXT_CLIENT_VERSION, requestedVersion,
                 EGL14.EGL_NONE
             )
 
@@ -402,11 +663,57 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
                 initEGL()
             }
 
-            val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
+            var windowSurfaceAttribs = intArrayOf(EGL14.EGL_NONE)
+            if (isHDR()) {
+                windowSurfaceAttribs = when (transfer) {
+                    TransferFragment.PQ_ID -> intArrayOf(
+                        EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_BT2020_PQ_EXT,
+                        EGL14.EGL_NONE
+                    )
+                    TransferFragment.LINEAR_ID -> intArrayOf(
+                        EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_BT2020_LINEAR_EXT,
+                        EGL14.EGL_NONE
+                    )
+                    else -> throw RuntimeException("Unexpected transfer " + transfer)
+                }
+            }
+
             eglWindowSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, surface,
-                    surfaceAttribs, 0)
+                    windowSurfaceAttribs, 0)
             if (eglWindowSurface == EGL14.EGL_NO_SURFACE) {
                 throw RuntimeException("Failed to create EGL texture view surface")
+            }
+
+            if (isHDR() and (transfer == TransferFragment.PQ_ID)) {
+                val SMPTE2086_MULTIPLIER = 50000
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_MAX_LUMINANCE_EXT, 10000 * SMPTE2086_MULTIPLIER)
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_MIN_LUMINANCE_EXT, 0)
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_DISPLAY_PRIMARY_RX_EXT,
+                        (0.708f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_DISPLAY_PRIMARY_RY_EXT,
+                        (0.292f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_DISPLAY_PRIMARY_GX_EXT,
+                        (0.170f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_DISPLAY_PRIMARY_GY_EXT,
+                        (0.797f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_DISPLAY_PRIMARY_BX_EXT,
+                        (0.131f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_DISPLAY_PRIMARY_BY_EXT,
+                        (0.046f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_WHITE_POINT_X_EXT,
+                        (0.3127f * SMPTE2086_MULTIPLIER).toInt())
+                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_WHITE_POINT_Y_EXT,
+                        (0.3290f * SMPTE2086_MULTIPLIER).toInt())
             }
 
             EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglWindowSurface, eglContext)
@@ -422,58 +729,109 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             renderTexture.setDefaultBufferSize(width, height)
             renderSurface = Surface(renderTexture)
 
+            var renderSurfaceAttribs = intArrayOf(EGL14.EGL_NONE)
             eglRenderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, renderSurface,
-                    surfaceAttribs, 0)
+                    renderSurfaceAttribs, 0)
             if (eglRenderSurface == EGL14.EGL_NO_SURFACE) {
                 throw RuntimeException("Failed to create EGL render surface")
             }
 
-            if (passthroughShaderProgram == null) {
-                createShaderResources()
-            }
-
+            createShaderResources()
             cvResourcesCreated.open()
         }
 
         private fun createShaderResources() {
-            vertexShader = createShader(GLES20.GL_VERTEX_SHADER, TRANSFORM_VSHADER)
-            passthroughFragmentShader = createShader(GLES20.GL_FRAGMENT_SHADER, PASSTHROUGH_FSHADER)
-            portraitFragmentShader = createShader(GLES20.GL_FRAGMENT_SHADER, PORTRAIT_FSHADER)
-            passthroughShaderProgram = createShaderProgram(passthroughFragmentShader)
-            portraitShaderProgram = createShaderProgram(portraitFragmentShader)
+            if (isHDR()) {
+                /** Check that GL_EXT_YUV_target is supported for HDR */
+                val extensions = GLES30.glGetString(GLES30.GL_EXTENSIONS)
+                if (!extensions.contains("GL_EXT_YUV_target")) {
+                    throw RuntimeException("Device does not support GL_EXT_YUV_target")
+                }
+
+                vertexShader = createShader(GLES30.GL_VERTEX_SHADER, TRANSFORM_HDR_VSHADER)
+
+                cameraToRenderFragmentShader = when (filterOn) {
+                    false -> createShader(GLES30.GL_FRAGMENT_SHADER,
+                            YUV_TO_RGB_PASSTHROUGH_HDR_FSHADER)
+                    true -> createShader(GLES30.GL_FRAGMENT_SHADER,
+                            YUV_TO_RGB_PORTRAIT_HDR_FSHADER)
+                }
+                cameraToRenderShaderProgram = createShaderProgram(cameraToRenderFragmentShader)
+
+                renderToPreviewFragmentShader = when (transfer) {
+                    TransferFragment.PQ_ID -> createShader(GLES30.GL_FRAGMENT_SHADER,
+                            HLG_TO_PQ_HDR_FSHADER)
+                    TransferFragment.LINEAR_ID -> createShader(GLES30.GL_FRAGMENT_SHADER,
+                            HLG_TO_LINEAR_HDR_FSHADER)
+                    else -> throw RuntimeException("Unexpected transfer " + transfer)
+                }
+
+                renderToPreviewShaderProgram = createShaderProgram(
+                        renderToPreviewFragmentShader)
+
+                renderToEncodeFragmentShader = createShader(GLES30.GL_FRAGMENT_SHADER,
+                        PASSTHROUGH_HDR_FSHADER)
+                renderToEncodeShaderProgram = createShaderProgram(renderToEncodeFragmentShader)
+            } else {
+                vertexShader = createShader(GLES30.GL_VERTEX_SHADER, TRANSFORM_VSHADER)
+
+                val passthroughFragmentShader = createShader(GLES30.GL_FRAGMENT_SHADER,
+                        PASSTHROUGH_FSHADER)
+                val passthroughShaderProgram = createShaderProgram(passthroughFragmentShader)
+
+                cameraToRenderShaderProgram = when (filterOn) {
+                    false -> passthroughShaderProgram
+                    true -> createShaderProgram(createShader(GLES30.GL_FRAGMENT_SHADER,
+                            PORTRAIT_FSHADER))
+                }
+
+                renderToPreviewShaderProgram = passthroughShaderProgram
+                renderToEncodeShaderProgram = passthroughShaderProgram
+            }
         }
 
         /** Creates the shader program used to copy data from one texture to another */
         private fun createShaderProgram(fragmentShader: Int): ShaderProgram {
-            var shaderProgram = GLES20.glCreateProgram()
-            GLES20.glAttachShader(shaderProgram, vertexShader)
-            GLES20.glAttachShader(shaderProgram, fragmentShader)
-            GLES20.glLinkProgram(shaderProgram)
+            var shaderProgram = GLES30.glCreateProgram()
+            checkGlError("glCreateProgram")
+
+            GLES30.glAttachShader(shaderProgram, vertexShader)
+            checkGlError("glAttachShader")
+            GLES30.glAttachShader(shaderProgram, fragmentShader)
+            checkGlError("glAttachShader")
+            GLES30.glLinkProgram(shaderProgram)
+            checkGlError("glLinkProgram")
+
             val linkStatus = intArrayOf(0)
-            GLES20.glGetProgramiv(shaderProgram, GLES20.GL_LINK_STATUS, linkStatus, 0)
+            GLES30.glGetProgramiv(shaderProgram, GLES30.GL_LINK_STATUS, linkStatus, 0)
+            checkGlError("glGetProgramiv")
             if (linkStatus[0] == 0) {
-                val msg = "Could not link program: " + GLES20.glGetProgramInfoLog(shaderProgram)
-                GLES20.glDeleteProgram(shaderProgram)
-                shaderProgram = 0
+                val msg = "Could not link program: " + GLES30.glGetProgramInfoLog(shaderProgram)
+                GLES30.glDeleteProgram(shaderProgram)
                 throw RuntimeException(msg)
             }
 
-            var vPositionLoc = GLES20.glGetAttribLocation(shaderProgram, "vPosition")
-            var texMatrixLoc = GLES20.glGetUniformLocation(shaderProgram, "texMatrix")
+            var vPositionLoc = GLES30.glGetAttribLocation(shaderProgram, "vPosition")
+            checkGlError("glGetAttribLocation")
+            var texMatrixLoc = GLES30.glGetUniformLocation(shaderProgram, "texMatrix")
+            checkGlError("glGetUniformLocation")
 
             return ShaderProgram(shaderProgram, vPositionLoc, texMatrixLoc)
         }
 
         /** Create a shader given its type and source string */
         private fun createShader(type: Int, source: String): Int {
-            var shader = GLES20.glCreateShader(type)
-            GLES20.glShaderSource(shader, source)
-            GLES20.glCompileShader(shader)
+            var shader = GLES30.glCreateShader(type)
+            GLES30.glShaderSource(shader, source)
+            checkGlError("glShaderSource")
+            GLES30.glCompileShader(shader)
+            checkGlError("glCompileShader")
             val compiled = intArrayOf(0)
-            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            GLES30.glGetShaderiv(shader, GLES30.GL_COMPILE_STATUS, compiled, 0)
+            checkGlError("glGetShaderiv")
             if (compiled[0] == 0) {
-                val msg = "Could not compile shader " + type + ": " + GLES20.glGetShaderInfoLog(shader)
-                GLES20.glDeleteShader(shader)
+                val msg = "Could not compile shader " + type + ": " + GLES30.glGetShaderInfoLog(shader)
+                GLES30.glDeleteShader(shader)
                 throw RuntimeException(msg)
             }
             return shader
@@ -487,17 +845,17 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             }
 
             val buffer = IntBuffer.allocate(1)
-            GLES20.glGenTextures(1, buffer)
+            GLES30.glGenTextures(1, buffer)
             val texId = buffer.get(0)
-            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
-            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER,
-                    GLES20.GL_NEAREST)
-            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER,
-                    GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S,
-                    GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T,
-                    GLES20.GL_CLAMP_TO_EDGE)
+            GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
+            GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MIN_FILTER,
+                    GLES30.GL_NEAREST)
+            GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MAG_FILTER,
+                    GLES30.GL_LINEAR)
+            GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_WRAP_S,
+                    GLES30.GL_CLAMP_TO_EDGE)
+            GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_WRAP_T,
+                    GLES30.GL_CLAMP_TO_EDGE)
             return texId
         }
 
@@ -508,15 +866,15 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
 
         private fun copyTexture(texId: Int, texture: SurfaceTexture, viewportRect: Rect,
                 shaderProgram: ShaderProgram) {
-            GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+            GLES30.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
             checkGlError("glClearColor")
-            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+            GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
             checkGlError("glClear")
 
             shaderProgram.useProgram()
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
             checkGlError("glActiveTexture")
-            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
+            GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
             checkGlError("glBindTexture")
 
             texture.getTransformMatrix(texMatrix)
@@ -524,23 +882,18 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
 
             shaderProgram.setVertexAttribArray(FULLSCREEN_QUAD)
 
-            GLES20.glViewport(viewportRect.left, viewportRect.top, viewportRect.right,
+            GLES30.glViewport(viewportRect.left, viewportRect.top, viewportRect.right,
                     viewportRect.bottom)
             checkGlError("glViewport")
-            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+            GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
             checkGlError("glDrawArrays")
         }
 
         private fun copyCameraToRender() {
             EGL14.eglMakeCurrent(eglDisplay, eglRenderSurface, eglRenderSurface, eglContext)
 
-            var shaderProgram = passthroughShaderProgram
-            if (filterOn) {
-                shaderProgram = portraitShaderProgram
-            }
-
             copyTexture(cameraTexId, cameraTexture, Rect(0, 0, width, height),
-                shaderProgram!!)
+                cameraToRenderShaderProgram!!)
 
             EGL14.eglSwapBuffers(eglDisplay, eglRenderSurface)
             renderTexture.updateTexImage()
@@ -569,7 +922,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             }
 
             copyTexture(renderTexId, renderTexture, Rect(viewportX, viewportY, viewportWidth,
-                    viewportHeight), passthroughShaderProgram!!)
+                    viewportHeight), renderToPreviewShaderProgram!!)
 
             EGL14.eglSwapBuffers(eglDisplay, eglWindowSurface)
         }
@@ -587,7 +940,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             }
 
             copyTexture(renderTexId, renderTexture, Rect(0, 0, viewportWidth, viewportHeight),
-                    passthroughShaderProgram!!)
+                    renderToEncodeShaderProgram!!)
 
             encoder.frameAvailable()
 
@@ -622,6 +975,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             EGL14.eglDestroyContext(eglDisplay, eglContext)
         }
 
+        @Suppress("UNUSED_PARAMETER")
         private fun onFrameAvailableImpl(surfaceTexture: SurfaceTexture) {
             /** The camera API does not update the tex image. Do so here. */
             cameraTexture.updateTexImage()
@@ -640,6 +994,10 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
             if (eglEncoderSurface != null && currentlyRecording) {
                 copyRenderToEncode()
             }
+        }
+
+        private fun isHDR(): Boolean {
+            return dynamicRange != DynamicRangeProfiles.STANDARD
         }
 
         override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
@@ -663,11 +1021,20 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
 
         /** Check if OpenGL failed, and throw an exception if so */
         private fun checkGlError(op: String) {
-            val error = GLES20.glGetError()
-            if (error != GLES20.GL_NO_ERROR) {
+            val error = GLES30.glGetError()
+            if (error != GLES30.GL_NO_ERROR) {
                 val msg = op + ": glError 0x" + Integer.toHexString(error)
                 Log.e(TAG, msg)
                 throw RuntimeException(msg)
+            }
+        }
+
+        private fun checkEglError(op: String) {
+            val eglError = EGL14.eglGetError()
+            if (eglError != EGL14.EGL_SUCCESS) {
+                val msg = op + ": eglError 0x" + Integer.toHexString(eglError)
+                Log.e(TAG, msg)
+                throw RuntimeException(msg);
             }
         }
     }

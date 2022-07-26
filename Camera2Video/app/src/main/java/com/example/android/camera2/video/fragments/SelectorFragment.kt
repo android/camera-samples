@@ -111,7 +111,7 @@ class SelectorFragment : Fragment() {
                             SelectorFragmentDirections.actionSelectorToPreview(
                             item.cameraId, item.size.width, item.size.height, item.fps,
                             DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false,
-                            false, false))
+                            false, false, 0))
                     }
                 }
             }

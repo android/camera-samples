@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,6 @@
 package com.example.android.camera2.video.fragments
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
-import android.hardware.camera2.params.DynamicRangeProfiles
 import android.os.Bundle
 import android.util.Size
 import android.view.LayoutInflater
@@ -36,12 +32,12 @@ import com.example.android.camera.utils.GenericListAdapter
 import com.example.android.camera2.video.R
 
 /**
- * In this [Fragment] we let users pick how recording is processed (via two separate camera streams
- * or one TEMPLATE_PREVIEW stream).
+ * In this [Fragment] we let users pick a transfer curve for the preview output when using the
+ * hardware pipeline with HDR.
  */
-class RecordModeFragment : Fragment() {
+class TransferFragment : Fragment() {
 
-    private val args: RecordModeFragmentArgs by navArgs()
+    private val args: TransferFragmentArgs by navArgs()
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -55,43 +51,49 @@ class RecordModeFragment : Fragment() {
         view as RecyclerView
         view.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            val recordModeList = enumerateRecordModes()
+            val transferList = enumerateTransferCharacteristics()
+
             val layoutId = android.R.layout.simple_list_item_1
-            adapter = GenericListAdapter(recordModeList, itemLayoutId = layoutId) { view, item, _ ->
-                view.findViewById<TextView>(android.R.id.text1).text = item.name
+            adapter = GenericListAdapter(transferList, itemLayoutId = layoutId) { view, item, _ ->
+                view.findViewById<TextView>(android.R.id.text1).text =
+                        "Preview Transfer " + item.name
                 view.setOnClickListener {
                     val navController =
-                            Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                    if (item.value) {
-                        navController.navigate(
-                            RecordModeFragmentDirections.actionRecordModeToFilter(
+                        Navigation.findNavController(requireActivity(), R.id.fragment_container)
+                    val direction = TransferFragmentDirections.actionTransferToPreview(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization))
-                    } else {
-                        navController.navigate(
-                            RecordModeFragmentDirections.actionRecordModeToPreview(
-                            args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization, false,
-                            false, 0))
-                    }
+                            args.dynamicRange, args.previewStabilization,
+                            args.filterOn, true, item.id)
+                    navController.navigate(direction)
                 }
             }
         }
     }
 
     companion object {
-        private data class RecordModeInfo(
+
+        private data class TransferInfo(
                 val name: String,
-                val value: Boolean)
+                val id: Int)
 
+        public val PQ_STR = "PQ"
+        public val LINEAR_STR = "LINEAR"
+        public val PQ_ID: Int = 0
+        public val LINEAR_ID: Int = 1
+
+        public fun idToStr(transferId: Int): String = when (transferId) {
+            PQ_ID -> PQ_STR
+            LINEAR_ID -> LINEAR_STR
+            else -> throw RuntimeException("Unexpected transferId " + transferId)
+        }
+
+        /** Lists all video-capable cameras and supported resolution and FPS combinations */
         @SuppressLint("InlinedApi")
-        private fun enumerateRecordModes(): List<RecordModeInfo> {
-            val recordModeList: MutableList<RecordModeInfo> = mutableListOf()
-
-            recordModeList.add(RecordModeInfo("Multi-stream", false))
-            recordModeList.add(RecordModeInfo("Single-stream", true))
-
-            return recordModeList
+        private fun enumerateTransferCharacteristics(): List<TransferInfo> {
+            val transferCharacteristics: MutableList<TransferInfo> = mutableListOf()
+            transferCharacteristics.add(TransferInfo(PQ_STR, PQ_ID))
+            transferCharacteristics.add(TransferInfo(LINEAR_STR, LINEAR_ID))
+            return transferCharacteristics
         }
     }
 }
