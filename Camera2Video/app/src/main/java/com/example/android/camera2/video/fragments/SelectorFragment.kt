@@ -99,19 +99,12 @@ class SelectorFragment : Fragment() {
                         navController.navigate(
                             SelectorFragmentDirections.actionSelectorToPreviewStabilization(
                             item.cameraId, item.size.width, item.size.height, item.fps,
-                            DynamicRangeProfiles.STANDARD)
-                        )
-                    } else if (android.os.Build.VERSION.SDK_INT >= 29) {
-                        navController.navigate(
-                            SelectorFragmentDirections.actionSelectorToRecordMode(
-                            item.cameraId, item.size.width, item.size.height, item.fps,
-                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
+                            DynamicRangeProfiles.STANDARD))
                     } else {
                         navController.navigate(
-                            SelectorFragmentDirections.actionSelectorToPreview(
+                            SelectorFragmentDirections.actionSelectorToEncodeApi(
                             item.cameraId, item.size.width, item.size.height, item.fps,
-                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false,
-                            false, false, 0))
+                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
                     }
                 }
             }

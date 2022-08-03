@@ -47,14 +47,9 @@
             app:destination="@id/preview_stabilization_fragment" />
 
         <action
-            android:id="@+id/action_selector_to_record_mode"
+            android:id="@+id/action_selector_to_encode_api"
             app:launchSingleTop="true"
-            app:destination="@id/record_mode_fragment" />
-
-        <action
-            android:id="@+id/action_selector_to_preview"
-            app:launchSingleTop="true"
-            app:destination="@id/preview_fragment" />
+            app:destination="@id/encode_api_fragment" />
 
     </fragment>
 
@@ -86,14 +81,9 @@
             app:destination="@id/preview_stabilization_fragment" />
 
         <action
-            android:id="@+id/action_dynamic_range_to_record_mode"
+            android:id="@+id/action_dynamic_range_to_encode_api"
             app:launchSingleTop="true"
-            app:destination="@id/record_mode_fragment" />
-
-        <action
-            android:id="@+id/action_dynamic_range_to_preview"
-            app:launchSingleTop="true"
-            app:destination="@id/preview_fragment" />
+            app:destination="@id/encode_api_fragment" />
 
     </fragment>
 
@@ -124,14 +114,46 @@
             app:argType="long" />
 
         <action
-            android:id="@+id/action_preview_stabilization_to_record_mode"
+            android:id="@+id/action_preview_stabilization_to_encode_api"
             app:launchSingleTop="true"
-            app:destination="@id/record_mode_fragment" />
+            app:destination="@id/encode_api_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/encode_api_fragment"
+        android:name="com.example.android.camera2.video.fragments.EncodeApiFragment"
+        android:label="EncodeApi" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
 
         <action
-            android:id="@+id/action_preview_stabilization_to_preview"
+            android:id="@+id/action_encode_api_to_record_mode"
             app:launchSingleTop="true"
-            app:destination="@id/preview_fragment" />
+            app:destination="@id/record_mode_fragment" />
 
     </fragment>
 
@@ -163,6 +185,10 @@
 
         <argument
             android:name="previewStabilization"
+            app:argType="boolean" />
+
+        <argument
+            android:name="useMediaRecorder"
             app:argType="boolean" />
 
         <action
@@ -205,6 +231,10 @@
 
         <argument
             android:name="previewStabilization"
+            app:argType="boolean" />
+
+        <argument
+            android:name="useMediaRecorder"
             app:argType="boolean" />
 
         <action
@@ -250,6 +280,10 @@
             app:argType="boolean" />
 
         <argument
+            android:name="useMediaRecorder"
+            app:argType="boolean" />
+
+        <argument
             android:name="filterOn"
             app:argType="boolean" />
 
@@ -288,6 +322,10 @@
 
         <argument
             android:name="previewStabilization"
+            app:argType="boolean" />
+
+        <argument
+            android:name="useMediaRecorder"
             app:argType="boolean" />
 
         <argument

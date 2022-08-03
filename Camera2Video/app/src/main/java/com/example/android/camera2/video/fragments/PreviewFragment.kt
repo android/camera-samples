@@ -255,22 +255,6 @@ class PreviewFragment : Fragment() {
     }
 
     private fun createEncoder(): EncoderWrapper {
-        val videoEncoder = when {
-            args.dynamicRange == DynamicRangeProfiles.STANDARD -> MediaFormat.MIMETYPE_VIDEO_AVC
-            args.dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaFormat.MIMETYPE_VIDEO_HEVC
-            else -> throw IllegalArgumentException("Unknown dynamic range format")
-        }
-
-        val codecProfile = when {
-            args.dynamicRange == DynamicRangeProfiles.HLG10 ->
-                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10
-            args.dynamicRange == DynamicRangeProfiles.HDR10 ->
-                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
-            args.dynamicRange == DynamicRangeProfiles.HDR10_PLUS ->
-                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus
-            else -> -1
-        }
-
         var width = args.width
         var height = args.height
         var orientationHint = orientation
@@ -284,7 +268,7 @@ class PreviewFragment : Fragment() {
         }
 
         return EncoderWrapper(width, height, RECORDER_VIDEO_BITRATE, args.fps,
-                orientationHint, videoEncoder, codecProfile, outputFile)
+                args.dynamicRange, orientationHint, outputFile, args.useMediaRecorder)
     }
 
     /**
@@ -300,10 +284,10 @@ class PreviewFragment : Fragment() {
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
 
         // Creates list of Surfaces where the camera will output frames
-        val targets = pipeline.getTargets()
+        val previewTargets = pipeline.getPreviewTargets()
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
-        session = createCaptureSession(camera, targets, cameraHandler)
+        session = createCaptureSession(camera, previewTargets, cameraHandler)
 
         // Sends the capture request as frequently as possible until the session is torn down or
         //  session.stopRepeating() is called
@@ -336,6 +320,11 @@ class PreviewFragment : Fragment() {
                         //  repeating requests without having to explicitly call
                         //  `session.stopRepeating`
                         if (previewRequest != null) {
+                            val recordTargets = pipeline.getRecordTargets()
+
+                            session.close()
+                            session = createCaptureSession(camera, recordTargets, cameraHandler)
+
                             session.setRepeatingRequest(recordRequest,
                                     object : CameraCaptureSession.CaptureCallback() {
                                 override fun onCaptureCompleted(session: CameraCaptureSession,

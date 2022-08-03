@@ -16,10 +16,12 @@
 
 package com.example.android.camera2.video
 
+import android.hardware.camera2.params.DynamicRangeProfiles
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
@@ -38,10 +40,10 @@ class EncoderWrapper(width: Int,
                      height: Int,
                      bitRate: Int,
                      frameRate: Int,
+                     dynamicRange: Long,
                      orientationHint: Int,
-                     mimeType: String,
-                     codecProfile: Int,
-                     outputFile: File) {
+                     outputFile: File,
+                     useMediaRecorder: Boolean) {
     companion object {
         val TAG = "EncoderWrapper"
         val VERBOSE = false
@@ -50,45 +52,111 @@ class EncoderWrapper(width: Int,
 
     private val mOrientationHint = orientationHint
 
-    private val mEncoderThread: EncoderThread by lazy {
-        EncoderThread(mEncoder, outputFile, mOrientationHint)
+    private val mUseMediaRecorder = useMediaRecorder
+
+    private val mMimeType = when {
+        dynamicRange == DynamicRangeProfiles.STANDARD -> MediaFormat.MIMETYPE_VIDEO_AVC
+        dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaFormat.MIMETYPE_VIDEO_HEVC
+        else -> throw IllegalArgumentException("Unknown dynamic range format")
+    }
+
+    private val mEncoderThread: EncoderThread? by lazy {
+        if (useMediaRecorder) {
+            null
+        } else {
+            EncoderThread(mEncoder!!, outputFile, mOrientationHint)
+        }
+    }
+
+    private val mEncoder: MediaCodec? by lazy {
+        if (useMediaRecorder) {
+            null
+        } else {
+            MediaCodec.createEncoderByType(mMimeType)
+        }
     }
 
     private val mInputSurface: Surface by lazy {
-        mEncoder.createInputSurface()
+        if (useMediaRecorder) {
+            // Get a persistent Surface from MediaCodec, don't forget to release when done
+            MediaCodec.createPersistentInputSurface()
+        } else {
+            mEncoder!!.createInputSurface()
+        }
     }
 
-    private val mEncoder: MediaCodec by lazy {
-        MediaCodec.createEncoderByType(mimeType)
+    private val mMediaRecorder: MediaRecorder? by lazy {
+        if (useMediaRecorder) {
+            MediaRecorder()
+        } else {
+            null
+        }
     }
 
     /**
      * Configures encoder
      */
     init {
-        val format = MediaFormat.createVideoFormat(mimeType, width, height)
+        if (useMediaRecorder) {
+            mMediaRecorder!!.apply {
+                Log.i(TAG, "useMediaRecorder");
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setVideoSource(MediaRecorder.VideoSource.SURFACE)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setOutputFile(outputFile.absolutePath)
+                setVideoEncodingBitRate(bitRate)
+                if (frameRate > 0) setVideoFrameRate(frameRate)
+                setVideoSize(width, height)
 
-        // Set some properties.  Failing to specify some of these can cause the MediaCodec
-        // configure() call to throw an unhelpful exception.
-        format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
-                MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
-        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL)
+                val videoEncoder = when {
+                    dynamicRange == DynamicRangeProfiles.STANDARD ->
+                            MediaRecorder.VideoEncoder.H264
+                    dynamicRange < DynamicRangeProfiles.PUBLIC_MAX ->
+                            MediaRecorder.VideoEncoder.HEVC
+                    else -> throw IllegalArgumentException("Unknown dynamic range format")
+                }
 
-        if (codecProfile != -1) {
-            format.setInteger(MediaFormat.KEY_PROFILE, codecProfile)
-            format.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020)
-            format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_FULL)
-            format.setInteger(MediaFormat.KEY_COLOR_TRANSFER, getTransferFunction(codecProfile))
-            format.setFeatureEnabled(MediaCodecInfo.CodecCapabilities.FEATURE_HdrEditing, true)
+                setVideoEncoder(videoEncoder)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(16)
+                setAudioSamplingRate(44100)
+                setInputSurface(mInputSurface)
+            }
+        } else {
+            val codecProfile = when {
+                dynamicRange == DynamicRangeProfiles.HLG10 ->
+                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10
+                dynamicRange == DynamicRangeProfiles.HDR10 ->
+                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
+                dynamicRange == DynamicRangeProfiles.HDR10_PLUS ->
+                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus
+                else -> -1
+            }
+
+            val format = MediaFormat.createVideoFormat(mMimeType, width, height)
+
+            // Set some properties.  Failing to specify some of these can cause the MediaCodec
+            // configure() call to throw an unhelpful exception.
+            format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                    MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+            format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+            format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+            format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL)
+
+            if (codecProfile != -1) {
+                format.setInteger(MediaFormat.KEY_PROFILE, codecProfile)
+                format.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020)
+                format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_FULL)
+                format.setInteger(MediaFormat.KEY_COLOR_TRANSFER, getTransferFunction(codecProfile))
+                format.setFeatureEnabled(MediaCodecInfo.CodecCapabilities.FEATURE_HdrEditing, true)
+            }
+
+            if (VERBOSE) Log.d(TAG, "format: " + format)
+
+            // Create a MediaCodec encoder, and configure it with our format.  Get a Surface
+            // we can use for input and wrap it with a class that handles the EGL work.
+            mEncoder!!.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
         }
-
-        if (VERBOSE) Log.d(TAG, "format: " + format)
-
-        // Create a MediaCodec encoder, and configure it with our format.  Get a Surface
-        // we can use for input and wrap it with a class that handles the EGL work.
-        mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
     }
 
     private fun getTransferFunction(codecProfile: Int) = when (codecProfile) {
@@ -108,12 +176,19 @@ class EncoderWrapper(width: Int,
     }
 
     public fun start() {
-        mEncoder.start()
+        if (mUseMediaRecorder) {
+            mMediaRecorder!!.apply {
+                prepare()
+                start()
+            }
+        } else {
+            mEncoder!!.start()
 
-        // Start the encoder thread last.  That way we're sure it can see all of the state
-        // we've initialized.
-        mEncoderThread.start()
-        mEncoderThread.waitUntilReady()
+            // Start the encoder thread last.  That way we're sure it can see all of the state
+            // we've initialized.
+            mEncoderThread!!.start()
+            mEncoderThread!!.waitUntilReady()
+        }
     }
 
     /**
@@ -124,29 +199,37 @@ class EncoderWrapper(width: Int,
     public fun shutdown() {
         if (VERBOSE) Log.d(TAG, "releasing encoder objects")
 
-        val handler = mEncoderThread.getHandler()
-        handler.sendMessage(handler.obtainMessage(EncoderThread.EncoderHandler.MSG_SHUTDOWN))
-        try {
-            mEncoderThread.join()
-        } catch (ie: InterruptedException ) {
-            Log.w(TAG, "Encoder thread join() was interrupted", ie)
-        }
+        if (mUseMediaRecorder) {
+            mMediaRecorder!!.stop()
+        } else {
+            val handler = mEncoderThread!!.getHandler()
+            handler.sendMessage(handler.obtainMessage(EncoderThread.EncoderHandler.MSG_SHUTDOWN))
+            try {
+                mEncoderThread!!.join()
+            } catch (ie: InterruptedException ) {
+                Log.w(TAG, "Encoder thread join() was interrupted", ie)
+            }
 
-        mEncoder.stop()
-        mEncoder.release()
+            mEncoder!!.stop()
+            mEncoder!!.release()
+        }
     }
 
     /**
      * Notifies the encoder thread that a new frame is available to the encoder.
      */
     public fun frameAvailable() {
-        val handler = mEncoderThread.getHandler()
-        handler.sendMessage(handler.obtainMessage(
-                EncoderThread.EncoderHandler.MSG_FRAME_AVAILABLE))
+        if (!mUseMediaRecorder) {
+            val handler = mEncoderThread!!.getHandler()
+            handler.sendMessage(handler.obtainMessage(
+                    EncoderThread.EncoderHandler.MSG_FRAME_AVAILABLE))
+        }
     }
 
     public fun waitForFirstFrame() {
-        mEncoderThread.waitForFirstFrame()
+        if (!mUseMediaRecorder) {
+            mEncoderThread!!.waitForFirstFrame()
+        }
     }
 
     /**

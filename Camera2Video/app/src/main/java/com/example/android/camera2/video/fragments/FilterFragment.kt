@@ -66,13 +66,13 @@ class FilterFragment : Fragment() {
                             FilterFragmentDirections.actionFilterToPreview(
                             args.cameraId, args.width, args.height, args.fps,
                             args.dynamicRange, args.previewStabilization,
-                            item.value, true, 0))
+                            args.useMediaRecorder, item.value, true, 0))
                     } else {
                         navController.navigate(
                             FilterFragmentDirections.actionFilterToTransfer(
                             args.cameraId, args.width, args.height, args.fps,
                             args.dynamicRange, args.previewStabilization,
-                            item.value))
+                            args.useMediaRecorder, item.value))
                     }
                 }
             }

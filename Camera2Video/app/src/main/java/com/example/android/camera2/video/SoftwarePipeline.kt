@@ -63,7 +63,11 @@ class SoftwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
         }.build()
     }
 
-    override fun getTargets(): List<Surface> {
+    override fun getPreviewTargets(): List<Surface> {
+        return listOf(viewFinder.holder.surface)
+    }
+
+    override fun getRecordTargets(): List<Surface> {
         return listOf(viewFinder.holder.surface, encoder.getInputSurface())
     }
 }

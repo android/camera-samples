@@ -399,7 +399,11 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                 RenderHandler.MSG_CREATE_RESOURCES, 0, 0, surface))
     }
 
-    override fun getTargets(): List<Surface> {
+    override fun getPreviewTargets(): List<Surface> {
+        return renderHandler.getTargets()
+    }
+
+    override fun getRecordTargets(): List<Surface> {
         return renderHandler.getTargets()
     }
 
