@@ -22,6 +22,7 @@ import android.content.Context
 import android.net.Uri
 import android.view.View
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.camera.view.PreviewView
 import androidx.core.view.isVisible
@@ -52,6 +53,11 @@ class CameraExtensionsScreen(private val root: View) {
     private val switchLensButton = root.findViewById<ImageView>(R.id.switchLens)
     private val extensionSelector: RecyclerView = root.findViewById(R.id.extensionSelector)
     private val extensionsAdapter: CameraExtensionsSelectorAdapter
+    private val permissionsRationaleContainer: View =
+        root.findViewById(R.id.permissionsRationaleContainer)
+    private val permissionsRationale: TextView = root.findViewById(R.id.permissionsRationale)
+    private val permissionsRequestButton: TextView =
+        root.findViewById(R.id.permissionsRequestButton)
 
     val previewView: PreviewView = root.findViewById(R.id.previewView)
 
@@ -129,6 +135,12 @@ class CameraExtensionsScreen(private val root: View) {
                 _action.emit(CameraUiAction.ClosePhotoPreviewClick)
             }
         }
+
+        permissionsRequestButton.setOnClickListener {
+            root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+                _action.emit(CameraUiAction.RequestPermissionClick)
+            }
+        }
     }
 
     fun setAvailableExtensions(extensions: List<CameraExtensionItem>) {
@@ -169,6 +181,20 @@ class CameraExtensionsScreen(private val root: View) {
 
     fun showCaptureError(errorMessage: String) {
         Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+    }
+
+    fun hidePermissionsRequest() {
+        permissionsRationaleContainer.isVisible = false
+    }
+
+    fun showPermissionsRequest(shouldShowRationale: Boolean) {
+        permissionsRationaleContainer.isVisible = true
+        if (shouldShowRationale) {
+            permissionsRationale.text =
+                context.getString(R.string.camera_permissions_request_with_rationale)
+        } else {
+            permissionsRationale.text = context.getString(R.string.camera_permissions_request)
+        }
     }
 
     private fun onItemClick(view: View) {

@@ -39,6 +39,16 @@ import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import java.io.File
 
+/**
+ * View model for camera extensions. This manages all the operations on the camera.
+ * This includes opening and closing the camera, showing the camera preview, capturing a photo,
+ * checking which extensions are available, and selecting an extension.
+ *
+ * Camera UI state is communicated via the cameraUiState flow.
+ * Capture UI state is communicated via the captureUiState flow.
+ *
+ * Rebinding to the UI state flows will always emit the last UI state.
+ */
 class CameraExtensionsViewModel(application: Application) : AndroidViewModel(application) {
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var extensionsManager: ExtensionsManager
@@ -58,12 +68,21 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
     val cameraUiState: Flow<CameraUiState> = _cameraUiState
     val captureUiState: Flow<CaptureState> = _captureUiState
 
+    /**
+     * Initializes the camera and checks which extensions are available for the selected camera lens
+     * face. If no extensions are available then the selected extension will be set to None and the
+     * available extensions list will also contain None.
+     * Because this operation is async, clients should wait for cameraUiState to emit
+     * CameraState.READY. Once the camera is ready the client can start the preview.
+     */
     fun initializeCamera() {
         viewModelScope.launch {
             val currentCameraUiState = _cameraUiState.value
 
+            // get the camera selector for the select lens face
             val cameraSelector = cameraLensToSelector(currentCameraUiState.cameraLens)
 
+            // wait for the camera provider instance and extensions manager instance
             cameraProvider = ProcessCameraProvider.getInstance(getApplication()).await()
             extensionsManager =
                 ExtensionsManager.getInstanceAsync(getApplication(), cameraProvider).await()
@@ -76,6 +95,8 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
                     cameraProvider.hasCamera(cameraLensToSelector(lensFacing))
                 }
 
+            // get the supported extensions for the selected camera lens by filtering the full list
+            // of extensions and checking each one if it's available
             val availableExtensions = listOf(
                 ExtensionMode.AUTO,
                 ExtensionMode.BOKEH,
@@ -86,6 +107,8 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
                 extensionsManager.isExtensionAvailable(cameraSelector, extensionMode)
             }
 
+            // prepare the new camera UI state which is now in the READY state and contains the list
+            // of available extensions, available lens faces.
             val newCameraUiState = currentCameraUiState.copy(
                 cameraState = CameraState.READY,
                 availableExtensions = listOf(ExtensionMode.NONE) + availableExtensions,
@@ -96,6 +119,11 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    /**
+     * Starts the preview stream. The camera state should be in the READY or PREVIEW_STOPPED state
+     * when calling this operation.
+     * This process will bind the preview and image capture uses cases to the camera provider.
+     */
     fun startPreview(
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView
@@ -129,6 +157,9 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    /**
+     * Stops the preview stream. This should be invoked when the captured image is displayed.
+     */
     fun stopPreview() {
         preview.setSurfaceProvider(null)
         viewModelScope.launch {
@@ -136,6 +167,9 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    /**
+     * Toggle the camera lens face. This has no effect if there is only one available camera lens.
+     */
     fun switchCamera() {
         val currentCameraUiState = _cameraUiState.value
         if (currentCameraUiState.cameraState == CameraState.READY) {
@@ -161,6 +195,14 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    /**
+     * Captures the photo and saves it to the pictures directory that's inside the app-specific
+     * directory on external storage.
+     * Upon successful capture, the captureUiState flow will emit CaptureFinished with the URI to
+     * the captured photo.
+     * If the capture operation failed then captureUiState flow will emit CaptureFailed with the
+     * exception containing more details on the reason for failure.
+     */
     fun capturePhoto() {
         viewModelScope.launch {
             _captureUiState.emit(CaptureState.CaptureStarted)
@@ -194,6 +236,9 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
             })
     }
 
+    /**
+     * Sets the current extension mode. This will force the camera to rebind the use cases.
+     */
     fun setExtensionMode(@ExtensionMode.Mode extensionMode: Int) {
         viewModelScope.launch {
             _cameraUiState.emit(

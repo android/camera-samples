@@ -16,15 +16,7 @@
 
 package com.example.android.cameraxextensions.model
 
-import androidx.camera.extensions.ExtensionMode
-
-/**
- * User initiated actions related to camera operations.
- */
-sealed class CameraUiAction {
-    object RequestPermissionClick : CameraUiAction()
-    object SwitchCameraClick : CameraUiAction()
-    object ShutterButtonClick : CameraUiAction()
-    object ClosePhotoPreviewClick : CameraUiAction()
-    data class SelectCameraExtension(@ExtensionMode.Mode val extension: Int) : CameraUiAction()
+sealed interface PermissionState {
+    object Granted : PermissionState
+    data class Denied(val shouldShowRationale: Boolean) : PermissionState
 }
