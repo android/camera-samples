@@ -3,7 +3,7 @@ Android CameraX Extensions Sample
 =================================
 
 This sample demonstrates using Camera Extensions with CameraX API to capture a JPEG.
-The source code shows ax example of how to display the camera preview, query for
+The source code shows an example of how to display the camera preview, query for
 supported extensions, select an extension, and capture a still image.
 
 Introduction
