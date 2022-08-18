@@ -86,8 +86,9 @@ class DynamicRangeFragment : Fragment() {
                             args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile,
                             false))
         } else {
-            navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToSurfaceView(
-                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile, false))
+            navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToPreview(
+                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile, false,
+                    false, false))
         }
     }
 

@@ -229,9 +229,12 @@ class EncoderWrapper(width: Int,
                 while (mFrameNum < 1) {
                     try {
                         mLock.wait()
-                    } catch (ie: InterruptedException) { /* not expected */ }
+                    } catch (ie: InterruptedException) {
+                        ie.printStackTrace();
+                    }
                 }
             }
+            Log.d(TAG, "Waited for first frame");
         }
 
         /**
@@ -250,8 +253,9 @@ class EncoderWrapper(width: Int,
         /**
          * Drains all pending output from the encoder, and adds it to the circular buffer.
          */
-        public fun drainEncoder() {
+        public fun drainEncoder(): Boolean {
             val TIMEOUT_USEC: Long = 0     // no timeout -- check for buffers, bail if none
+            var encodedFrame = false
 
             while (true) {
                 var encoderStatus: Int = mEncoder.dequeueOutputBuffer(mBufferInfo, TIMEOUT_USEC)
@@ -295,11 +299,13 @@ class EncoderWrapper(width: Int,
                             mVideoTrack = mMuxer.addTrack(mEncodedFormat!!)
                             mMuxer.setOrientationHint(mOrientationHint)
                             mMuxer.start()
+                            Log.d(TAG, "Started media muxer")
                         }
 
                         // mEncBuffer.add(encodedData, mBufferInfo.flags,
                         //         mBufferInfo.presentationTimeUs)
                         mMuxer.writeSampleData(mVideoTrack, encodedData, mBufferInfo)
+                        encodedFrame = true
 
                         if (VERBOSE) {
                             Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer, ts=" +
@@ -315,6 +321,8 @@ class EncoderWrapper(width: Int,
                     }
                 }
             }
+
+            return encodedFrame
         }
 
         /**
@@ -324,10 +332,11 @@ class EncoderWrapper(width: Int,
          */
         fun frameAvailable() {
             if (VERBOSE) Log.d(TAG, "frameAvailable")
-            drainEncoder()
-            synchronized (mLock) {
-                mFrameNum++
-                mLock.notify()
+            if (drainEncoder()) {
+                synchronized (mLock) {
+                    mFrameNum++
+                    mLock.notify()
+                }
             }
         }
 

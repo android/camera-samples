@@ -74,9 +74,9 @@ class PreviewStabilizationFragment : Fragment() {
                     DynamicRangeProfiles.STANDARD, stabilizationOn))
         } else {
             navController.navigate(
-                    PreviewStabilizationFragmentDirections.actionPreviewStabilizationToSurfaceView(
+                    PreviewStabilizationFragmentDirections.actionPreviewStabilizationToPreview(
                     args.cameraId, args.width, args.height, args.fps,
-                    args.dynamicRange, stabilizationOn)
+                    args.dynamicRange, stabilizationOn, false, false)
             )
         }
     }

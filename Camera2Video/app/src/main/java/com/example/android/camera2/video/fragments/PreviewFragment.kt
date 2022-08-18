@@ -59,7 +59,7 @@ import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
 import com.example.android.camera2.video.R
-import com.example.android.camera2.video.databinding.FragmentSurfaceViewBinding
+import com.example.android.camera2.video.databinding.FragmentPreviewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -75,15 +75,25 @@ import kotlin.coroutines.suspendCoroutine
 
 import com.example.android.camera2.video.EncoderWrapper
 
-class SurfaceViewFragment : Fragment() {
+class PreviewFragment : Fragment() {
 
     /** Android ViewBinding */
-    private var _fragmentBinding: FragmentSurfaceViewBinding? = null
+    private var _fragmentBinding: FragmentPreviewBinding? = null
 
     private val fragmentBinding get() = _fragmentBinding!!
 
+    private val pipeline: Pipeline by lazy {
+        if (args.useHardware) {
+            HardwarePipeline(args.width, args.height, args.fps, args.filterOn,
+                    characteristics, encoder, fragmentBinding.viewFinder)
+        } else {
+            SoftwarePipeline(args.width, args.height, args.fps, args.filterOn,
+                    characteristics, encoder, fragmentBinding.viewFinder)
+        }
+    }
+
     /** AndroidX navigation arguments */
-    private val args: SurfaceViewFragmentArgs by navArgs()
+    private val args: PreviewFragmentArgs by navArgs()
 
     /** Host's navigation controller */
     private val navController: NavController by lazy {
@@ -127,11 +137,11 @@ class SurfaceViewFragment : Fragment() {
             fragmentBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
             // Wait for ANIMATION_FAST_MILLIS
             fragmentBinding.overlay.postDelayed({
-                if (currentlyRecording) {
+                if (isCurrentlyRecording()) {
                     // Remove white flash animation
                     fragmentBinding.overlay.foreground = null
                     // Restart animation recursively
-                    if (currentlyRecording) {
+                    if (isCurrentlyRecording()) {
                         fragmentBinding.overlay.postDelayed(animationTask,
                                 CameraActivity.ANIMATION_FAST_MILLIS)
                     }
@@ -147,34 +157,13 @@ class SurfaceViewFragment : Fragment() {
     private lateinit var camera: CameraDevice
 
     /** Requests used for preview only in the [CameraCaptureSession] */
-    private val previewRequest: CaptureRequest by lazy {
-        // Capture request holds references to target surfaces
-        session.device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-            // Add the preview surface target
-            addTarget(fragmentBinding.viewFinder.holder.surface)
-
-            if (args.previewStabilization) {
-                set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
-                        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
-            }
-        }.build()
+    private val previewRequest: CaptureRequest? by lazy {
+        pipeline.createPreviewRequest(session, args.previewStabilization)
     }
 
     /** Requests used for preview and recording in the [CameraCaptureSession] */
     private val recordRequest: CaptureRequest by lazy {
-        // Capture request holds references to target surfaces
-        session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-            // Add the preview and recording surface targets
-            addTarget(fragmentBinding.viewFinder.holder.surface)
-            addTarget(encoderSurface)
-            // Sets user requested FPS for all targets
-            set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(args.fps, args.fps))
-
-            if (args.previewStabilization) {
-                set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
-                        CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
-            }
-        }.build()
+        pipeline.createRecordRequest(session, args.previewStabilization)
     }
 
     private var recordingStartMillis: Long = 0L
@@ -185,9 +174,13 @@ class SurfaceViewFragment : Fragment() {
     }
 
     @Volatile
-    private var currentlyRecording = false
+    private var recordingStarted = false
+
+    @Volatile
+    private var recordingComplete = false
 
     /** Condition variable for blocking until the recording completes */
+    private val cvRecordingStarted = ConditionVariable(false)
     private val cvRecordingComplete = ConditionVariable(false)
 
     override fun onCreateView(
@@ -195,7 +188,7 @@ class SurfaceViewFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _fragmentBinding = FragmentSurfaceViewBinding.inflate(inflater, container, false)
+        _fragmentBinding = FragmentPreviewBinding.inflate(inflater, container, false)
         return fragmentBinding.root
     }
 
@@ -221,7 +214,9 @@ class SurfaceViewFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         fragmentBinding.viewFinder.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                pipeline.destroyWindowSurface()
+            }
 
             override fun surfaceChanged(
                     holder: SurfaceHolder,
@@ -238,10 +233,19 @@ class SurfaceViewFragment : Fragment() {
                 Log.d(TAG, "Selected preview size: $previewSize")
                 fragmentBinding.viewFinder.setAspectRatio(previewSize.width, previewSize.height)
 
+                pipeline.setPreviewSize(previewSize)
+
                 // To ensure that size is set, initialize camera in the view's thread
-                fragmentBinding.viewFinder.post { initializeCamera() }
+                fragmentBinding.viewFinder.post {
+                    pipeline.createResources(holder.surface)
+                    initializeCamera()
+                }
             }
         })
+    }
+
+    private fun isCurrentlyRecording(): Boolean {
+        return recordingStarted && !recordingComplete
     }
 
     private fun createEncoder(): EncoderWrapper {
@@ -261,8 +265,20 @@ class SurfaceViewFragment : Fragment() {
             else -> -1
         }
 
-        return EncoderWrapper(args.width, args.height, RECORDER_VIDEO_BITRATE, args.fps,
-                orientation, videoEncoder, codecProfile, outputFile)
+        var width = args.width
+        var height = args.height
+        var orientationHint = orientation
+
+        if (args.useHardware) {
+            if (orientation == 90 || orientation == 270) {
+                width = args.height
+                height = args.width
+            }
+            orientationHint = 0
+        }
+
+        return EncoderWrapper(width, height, RECORDER_VIDEO_BITRATE, args.fps,
+                orientationHint, videoEncoder, codecProfile, outputFile)
     }
 
     /**
@@ -278,56 +294,71 @@ class SurfaceViewFragment : Fragment() {
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
 
         // Creates list of Surfaces where the camera will output frames
-        val targets = listOf(fragmentBinding.viewFinder.holder.surface, encoderSurface)
+        val targets = pipeline.getTargets()
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
-        session = createCaptureSession(camera, targets, cameraHandler)
+        session = createCaptureSession(camera, targets!!, cameraHandler)
 
         // Sends the capture request as frequently as possible until the session is torn down or
         //  session.stopRepeating() is called
-        session.setRepeatingRequest(previewRequest, null, cameraHandler)
+        if (previewRequest == null) {
+            session.setRepeatingRequest(recordRequest, null, cameraHandler)
+        } else {
+            session.setRepeatingRequest(previewRequest!!, null, cameraHandler)
+        }
 
         // React to user touching the capture button
         fragmentBinding.captureButton.setOnTouchListener { view, event ->
             when (event.action) {
 
                 MotionEvent.ACTION_DOWN -> lifecycleScope.launch(Dispatchers.IO) {
+                    /* If the recording was already started in the past, do nothing. */
+                    if (!recordingStarted) {
+                        // Prevents screen rotation during the video recording
+                        requireActivity().requestedOrientation =
+                                ActivityInfo.SCREEN_ORIENTATION_LOCKED
 
-                    // Prevents screen rotation during the video recording
-                    requireActivity().requestedOrientation =
-                            ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                        pipeline.actionDown(encoderSurface)
 
-                    // Finalizes encoder setup and starts recording
-                    encoder.start()
+                        // Finalizes encoder setup and starts recording
+                        recordingStarted = true
+                        encoder.start()
+                        cvRecordingStarted.open()
+                        pipeline.startRecording()
 
-                    currentlyRecording = true
-
-                    // Start recording repeating requests, which will stop the ongoing preview
-                    //  repeating requests without having to explicitly call `session.stopRepeating`
-                    session.setRepeatingRequest(recordRequest,
-                            object : CameraCaptureSession.CaptureCallback() {
-                        override fun onCaptureCompleted(session: CameraCaptureSession,
-                                                        request: CaptureRequest,
-                                                        result: TotalCaptureResult) {
-                            if (currentlyRecording) {
-                                encoder.frameAvailable()
-                            }
+                        // Start recording repeating requests, which will stop the ongoing preview
+                        //  repeating requests without having to explicitly call
+                        //  `session.stopRepeating`
+                        if (previewRequest != null) {
+                            session.setRepeatingRequest(recordRequest,
+                                    object : CameraCaptureSession.CaptureCallback() {
+                                override fun onCaptureCompleted(session: CameraCaptureSession,
+                                                                request: CaptureRequest,
+                                                                result: TotalCaptureResult) {
+                                    if (isCurrentlyRecording()) {
+                                        encoder.frameAvailable()
+                                    }
+                                }
+                            }, cameraHandler)
                         }
-                    }, cameraHandler)
 
-                    recordingStartMillis = System.currentTimeMillis()
-                    Log.d(TAG, "Recording started")
+                        recordingStartMillis = System.currentTimeMillis()
+                        Log.d(TAG, "Recording started")
 
-                    // Starts recording animation
-                    fragmentBinding.overlay.post(animationTask)
+                        // Starts recording animation
+                        fragmentBinding.overlay.post(animationTask)
+                    }
                 }
 
                 MotionEvent.ACTION_UP -> lifecycleScope.launch(Dispatchers.IO) {
+                    cvRecordingStarted.block()
+
                     /* Wait for at least one frame to process so we don't have an empty video */
                     encoder.waitForFirstFrame()
 
                     session.stopRepeating()
 
+                    pipeline.clearFrameListener()
                     fragmentBinding.captureButton.setOnTouchListener(null)
 
                     /* Wait until the session signals onReady */
@@ -347,6 +378,8 @@ class SurfaceViewFragment : Fragment() {
 
                     Log.d(TAG, "Recording stopped. Output file: $outputFile")
                     encoder.shutdown()
+
+                    pipeline.cleanup()
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
@@ -448,11 +481,12 @@ class SurfaceViewFragment : Fragment() {
 
             /** Called after all captures have completed - shut down the encoder */
             override fun onReady(session: CameraCaptureSession) {
-                if (!currentlyRecording) {
+                if (!isCurrentlyRecording()) {
                     return
                 }
 
-                currentlyRecording = false
+                recordingComplete = true
+                pipeline.stopRecording()
                 cvRecordingComplete.open()
             }
         }
@@ -481,7 +515,7 @@ class SurfaceViewFragment : Fragment() {
     }
 
     companion object {
-        private val TAG = SurfaceViewFragment::class.java.simpleName
+        private val TAG = PreviewFragment::class.java.simpleName
 
         private const val RECORDER_VIDEO_BITRATE: Int = 10_000_000
         private const val MIN_REQUIRED_RECORDING_TIME_MILLIS: Long = 1000L
