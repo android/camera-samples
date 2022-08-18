@@ -20,8 +20,8 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity"
-    tools:background="#2196F3">
+    tools:background="#2196F3"
+    tools:context=".MainActivity">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
@@ -94,31 +94,32 @@
         android:id="@+id/permissionsRationaleContainer"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:orientation="vertical"
         android:background="@color/black"
         android:gravity="center"
+        android:orientation="vertical"
         android:padding="32dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        >
+        app:layout_constraintTop_toTopOf="parent">
+
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/permissionsRationale"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
-            android:gravity="center"
             android:layout_marginBottom="16dp"
-            tools:text="@string/camera_permissions_request_with_rationale"
-            />
+            android:gravity="center"
+            android:textColor="@color/white"
+            tools:text="@string/camera_permissions_request_with_rationale" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/permissionsRequestButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            tools:text="@string/camera_permissions_action"
-            />
+            android:backgroundTint="@color/white"
+            android:text="@string/camera_permissions_action"
+            android:textColor="@color/black"
+            tools:text="@string/camera_permissions_action" />
     </androidx.appcompat.widget.LinearLayoutCompat>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
