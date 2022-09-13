@@ -38,13 +38,12 @@ android {
         jvmTarget = rootProject.ext.java_version
     }
 
-    aaptOptions {
-        noCompress "tflite"
-        noCompress "lite"
-    }
 
     buildFeatures {
         viewBinding true
+    }
+    androidResources {
+        noCompress 'lite'
     }
 }
 
@@ -66,9 +65,9 @@ dependencies {
 
 
     // Tensorflow lite dependencies
-    implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly-SNAPSHOT'
-    implementation 'org.tensorflow:tensorflow-lite-gpu:0.0.0-nightly-SNAPSHOT'
-    implementation 'org.tensorflow:tensorflow-lite-support:0.0.0-nightly-SNAPSHOT'
+    implementation 'org.tensorflow:tensorflow-lite:2.9.0'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.9.0'
+    implementation 'org.tensorflow:tensorflow-lite-support:0.4.2'
 
     testImplementation 'org.robolectric:robolectric:4.4'
     testImplementation 'junit:junit:4.13.2'
