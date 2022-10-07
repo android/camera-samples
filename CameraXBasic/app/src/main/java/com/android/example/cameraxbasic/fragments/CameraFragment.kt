@@ -321,6 +321,11 @@ class CameraFragment : Fragment() {
         // Must unbind the use-cases before rebinding them
         cameraProvider.unbindAll()
 
+        if (camera != null) {
+            // Must remove observers from the previous camera instance
+            removeCameraStateObservers(camera!!.cameraInfo)
+        }
+
         try {
             // A variable number of use-cases can be passed here -
             // camera provides access to CameraControl & CameraInfo
@@ -333,6 +338,10 @@ class CameraFragment : Fragment() {
         } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
         }
+    }
+
+    private fun removeCameraStateObservers(cameraInfo: CameraInfo) {
+        cameraInfo.cameraState.removeObservers(viewLifecycleOwner)
     }
 
     private fun observeCameraState(cameraInfo: CameraInfo) {
