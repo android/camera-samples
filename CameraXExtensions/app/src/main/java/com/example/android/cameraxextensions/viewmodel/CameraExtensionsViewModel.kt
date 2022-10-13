@@ -17,27 +17,26 @@
 package com.example.android.cameraxextensions.viewmodel
 
 import android.app.Application
-import android.os.Environment
 import androidx.camera.core.*
 import androidx.camera.core.CameraSelector.LensFacing
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.lifecycle.AndroidViewModel
+import androidx.core.net.toUri
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.android.cameraxextensions.app.CameraExtensionsApplication
 import com.example.android.cameraxextensions.model.CameraState
 import com.example.android.cameraxextensions.model.CameraUiState
 import com.example.android.cameraxextensions.model.CaptureState
+import com.example.android.cameraxextensions.repository.ImageCaptureRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
-import java.io.File
 
 /**
  * View model for camera extensions. This manages all the operations on the camera.
@@ -49,7 +48,10 @@ import java.io.File
  *
  * Rebinding to the UI state flows will always emit the last UI state.
  */
-class CameraExtensionsViewModel(application: Application) : AndroidViewModel(application) {
+class CameraExtensionsViewModel(
+    private val application: Application,
+    private val imageCaptureRepository: ImageCaptureRepository
+) : ViewModel() {
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var extensionsManager: ExtensionsManager
 
@@ -83,9 +85,9 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
             val cameraSelector = cameraLensToSelector(currentCameraUiState.cameraLens)
 
             // wait for the camera provider instance and extensions manager instance
-            cameraProvider = ProcessCameraProvider.getInstance(getApplication()).await()
+            cameraProvider = ProcessCameraProvider.getInstance(application).await()
             extensionsManager =
-                ExtensionsManager.getInstanceAsync(getApplication(), cameraProvider).await()
+                ExtensionsManager.getInstanceAsync(application, cameraProvider).await()
 
             val availableCameraLens =
                 listOf(
@@ -207,7 +209,7 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
         viewModelScope.launch {
             _captureUiState.emit(CaptureState.CaptureStarted)
         }
-        val photoFile = File(getCaptureStorageDirectory(), "test.jpg")
+        val photoFile = imageCaptureRepository.createImageOutputFile()
         val metadata = ImageCapture.Metadata().apply {
             // Mirror image when using the front camera
             isReversedHorizontal =
@@ -223,6 +225,10 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
             Dispatchers.Default.asExecutor(),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    imageCaptureRepository.notifyImageCreated(
+                        application,
+                        outputFileResults.savedUri ?: photoFile.toUri()
+                    )
                     viewModelScope.launch {
                         _captureUiState.emit(CaptureState.CaptureFinished(outputFileResults))
                     }
@@ -257,15 +263,4 @@ class CameraExtensionsViewModel(application: Application) : AndroidViewModel(app
             CameraSelector.LENS_FACING_BACK -> CameraSelector.DEFAULT_BACK_CAMERA
             else -> throw IllegalArgumentException("Invalid lens facing type: $lensFacing")
         }
-
-    private fun getCaptureStorageDirectory(): File {
-        // Get the pictures directory that's inside the app-specific directory on
-        // external storage.
-        val context = getApplication<CameraExtensionsApplication>()
-
-        val file =
-            File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "camera_extensions")
-        file.mkdirs()
-        return file
-    }
 }

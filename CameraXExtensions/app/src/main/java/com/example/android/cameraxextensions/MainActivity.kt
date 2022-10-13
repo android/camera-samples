@@ -20,22 +20,20 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.extensions.ExtensionMode
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.*
 import com.example.android.cameraxextensions.adapter.CameraExtensionItem
 import com.example.android.cameraxextensions.model.CameraState
 import com.example.android.cameraxextensions.model.CameraUiAction
 import com.example.android.cameraxextensions.model.CaptureState
 import com.example.android.cameraxextensions.model.PermissionState
+import com.example.android.cameraxextensions.repository.ImageCaptureRepository
 import com.example.android.cameraxextensions.ui.CameraExtensionsScreen
 import com.example.android.cameraxextensions.ui.doOnLaidOut
 import com.example.android.cameraxextensions.viewmodel.CameraExtensionsViewModel
+import com.example.android.cameraxextensions.viewmodel.CameraExtensionsViewModelFactory
 import com.example.android.cameraxextensions.viewstate.CaptureScreenViewState
 import com.example.android.cameraxextensions.viewstate.PostCaptureScreenViewState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     // view model for operating on the camera and capturing a photo
-    private val cameraExtensionsViewModel: CameraExtensionsViewModel by viewModels()
+    private lateinit var cameraExtensionsViewModel: CameraExtensionsViewModel
 
     // monitors changes in camera permission state
     private lateinit var permissionState: MutableStateFlow<PermissionState>
@@ -67,6 +65,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
+
+        cameraExtensionsViewModel = ViewModelProvider(
+            this,
+            CameraExtensionsViewModelFactory(
+                application,
+                ImageCaptureRepository.create(applicationContext)
+            )
+        )[CameraExtensionsViewModel::class.java]
 
         // capture screen abstracts the UI logic and exposes simple functions on how to interact
         // with the UI layer.
