@@ -32,9 +32,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.example.android.cameraxextensions.R
-import com.example.android.cameraxextensions.adapter.CameraExtensionItem
 import com.example.android.cameraxextensions.adapter.CameraExtensionsSelectorAdapter
 import com.example.android.cameraxextensions.model.CameraUiAction
+import com.example.android.cameraxextensions.viewstate.CameraPreviewScreenViewState
+import com.example.android.cameraxextensions.viewstate.CaptureScreenViewState
+import com.example.android.cameraxextensions.viewstate.PostCaptureScreenViewState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -143,40 +145,12 @@ class CameraExtensionsScreen(private val root: View) {
         }
     }
 
-    fun setAvailableExtensions(extensions: List<CameraExtensionItem>) {
-        extensionsAdapter.submitList(extensions)
-    }
-
-    fun showPhoto(uri: Uri?) {
-        if (uri == null) return
-        photoPreview.isVisible = true
-        photoPreview.load(uri)
-        closePhotoPreview.isVisible = true
-    }
-
-    fun hidePhoto() {
-        photoPreview.isVisible = false
-        closePhotoPreview.isVisible = false
-        extensionSelector.isVisible = false
-    }
-
-    fun showCameraControls() {
-        cameraShutterButton.isVisible = true
-        switchLensButton.isVisible = true
-        extensionSelector.isVisible = true
-    }
-
-    fun hideCameraControls() {
-        cameraShutterButton.isVisible = false
-        switchLensButton.isVisible = false
-    }
-
-    fun enableCameraShutter(isEnabled: Boolean) {
-        cameraShutterButton.isEnabled = isEnabled
-    }
-
-    fun enableSwitchLens(isEnabled: Boolean) {
-        switchLensButton.isEnabled = isEnabled
+    fun setCaptureScreenViewState(state: CaptureScreenViewState) {
+        setCameraScreenViewState(state.cameraPreviewScreenViewState)
+        when (state.postCaptureScreenViewState) {
+            PostCaptureScreenViewState.PostCaptureScreenHiddenViewState -> hidePhoto()
+            is PostCaptureScreenViewState.PostCaptureScreenVisibleViewState -> showPhoto(state.postCaptureScreenViewState.uri)
+        }
     }
 
     fun showCaptureError(errorMessage: String) {
@@ -195,6 +169,29 @@ class CameraExtensionsScreen(private val root: View) {
         } else {
             permissionsRationale.text = context.getString(R.string.camera_permissions_request)
         }
+    }
+
+    private fun showPhoto(uri: Uri?) {
+        if (uri == null) return
+        photoPreview.isVisible = true
+        photoPreview.load(uri)
+        closePhotoPreview.isVisible = true
+    }
+
+    private fun hidePhoto() {
+        photoPreview.isVisible = false
+        closePhotoPreview.isVisible = false
+    }
+
+    private fun setCameraScreenViewState(state: CameraPreviewScreenViewState) {
+        cameraShutterButton.isEnabled = state.shutterButtonViewState.isEnabled
+        cameraShutterButton.isVisible = state.shutterButtonViewState.isVisible
+
+        switchLensButton.isEnabled = state.switchLensButtonViewState.isEnabled
+        switchLensButton.isVisible = state.switchLensButtonViewState.isVisible
+
+        extensionSelector.isVisible = state.extensionsSelectorViewState.isVisible
+        extensionsAdapter.submitList(state.extensionsSelectorViewState.extensions)
     }
 
     private fun onItemClick(view: View) {
