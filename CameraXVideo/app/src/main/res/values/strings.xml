@@ -24,6 +24,7 @@
     <string name="Start">Start</string>
     <string name="Finalize">Finalize</string>
     <string name="Idle">Idle</string>
+    <string name="back_button_alt">Back</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="video_viewer_tips">Tips for the page:\n\t- tap anywhere to replay\n\t- tap system back button to go back</string>

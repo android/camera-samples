@@ -36,6 +36,8 @@ import androidx.navigation.fragment.navArgs
 import com.example.android.camerax.video.databinding.FragmentVideoViewerBinding
 import android.util.TypedValue
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.Navigation
+import com.example.android.camerax.video.R
 import kotlinx.coroutines.launch
 import java.lang.RuntimeException
 
@@ -84,6 +86,11 @@ class VideoViewerFragment : androidx.fragment.app.Fragment() {
                     }
                 }
             }
+        }
+
+        // Handle back button press
+        binding.backButton.setOnClickListener {
+            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigateUp()
         }
     }
 
