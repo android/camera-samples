@@ -19,6 +19,7 @@ package com.example.android.cameraxextensions
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.extensions.ExtensionMode
@@ -55,6 +56,20 @@ class MainActivity : AppCompatActivity() {
         ExtensionMode.NONE to R.string.camera_mode_none,
     )
 
+    // tracks the current view state
+    private val captureScreenViewState = MutableStateFlow(CaptureScreenViewState())
+
+    // handles back press if the current screen is the photo post capture screen
+    private val postCaptureBackPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            lifecycleScope.launch {
+                closePhotoPreview()
+            }
+        }
+    }
+
+    private lateinit var cameraExtensionsScreen: CameraExtensionsScreen
+
     // view model for operating on the camera and capturing a photo
     private lateinit var cameraExtensionsViewModel: CameraExtensionsViewModel
 
@@ -76,15 +91,18 @@ class MainActivity : AppCompatActivity() {
 
         // capture screen abstracts the UI logic and exposes simple functions on how to interact
         // with the UI layer.
-        val cameraExtensionsScreen = CameraExtensionsScreen(findViewById(R.id.root))
+        cameraExtensionsScreen = CameraExtensionsScreen(findViewById(R.id.root))
 
-        // track the current view state
-        val captureScreenViewState = MutableStateFlow(CaptureScreenViewState())
+        // consume and dispatch the current view state to update the camera extensions screen
         lifecycleScope.launch {
             captureScreenViewState.collectLatest { state ->
                 cameraExtensionsScreen.setCaptureScreenViewState(state)
+                postCaptureBackPressedCallback.isEnabled =
+                    state.postCaptureScreenViewState is PostCaptureScreenViewState.PostCaptureScreenVisibleViewState
             }
         }
+
+        onBackPressedDispatcher.addCallback(this, postCaptureBackPressedCallback)
 
         // initialize the permission state flow with the current camera permission status
         permissionState = MutableStateFlow(getCurrentPermissionState())
@@ -122,22 +140,11 @@ class MainActivity : AppCompatActivity() {
                         cameraExtensionsViewModel.switchCamera()
                     }
                     CameraUiAction.ClosePhotoPreviewClick -> {
-                        captureScreenViewState.emit(
-                            captureScreenViewState.value
-                                .updateCameraScreen { state ->
-                                    state.showCameraControls()
-                                }
-                                .updatePostCaptureScreen {
-                                    PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
-                                }
-                        )
-                        cameraExtensionsViewModel.startPreview(
-                            this@MainActivity as LifecycleOwner, cameraExtensionsScreen.previewView
-                        )
+                        closePhotoPreview()
                     }
-                    CameraUiAction.RequestPermissionClick -> requestPermissionsLauncher.launch(
-                        Manifest.permission.CAMERA
-                    )
+                    CameraUiAction.RequestPermissionClick -> {
+                        requestPermissionsLauncher.launch(Manifest.permission.CAMERA)
+                    }
                 }
             }
         }
@@ -279,6 +286,22 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
         }
+    }
+
+    private suspend fun closePhotoPreview() {
+        captureScreenViewState.emit(
+            captureScreenViewState.value
+                .updateCameraScreen { state ->
+                    state.showCameraControls()
+                }
+                .updatePostCaptureScreen {
+                    PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                }
+        )
+        cameraExtensionsViewModel.startPreview(
+            this as LifecycleOwner,
+            cameraExtensionsScreen.previewView
+        )
     }
 
     private fun getCurrentPermissionState(): PermissionState {
