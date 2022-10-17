@@ -79,7 +79,12 @@ class MainActivity : AppCompatActivity() {
         val cameraExtensionsScreen = CameraExtensionsScreen(findViewById(R.id.root))
 
         // track the current view state
-        var captureScreenViewState = CaptureScreenViewState()
+        val captureScreenViewState = MutableStateFlow(CaptureScreenViewState())
+        lifecycleScope.launch {
+            captureScreenViewState.collectLatest { state ->
+                cameraExtensionsScreen.setCaptureScreenViewState(state)
+            }
+        }
 
         // initialize the permission state flow with the current camera permission status
         permissionState = MutableStateFlow(getCurrentPermissionState())
@@ -117,14 +122,15 @@ class MainActivity : AppCompatActivity() {
                         cameraExtensionsViewModel.switchCamera()
                     }
                     CameraUiAction.ClosePhotoPreviewClick -> {
-                        captureScreenViewState = captureScreenViewState
-                            .updateCameraScreen { state ->
-                                state.showCameraControls()
-                            }
-                            .updatePostCaptureScreen {
-                                PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
-                            }
-                        cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen { state ->
+                                    state.showCameraControls()
+                                }
+                                .updatePostCaptureScreen {
+                                    PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                                }
+                        )
                         cameraExtensionsViewModel.startPreview(
                             this@MainActivity as LifecycleOwner, cameraExtensionsScreen.previewView
                         )
@@ -142,60 +148,67 @@ class MainActivity : AppCompatActivity() {
             cameraExtensionsViewModel.captureUiState.collectLatest { state ->
                 when (state) {
                     CaptureState.CaptureNotReady -> {
-                        captureScreenViewState = captureScreenViewState
-                            .updatePostCaptureScreen {
-                                PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
-                            }
-                            .updateCameraScreen {
-                                it.enableCameraShutter(true)
-                                    .enableSwitchLens(true)
-                            }
-                        cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updatePostCaptureScreen {
+                                    PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                                }
+                                .updateCameraScreen {
+                                    it.enableCameraShutter(true)
+                                        .enableSwitchLens(true)
+                                }
+                        )
                     }
                     CaptureState.CaptureReady -> {
-                        captureScreenViewState = captureScreenViewState
-                            .updateCameraScreen {
-                                it.enableCameraShutter(true)
-                                    .enableSwitchLens(true)
-                            }
-                        cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.enableCameraShutter(true)
+                                        .enableSwitchLens(true)
+                                }
+                        )
                     }
                     CaptureState.CaptureStarted -> {
-                        captureScreenViewState = captureScreenViewState
-                            .updateCameraScreen {
-                                it.enableCameraShutter(false)
-                                    .enableSwitchLens(false)
-                            }
-                        cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.enableCameraShutter(false)
+                                        .enableSwitchLens(false)
+                                }
+                        )
                     }
                     is CaptureState.CaptureFinished -> {
                         cameraExtensionsViewModel.stopPreview()
-                        captureScreenViewState = captureScreenViewState
-                            .updatePostCaptureScreen {
-                                val uri = state.outputResults.savedUri
-                                if (uri != null) {
-                                    PostCaptureScreenViewState.PostCaptureScreenVisibleViewState(uri)
-                                } else {
-                                    PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updatePostCaptureScreen {
+                                    val uri = state.outputResults.savedUri
+                                    if (uri != null) {
+                                        PostCaptureScreenViewState.PostCaptureScreenVisibleViewState(
+                                            uri
+                                        )
+                                    } else {
+                                        PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                                    }
                                 }
-                            }
-                            .updateCameraScreen {
-                                it.hideCameraControls()
-                            }
-                        cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                                .updateCameraScreen {
+                                    it.hideCameraControls()
+                                }
+                        )
                     }
                     is CaptureState.CaptureFailed -> {
                         cameraExtensionsScreen.showCaptureError("Couldn't take photo")
                         cameraExtensionsViewModel.startPreview(
                             this@MainActivity as LifecycleOwner, cameraExtensionsScreen.previewView
                         )
-                        captureScreenViewState = captureScreenViewState
-                            .updateCameraScreen {
-                                it.showCameraControls()
-                                    .enableCameraShutter(true)
-                                    .enableSwitchLens(true)
-                            }
-                        cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.showCameraControls()
+                                        .enableCameraShutter(true)
+                                        .enableSwitchLens(true)
+                                }
+                        )
                     }
                 }
             }
@@ -226,16 +239,17 @@ class MainActivity : AppCompatActivity() {
 
                     when (cameraUiState.cameraState) {
                         CameraState.NOT_READY -> {
-                            captureScreenViewState = captureScreenViewState
-                                .updatePostCaptureScreen {
-                                    PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
-                                }
-                                .updateCameraScreen {
-                                    it.showCameraControls()
-                                        .enableCameraShutter(false)
-                                        .enableSwitchLens(false)
-                                }
-                            cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                            captureScreenViewState.emit(
+                                captureScreenViewState.value
+                                    .updatePostCaptureScreen {
+                                        PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                                    }
+                                    .updateCameraScreen {
+                                        it.showCameraControls()
+                                            .enableCameraShutter(false)
+                                            .enableSwitchLens(false)
+                                    }
+                            )
                             cameraExtensionsViewModel.initializeCamera()
                         }
                         CameraState.READY -> {
@@ -245,20 +259,21 @@ class MainActivity : AppCompatActivity() {
                                     cameraExtensionsScreen.previewView
                                 )
                             }
-                            captureScreenViewState = captureScreenViewState
-                                .updateCameraScreen { s ->
-                                    s.showCameraControls()
-                                        .setAvailableExtensions(
-                                            cameraUiState.availableExtensions.map {
-                                                CameraExtensionItem(
-                                                    it,
-                                                    getString(extensionName[it]!!),
-                                                    cameraUiState.extensionMode == it
-                                                )
-                                            }
-                                        )
-                                }
-                            cameraExtensionsScreen.setCaptureScreenViewState(captureScreenViewState)
+                            captureScreenViewState.emit(
+                                captureScreenViewState.value
+                                    .updateCameraScreen { s ->
+                                        s.showCameraControls()
+                                            .setAvailableExtensions(
+                                                cameraUiState.availableExtensions.map {
+                                                    CameraExtensionItem(
+                                                        it,
+                                                        getString(extensionName[it]!!),
+                                                        cameraUiState.extensionMode == it
+                                                    )
+                                                }
+                                            )
+                                    }
+                            )
                         }
                         CameraState.PREVIEW_STOPPED -> Unit
                     }
