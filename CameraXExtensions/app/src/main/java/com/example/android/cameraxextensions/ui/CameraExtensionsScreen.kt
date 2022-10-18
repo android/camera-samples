@@ -21,6 +21,7 @@ import android.animation.AnimatorListenerAdapter
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
+import android.util.TypedValue
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import android.view.View
@@ -30,6 +31,9 @@ import android.widget.Toast
 import androidx.camera.view.PreviewView
 import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.isVisible
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -52,6 +56,14 @@ import kotlinx.coroutines.launch
  */
 @SuppressLint("ClickableViewAccessibility")
 class CameraExtensionsScreen(private val root: View) {
+
+    private companion object {
+        // animation constants for focus point
+        private const val SPRING_STIFFNESS_ALPHA_OUT = 100f
+        private const val SPRING_STIFFNESS = 800f
+        private const val SPRING_DAMPING_RATIO = 0.35f
+    }
+
     private val context: Context = root.context
 
     private val cameraShutterButton: View = root.findViewById(R.id.cameraShutter)
@@ -60,6 +72,7 @@ class CameraExtensionsScreen(private val root: View) {
     private val switchLensButton = root.findViewById<ImageView>(R.id.switchLens)
     private val extensionSelector: RecyclerView = root.findViewById(R.id.extensionSelector)
     private val extensionsAdapter: CameraExtensionsSelectorAdapter
+    private val focusPointView: View = root.findViewById(R.id.focusPoint)
     private val permissionsRationaleContainer: View =
         root.findViewById(R.id.permissionsRationaleContainer)
     private val permissionsRationale: TextView = root.findViewById(R.id.permissionsRationale)
@@ -140,12 +153,13 @@ class CameraExtensionsScreen(private val root: View) {
         val gestureDetector = GestureDetectorCompat(context, object : SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
 
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
                 val meteringPointFactory = previewView.meteringPointFactory
                 val focusPoint = meteringPointFactory.createPoint(e.x, e.y)
                 root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
                     _action.emit(CameraUiAction.Focus(focusPoint))
                 }
+                showFocusPoint(focusPointView, e.x, e.y)
                 return true
             }
 
@@ -229,5 +243,51 @@ class CameraExtensionsScreen(private val root: View) {
             })
             start()
         }
+    }
+
+    private fun showFocusPoint(view: View, x: Float, y: Float) {
+        val drawable = FocusPointDrawable()
+        val strokeWidth = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            3f,
+            context.resources.displayMetrics
+        )
+        drawable.setStrokeWidth(strokeWidth)
+
+        val alphaAnimation = SpringAnimation(view, DynamicAnimation.ALPHA, 1f).apply {
+            spring.stiffness = SPRING_STIFFNESS
+            spring.dampingRatio = SPRING_DAMPING_RATIO
+
+            addEndListener { _, _, _, _ ->
+                SpringAnimation(view, DynamicAnimation.ALPHA, 0f)
+                    .apply {
+                        spring.stiffness = SPRING_STIFFNESS_ALPHA_OUT
+                        spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+                    }
+                    .start()
+            }
+        }
+        val scaleAnimationX = SpringAnimation(view, DynamicAnimation.SCALE_X, 1f).apply {
+            spring.stiffness = SPRING_STIFFNESS
+            spring.dampingRatio = SPRING_DAMPING_RATIO
+        }
+        val scaleAnimationY = SpringAnimation(view, DynamicAnimation.SCALE_Y, 1f).apply {
+            spring.stiffness = SPRING_STIFFNESS
+            spring.dampingRatio = SPRING_DAMPING_RATIO
+        }
+
+        view.apply {
+            background = drawable
+            isVisible = true
+            translationX = x - width / 2f
+            translationY = y - height / 2f
+            alpha = 0f
+            scaleX = 1.5f
+            scaleY = 1.5f
+        }
+
+        alphaAnimation.start()
+        scaleAnimationX.start()
+        scaleAnimationY.start()
     }
 }
