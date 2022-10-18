@@ -16,6 +16,7 @@
 
 package com.example.android.cameraxextensions.model
 
+import androidx.camera.core.MeteringPoint
 import androidx.camera.extensions.ExtensionMode
 
 /**
@@ -27,4 +28,5 @@ sealed class CameraUiAction {
     object ShutterButtonClick : CameraUiAction()
     object ClosePhotoPreviewClick : CameraUiAction()
     data class SelectCameraExtension(@ExtensionMode.Mode val extension: Int) : CameraUiAction()
+    data class Focus(val meteringPoint: MeteringPoint) : CameraUiAction()
 }

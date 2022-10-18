@@ -18,13 +18,17 @@ package com.example.android.cameraxextensions.ui
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
+import android.view.GestureDetector.SimpleOnGestureListener
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.camera.view.PreviewView
+import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -46,6 +50,7 @@ import kotlinx.coroutines.launch
  * Encapsulates the details of how the screen is constructed and exposes a set of explicit
  * operations clients can perform on the screen.
  */
+@SuppressLint("ClickableViewAccessibility")
 class CameraExtensionsScreen(private val root: View) {
     private val context: Context = root.context
 
@@ -117,19 +122,7 @@ class CameraExtensionsScreen(private val root: View) {
         }
 
         switchLensButton.setOnClickListener {
-            root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
-                _action.emit(CameraUiAction.SwitchCameraClick)
-            }
-            it.animate().apply {
-                rotation(180f)
-                duration = 300L
-                setListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        it.rotation = 0f
-                    }
-                })
-                start()
-            }
+            switchLens(root, it)
         }
 
         closePhotoPreview.setOnClickListener {
@@ -143,6 +136,26 @@ class CameraExtensionsScreen(private val root: View) {
                 _action.emit(CameraUiAction.RequestPermissionClick)
             }
         }
+
+        val gestureDetector = GestureDetectorCompat(context, object : SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                val meteringPointFactory = previewView.meteringPointFactory
+                val focusPoint = meteringPointFactory.createPoint(e.x, e.y)
+                root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+                    _action.emit(CameraUiAction.Focus(focusPoint))
+                }
+                return true
+            }
+
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                switchLens(root, switchLensButton)
+                return true
+            }
+        })
+
+        previewView.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
     }
 
     fun setCaptureScreenViewState(state: CaptureScreenViewState) {
@@ -200,5 +213,21 @@ class CameraExtensionsScreen(private val root: View) {
         val middle = layoutManager.width / 2
         val dx = viewMiddle - middle
         extensionSelector.smoothScrollBy(dx, 0)
+    }
+
+    private fun switchLens(root: View, switchLensButton: View) {
+        root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+            _action.emit(CameraUiAction.SwitchCameraClick)
+        }
+        switchLensButton.animate().apply {
+            rotation(180f)
+            duration = 300L
+            setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    switchLensButton.rotation = 0f
+                }
+            })
+            start()
+        }
     }
 }

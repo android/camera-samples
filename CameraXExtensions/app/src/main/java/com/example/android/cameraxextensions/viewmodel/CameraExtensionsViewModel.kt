@@ -55,6 +55,8 @@ class CameraExtensionsViewModel(
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var extensionsManager: ExtensionsManager
 
+    private var camera: Camera? = null
+
     private val imageCapture = ImageCapture.Builder()
         .setTargetAspectRatio(AspectRatio.RATIO_16_9)
         .build()
@@ -145,7 +147,7 @@ class CameraExtensionsViewModel(
             .addUseCase(preview)
             .build()
         cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(
+        camera = cameraProvider.bindToLifecycle(
             lifecycleOwner,
             cameraSelector,
             useCaseGroup
@@ -255,6 +257,13 @@ class CameraExtensionsViewModel(
             )
             _captureUiState.emit(CaptureState.CaptureNotReady)
         }
+    }
+
+    fun focus(meteringPoint: MeteringPoint) {
+        val camera = camera ?: return
+
+        val meteringAction = FocusMeteringAction.Builder(meteringPoint).build()
+        camera.cameraControl.startFocusAndMetering(meteringAction)
     }
 
     private fun cameraLensToSelector(@LensFacing lensFacing: Int): CameraSelector =

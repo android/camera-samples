@@ -145,6 +145,9 @@ class MainActivity : AppCompatActivity() {
                     CameraUiAction.RequestPermissionClick -> {
                         requestPermissionsLauncher.launch(Manifest.permission.CAMERA)
                     }
+                    is CameraUiAction.Focus -> {
+                        cameraExtensionsViewModel.focus(action.meteringPoint)
+                    }
                 }
             }
         }
