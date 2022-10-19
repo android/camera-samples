@@ -29,4 +29,5 @@ sealed class CameraUiAction {
     object ClosePhotoPreviewClick : CameraUiAction()
     data class SelectCameraExtension(@ExtensionMode.Mode val extension: Int) : CameraUiAction()
     data class Focus(val meteringPoint: MeteringPoint) : CameraUiAction()
+    data class Scale(val scaleFactor: Float) : CameraUiAction()
 }

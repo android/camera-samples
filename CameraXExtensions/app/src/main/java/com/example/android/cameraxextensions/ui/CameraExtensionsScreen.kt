@@ -24,6 +24,7 @@ import android.net.Uri
 import android.util.TypedValue
 import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -169,7 +170,24 @@ class CameraExtensionsScreen(private val root: View) {
             }
         })
 
-        previewView.setOnTouchListener { _, event -> gestureDetector.onTouchEvent(event) }
+        val scaleGestureDetector = ScaleGestureDetector(
+            context,
+            object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                    root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+                        _action.emit(CameraUiAction.Scale(detector.scaleFactor))
+                    }
+                    return true
+                }
+            })
+
+        previewView.setOnTouchListener { _, event ->
+            var didConsume = scaleGestureDetector.onTouchEvent(event)
+            if (!scaleGestureDetector.isInProgress) {
+                didConsume = gestureDetector.onTouchEvent(event)
+            }
+            didConsume
+        }
     }
 
     fun setCaptureScreenViewState(state: CaptureScreenViewState) {

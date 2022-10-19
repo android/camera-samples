@@ -23,6 +23,7 @@ import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.ui.layout.ScaleFactor
 import androidx.core.net.toUri
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
@@ -264,6 +265,12 @@ class CameraExtensionsViewModel(
 
         val meteringAction = FocusMeteringAction.Builder(meteringPoint).build()
         camera.cameraControl.startFocusAndMetering(meteringAction)
+    }
+
+    fun scale(scaleFactor: Float) {
+        val camera = camera ?: return
+        val currentZoomRatio: Float = camera.cameraInfo.zoomState.value?.zoomRatio ?: 1f
+        camera.cameraControl.setZoomRatio(scaleFactor * currentZoomRatio)
     }
 
     private fun cameraLensToSelector(@LensFacing lensFacing: Int): CameraSelector =

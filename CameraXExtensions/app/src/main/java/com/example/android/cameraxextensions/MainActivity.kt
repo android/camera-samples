@@ -148,6 +148,9 @@ class MainActivity : AppCompatActivity() {
                     is CameraUiAction.Focus -> {
                         cameraExtensionsViewModel.focus(action.meteringPoint)
                     }
+                    is CameraUiAction.Scale -> {
+                        cameraExtensionsViewModel.scale(action.scaleFactor)
+                    }
                 }
             }
         }
