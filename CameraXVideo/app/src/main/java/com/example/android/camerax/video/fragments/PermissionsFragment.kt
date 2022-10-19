@@ -29,6 +29,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.Navigation
 import com.example.android.camerax.video.R
 import com.example.android.camerax.video.databinding.FragmentPermissionBinding
@@ -62,16 +63,12 @@ class PermissionsFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         return FragmentPermissionBinding.inflate(inflater, container, false).also {
-            it.permissionContainer.setOnClickListener {
-                if (hasPermissions(requireContext())) {
-                    Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
-                        PermissionsFragmentDirections.actionPermissionsToCapture()
-                    )
-                } else {
-                    Log.e(PermissionsFragment::class.java.simpleName,
-                        "Re-requesting permissions ...")
-                    activityResultLauncher.launch(PERMISSIONS_REQUIRED)
-                }
+            if (hasPermissions(requireContext())) {
+                navigateToCapture()
+            } else {
+                Log.e(PermissionsFragment::class.java.simpleName,
+                    "Re-requesting permissions ...")
+                activityResultLauncher.launch(PERMISSIONS_REQUIRED)
             }
         }.root
     }
@@ -90,8 +87,18 @@ class PermissionsFragment : Fragment() {
                 if (it.key in PERMISSIONS_REQUIRED && it.value == false)
                     permissionGranted = false
             }
+            if (permissionGranted && !permissions.isEmpty()) {
+                navigateToCapture()
+            }
             if (!permissionGranted) {
                 Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()
             }
         }
+
+    private fun navigateToCapture() {
+        lifecycleScope.launchWhenStarted {
+            Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(
+                PermissionsFragmentDirections.actionPermissionsToCapture())
+        }
+    }
 }

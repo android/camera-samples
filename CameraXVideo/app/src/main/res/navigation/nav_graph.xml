@@ -28,7 +28,9 @@
 
         <action
             android:id="@+id/action_permissions_to_capture"
-            app:destination="@id/capture_fragment" />
+            app:destination="@id/capture_fragment"
+            app:popUpTo="@id/permissions_fragment"
+            app:popUpToInclusive="true"/>
 
     </fragment>
 

@@ -24,15 +24,8 @@
     <string name="Start">Start</string>
     <string name="Finalize">Finalize</string>
     <string name="Idle">Idle</string>
+    <string name="back_button_alt">Back</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="video_viewer_tips">Tips for the page:\n\t- tap anywhere to replay\n\t- tap system back button to go back</string>
-    <string name="alpha_warning">CameraX VideoCapture is at its alpha phase:\n
-                                    \t- things might change and probably will change\n
-                                    \t- if you need something unavailable, request them now\n
-                                    \nAbout this sample:\n
-                                    \t- demonstrates VideoCapture with Recorder case\n
-                                    \t- is at alpha phase, may have rough edges too\n
-                                    \nWhat is next:\n
-                                    \t** tap anywhere to continue when you are ready **\n</string>
 </resources>
