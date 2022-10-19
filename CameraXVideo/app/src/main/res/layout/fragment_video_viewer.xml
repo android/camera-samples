@@ -15,6 +15,7 @@
   -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/view_viewer_container"
     android:layout_width="match_parent"
@@ -35,4 +36,17 @@
         android:textColor="@color/txBlue"
         android:textSize="16sp"
         android:text="@string/video_viewer_tips" />
+
+    <ImageButton
+        android:id="@+id/back_button"
+        android:contentDescription="@string/back_button_alt"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="32dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:scaleType="fitCenter"
+        android:background="@android:color/transparent"
+        app:srcCompat="@drawable/ic_back" />
 </FrameLayout>
