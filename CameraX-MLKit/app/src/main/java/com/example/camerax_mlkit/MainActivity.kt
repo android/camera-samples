@@ -20,7 +20,6 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -69,8 +68,10 @@ class MainActivity : AppCompatActivity() {
                     return@MlKitAnalyzer
                 }
 
-                val qrCodeDrawable = QrCodeDrawable(barcodeResults[0])
-                previewView.setOnTouchListener(qrCodeDrawable.qrCodeTouchCallback)
+                val qrCodeViewModel = QrCodeViewModel(barcodeResults[0])
+                val qrCodeDrawable = QrCodeDrawable(qrCodeViewModel)
+
+                previewView.setOnTouchListener(qrCodeViewModel.qrCodeTouchCallback)
                 previewView.overlay.clear()
                 previewView.overlay.add(qrCodeDrawable)
             }
@@ -116,5 +117,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
-
