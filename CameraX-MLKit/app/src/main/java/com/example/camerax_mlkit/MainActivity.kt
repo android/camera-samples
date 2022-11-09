@@ -46,7 +46,6 @@ class MainActivity : AppCompatActivity() {
     private fun startCamera() {
         var cameraController = LifecycleCameraController(baseContext)
         val previewView: PreviewView = viewBinding.viewFinder
-        val qrOverlayView: View = viewBinding.qrCodeOverlay
 
         val options = BarcodeScannerOptions.Builder()
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
@@ -65,16 +64,15 @@ class MainActivity : AppCompatActivity() {
                     (barcodeResults.size == 0) ||
                     (barcodeResults.first() == null)
                 ) {
-                    qrOverlayView.apply { background = null }
-                    qrOverlayView.setOnTouchListener { _, _ -> false } //no-op
+                    previewView.overlay.clear()
+                    previewView.setOnTouchListener { _, _ -> false } //no-op
                     return@MlKitAnalyzer
                 }
 
                 val qrCodeDrawable = QrCodeDrawable(barcodeResults[0])
-                qrOverlayView.setOnTouchListener(qrCodeDrawable.qrCodeTouchCallback)
-                qrOverlayView.apply {
-                    background = qrCodeDrawable
-                }
+                previewView.setOnTouchListener(qrCodeDrawable.qrCodeTouchCallback)
+                previewView.overlay.clear()
+                previewView.overlay.add(qrCodeDrawable)
             }
         )
 
