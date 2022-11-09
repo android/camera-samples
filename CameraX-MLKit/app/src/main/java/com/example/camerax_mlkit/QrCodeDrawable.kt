@@ -8,7 +8,12 @@ import android.view.MotionEvent
 import android.view.View
 import com.google.mlkit.vision.barcode.common.Barcode
 
-
+/**
+ * A Drawable that handles displaying a QR Code's data and a bounding box around the QR code.
+ *
+ * As is, this class only handles displaying the QR Code data if it's a URL. Other data types
+ * can be handled by adding more cases of Barcode.TYPE_URL in the init block.
+ */
 class QrCodeDrawable(barcode: Barcode) : Drawable() {
     private val boundingRectPaint = Paint().apply {
         style = Paint.Style.STROKE
@@ -52,7 +57,7 @@ class QrCodeDrawable(barcode: Barcode) : Drawable() {
             // Add other QR Code types here to handle other types of data,
             // like Wifi credentials.
             else -> {
-                qrContent = "Unrecognized data type"
+                qrContent = "Unsupported data type: ${barcode.rawValue.toString()}"
             }
         }
         textWidth = contentTextPaint.measureText(qrContent).toInt()

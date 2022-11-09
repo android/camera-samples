@@ -79,8 +79,6 @@ class MainActivity : AppCompatActivity() {
         )
 
         cameraController.bindToLifecycle(this)
-
-        previewView.setImplementationMode(PreviewView.ImplementationMode.COMPATIBLE)
         previewView.controller = cameraController
     }
 
