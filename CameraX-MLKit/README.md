@@ -8,7 +8,7 @@ You can open this project in Android Studio to explore the code further, and to 
 
 ## Screenshots
 
-<img src="screenshots/camerax-mlkit.png" height="400" alt="Screenshot of QR-code reader app scanning a QR code for the website google.com"/>
+<img src="screenshots/camerax-mlkit.png" height="700" alt="Screenshot of QR-code reader app scanning a QR code for the website google.com"/>
 
 ## Command line options 
 
