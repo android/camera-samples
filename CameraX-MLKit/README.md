@@ -6,6 +6,10 @@ The interesting part of the code is in `MainActivity.kt` in the `startCamera()` 
 
 You can open this project in Android Studio to explore the code further, and to build and run the application on a test device.
 
+## Screenshots
+
+<img src="screenshots/camerax-mlkit.png" height="400" alt="Screenshot of QR-code reader app scanning a QR code for the website google.com"/>
+
 ## Command line options 
 
 ### Build
