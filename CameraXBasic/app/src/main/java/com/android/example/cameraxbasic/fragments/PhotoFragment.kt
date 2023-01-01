@@ -23,6 +23,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.fragment.app.Fragment
 import com.android.example.cameraxbasic.R
+import com.android.example.cameraxbasic.utils.MediaStoreFile
 import com.bumptech.glide.Glide
 import java.io.File
 
@@ -43,7 +44,8 @@ class PhotoFragment internal constructor() : Fragment() {
     companion object {
         private const val FILE_NAME_KEY = "file_name"
 
-        fun create(image: File) = PhotoFragment().apply {
+        fun create(mediaStoreFile: MediaStoreFile) = PhotoFragment().apply {
+            val image = mediaStoreFile.file
             arguments = Bundle().apply {
                 putString(FILE_NAME_KEY, image.absolutePath)
             }
