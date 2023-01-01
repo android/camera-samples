@@ -596,11 +596,6 @@ class CameraFragment : Fragment() {
             private set
 
         /**
-         * Used to add listeners that will be called with each luma computed
-         */
-        fun onFrameAnalyzed(listener: LumaListener) = listeners.add(listener)
-
-        /**
          * Helper extension function used to extract a byte array from an image plane buffer
          */
         private fun ByteBuffer.toByteArray(): ByteArray {
