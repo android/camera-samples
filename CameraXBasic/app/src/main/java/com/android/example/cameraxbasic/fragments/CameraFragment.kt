@@ -512,6 +512,8 @@ class CameraFragment : Fragment() {
                         // Implicit broadcasts will be ignored for devices running API level >= 24
                         // so if you only target API level 24+ you can remove this statement
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                            // Suppress deprecated Camera usage needed for API level 23 and below
+                            @Suppress("DEPRECATION")
                             requireActivity().sendBroadcast(
                                     Intent(android.hardware.Camera.ACTION_NEW_PICTURE, savedUri)
                             )
