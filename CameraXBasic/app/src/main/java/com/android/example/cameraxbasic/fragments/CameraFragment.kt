@@ -33,7 +33,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.core.content.ContextCompat
+import androidx.concurrent.futures.await
 import androidx.core.view.setPadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -208,7 +208,9 @@ class CameraFragment : Fragment() {
             updateCameraUi()
 
             // Set up the camera and its use cases
-            setUpCamera()
+            lifecycleScope.launch {
+                setUpCamera()
+            }
         }
     }
 
@@ -231,26 +233,21 @@ class CameraFragment : Fragment() {
     }
 
     /** Initialize CameraX, and prepare to bind the camera use cases  */
-    private fun setUpCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-        cameraProviderFuture.addListener(Runnable {
+    private suspend fun setUpCamera() {
+        cameraProvider = ProcessCameraProvider.getInstance(requireContext()).await()
 
-            // CameraProvider
-            cameraProvider = cameraProviderFuture.get()
+        // Select lensFacing depending on the available cameras
+        lensFacing = when {
+            hasBackCamera() -> CameraSelector.LENS_FACING_BACK
+            hasFrontCamera() -> CameraSelector.LENS_FACING_FRONT
+            else -> throw IllegalStateException("Back and front camera are unavailable")
+        }
 
-            // Select lensFacing depending on the available cameras
-            lensFacing = when {
-                hasBackCamera() -> CameraSelector.LENS_FACING_BACK
-                hasFrontCamera() -> CameraSelector.LENS_FACING_FRONT
-                else -> throw IllegalStateException("Back and front camera are unavailable")
-            }
+        // Enable or disable switching between cameras
+        updateCameraSwitchButton()
 
-            // Enable or disable switching between cameras
-            updateCameraSwitchButton()
-
-            // Build and bind the camera use cases
-            bindCameraUseCases()
-        }, ContextCompat.getMainExecutor(requireContext()))
+        // Build and bind the camera use cases
+        bindCameraUseCases()
     }
 
     /** Declare and bind preview, capture and analysis use cases */
