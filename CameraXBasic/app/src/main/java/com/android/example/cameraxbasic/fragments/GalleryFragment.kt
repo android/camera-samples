@@ -135,7 +135,7 @@ class GalleryFragment internal constructor() : Fragment() {
                         .setTitle(getString(R.string.delete_title))
                         .setMessage(getString(R.string.delete_dialog))
                         .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setPositiveButton(android.R.string.yes) { _, _ ->
+                        .setPositiveButton(android.R.string.ok) { _, _ ->
 
                             // Delete current photo
                             mediaFile.delete()
@@ -155,7 +155,7 @@ class GalleryFragment internal constructor() : Fragment() {
 
                         }
 
-                        .setNegativeButton(android.R.string.no, null)
+                        .setNegativeButton(android.R.string.cancel, null)
                         .create().showImmersive()
             }
         }
