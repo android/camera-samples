@@ -27,9 +27,9 @@ import android.webkit.MimeTypeMap
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
+import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.databinding.FragmentGalleryBinding
 import com.android.example.cameraxbasic.utils.MediaStoreFile
@@ -51,10 +51,15 @@ class GalleryFragment internal constructor() : Fragment() {
     private lateinit var mediaList: MutableList<MediaStoreFile>
 
     /** Adapter class used to present a fragment containing one photo or video as a page */
-    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
-        override fun getCount(): Int = mediaList.size
-        override fun getItem(position: Int): Fragment = PhotoFragment.create(mediaList[position])
-        override fun getItemPosition(obj: Any): Int = POSITION_NONE
+    inner class MediaPagerAdapter(fm: FragmentManager) : FragmentStateAdapter(fm, lifecycle) {
+        override fun getItemCount(): Int = mediaList.size
+        override fun createFragment(position: Int): Fragment = PhotoFragment.create(mediaList[position])
+        override fun getItemId(position: Int): Long {
+            return mediaList[position].id
+        }
+        override fun containsItem(itemId: Long): Boolean {
+            return null != mediaList.firstOrNull { it.id == itemId }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

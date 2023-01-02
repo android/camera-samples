@@ -82,7 +82,7 @@ class MediaStoreUtils(private val context: Context) {
                     id
                 )
                 val contentFile = File(cursor.getString(imageDataColumn))
-                files.add(MediaStoreFile(contentUri, contentFile))
+                files.add(MediaStoreFile(contentUri, contentFile, id))
             }
         }
 
@@ -92,4 +92,4 @@ class MediaStoreUtils(private val context: Context) {
     }
 }
 
-class MediaStoreFile(val uri: Uri, val file: File) 
+class MediaStoreFile(val uri: Uri, val file: File, val id: Long)
