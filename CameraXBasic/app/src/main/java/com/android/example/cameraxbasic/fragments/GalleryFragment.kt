@@ -37,8 +37,6 @@ import com.android.example.cameraxbasic.utils.MediaStoreUtils
 import com.android.example.cameraxbasic.utils.padWithDisplayCutout
 import com.android.example.cameraxbasic.utils.showImmersive
 
-val EXTENSION_WHITELIST = arrayOf("JPG")
-
 /** Fragment used to present the user with a gallery of photos taken */
 class GalleryFragment internal constructor() : Fragment() {
 
@@ -65,8 +63,7 @@ class GalleryFragment internal constructor() : Fragment() {
         // Mark this as a retain fragment, so the lifecycle does not get restarted on config change
         retainInstance = true
 
-        // Walk through all files in the root directory
-        // We reverse the order of the list to present the last photos first
+        // Get images this app has access to from MediaStore
         val mediaStoreUtils = MediaStoreUtils(requireContext())
         mediaList = mediaStoreUtils.getImages()
     }
