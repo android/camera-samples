@@ -65,9 +65,6 @@ class GalleryFragment internal constructor() : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Mark this as a retain fragment, so the lifecycle does not get restarted on config change
-        retainInstance = true
-
         // Get images this app has access to from MediaStore
         val mediaStoreUtils = MediaStoreUtils(requireContext())
         mediaList = mediaStoreUtils.getImages()
