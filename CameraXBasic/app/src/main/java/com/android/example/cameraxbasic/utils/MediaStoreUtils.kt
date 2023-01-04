@@ -23,6 +23,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 
@@ -43,14 +45,19 @@ class MediaStoreUtils(private val context: Context) {
         context.getExternalFilesDir(null)?.toUri()
     }
 
-    private fun getMediaStoreImageCursor(mediaStoreCollection: Uri): Cursor? {
-        val projection = arrayOf(imageDataColumnIndex, imageIdColumnIndex)
-        val sortOrder = "DATE_ADDED DESC"
-        return context.contentResolver.query(
-            mediaStoreCollection,  projection, null, null, sortOrder)
+    private suspend fun getMediaStoreImageCursor(mediaStoreCollection: Uri): Cursor? {
+        var cursor: Cursor?
+        withContext(Dispatchers.IO) {
+            val projection = arrayOf(imageDataColumnIndex, imageIdColumnIndex)
+            val sortOrder = "DATE_ADDED DESC"
+            cursor = context.contentResolver.query(
+                mediaStoreCollection, projection, null, null, sortOrder
+            )
+        }
+        return cursor
     }
 
-    fun getLatestImageFilename(): String? {
+    suspend fun getLatestImageFilename(): String? {
         var filename: String?
         if (mediaStoreCollection == null) return null
 
@@ -62,7 +69,7 @@ class MediaStoreUtils(private val context: Context) {
         return filename
     }
 
-    fun getImages(): MutableList<MediaStoreFile> {
+    suspend fun getImages(): MutableList<MediaStoreFile> {
         val files = mutableListOf<MediaStoreFile>()
         if (mediaStoreCollection == null) return files
 

@@ -36,6 +36,7 @@ import com.android.example.cameraxbasic.utils.MediaStoreFile
 import com.android.example.cameraxbasic.utils.MediaStoreUtils
 import com.android.example.cameraxbasic.utils.padWithDisplayCutout
 import com.android.example.cameraxbasic.utils.showImmersive
+import kotlinx.coroutines.runBlocking
 
 /** Fragment used to present the user with a gallery of photos taken */
 class GalleryFragment internal constructor() : Fragment() {
@@ -65,9 +66,11 @@ class GalleryFragment internal constructor() : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Get images this app has access to from MediaStore
-        val mediaStoreUtils = MediaStoreUtils(requireContext())
-        mediaList = mediaStoreUtils.getImages()
+        runBlocking {
+            // Get images this app has access to from MediaStore
+            val mediaStoreUtils = MediaStoreUtils(requireContext())
+            mediaList = mediaStoreUtils.getImages()
+        }
     }
 
     override fun onCreateView(

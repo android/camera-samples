@@ -552,11 +552,14 @@ class CameraFragment : Fragment() {
         // Listener for button used to view the most recent photo
         cameraUiContainerBinding?.photoViewButton?.setOnClickListener {
             // Only navigate when the gallery has photos
-            if (mediaStoreUtils.getImages().isNotEmpty()) {
-                Navigation.findNavController(
-                        requireActivity(), R.id.fragment_container
-                ).navigate(CameraFragmentDirections
-                        .actionCameraToGallery(mediaStoreUtils.mediaStoreCollection.toString()))
+            lifecycleScope.launch {
+                if (mediaStoreUtils.getImages().isNotEmpty()) {
+                    Navigation.findNavController(requireActivity(), R.id.fragment_container)
+                        .navigate(CameraFragmentDirections.actionCameraToGallery(
+                            mediaStoreUtils.mediaStoreCollection.toString()
+                        )
+                    )
+                }
             }
         }
     }
