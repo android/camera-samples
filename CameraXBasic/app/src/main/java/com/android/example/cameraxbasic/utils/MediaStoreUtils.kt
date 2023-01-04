@@ -95,4 +95,4 @@ class MediaStoreUtils(private val context: Context) {
     }
 }
 
-class MediaStoreFile(val uri: Uri, val file: File, val id: Long)
+data class MediaStoreFile(val uri: Uri, val file: File, val id: Long)
