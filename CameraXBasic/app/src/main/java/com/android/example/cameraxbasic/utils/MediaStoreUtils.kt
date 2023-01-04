@@ -51,13 +51,13 @@ class MediaStoreUtils(private val context: Context) {
     }
 
     fun getLatestImageFilename(): String? {
+        var filename: String?
         if (mediaStoreCollection == null) return null
 
-        val cursor = getMediaStoreImageCursor(mediaStoreCollection)
-        if (cursor?.moveToFirst() != true) return null
-
-        val filename = cursor.getString(cursor.getColumnIndexOrThrow(imageDataColumnIndex))
-        cursor.close()
+        getMediaStoreImageCursor(mediaStoreCollection).use { cursor ->
+            if (cursor?.moveToFirst() != true) return null
+            filename = cursor.getString(cursor.getColumnIndexOrThrow(imageDataColumnIndex))
+        }
 
         return filename
     }
@@ -66,23 +66,22 @@ class MediaStoreUtils(private val context: Context) {
         val files = mutableListOf<MediaStoreFile>()
         if (mediaStoreCollection == null) return files
 
-        val cursor = getMediaStoreImageCursor(mediaStoreCollection)
-        val imageDataColumn = cursor?.getColumnIndexOrThrow(imageDataColumnIndex)
-        val imageIdColumn = cursor?.getColumnIndexOrThrow(imageIdColumnIndex)
+        getMediaStoreImageCursor(mediaStoreCollection).use { cursor ->
+            val imageDataColumn = cursor?.getColumnIndexOrThrow(imageDataColumnIndex)
+            val imageIdColumn = cursor?.getColumnIndexOrThrow(imageIdColumnIndex)
 
-        if (cursor != null && imageDataColumn != null && imageIdColumn != null) {
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(imageIdColumn)
-                val contentUri: Uri = ContentUris.withAppendedId(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    id
-                )
-                val contentFile = File(cursor.getString(imageDataColumn))
-                files.add(MediaStoreFile(contentUri, contentFile, id))
+            if (cursor != null && imageDataColumn != null && imageIdColumn != null) {
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(imageIdColumn)
+                    val contentUri: Uri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+                    val contentFile = File(cursor.getString(imageDataColumn))
+                    files.add(MediaStoreFile(contentUri, contentFile, id))
+                }
             }
         }
-
-        cursor?.close()
 
         return files
     }
