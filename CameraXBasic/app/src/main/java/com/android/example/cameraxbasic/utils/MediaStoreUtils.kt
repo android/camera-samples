@@ -37,10 +37,6 @@ import java.io.File
  */
 class MediaStoreUtils(private val context: Context) {
 
-    // Suppress DATA index deprecation warning since we need the file location for the Glide library
-    @Suppress("DEPRECATION")
-    private val imageDataColumnIndex = MediaStore.Images.Media.DATA
-    private val imageIdColumnIndex = MediaStore.Images.Media._ID
     val mediaStoreCollection: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
     } else {
@@ -89,6 +85,13 @@ class MediaStoreUtils(private val context: Context) {
         cursor?.close()
 
         return files
+    }
+
+    companion object {
+        // Suppress DATA index deprecation warning since we need the file location for the Glide library
+        @Suppress("DEPRECATION")
+        private const val imageDataColumnIndex = MediaStore.Images.Media.DATA
+        private const val imageIdColumnIndex = MediaStore.Images.Media._ID
     }
 }
 
