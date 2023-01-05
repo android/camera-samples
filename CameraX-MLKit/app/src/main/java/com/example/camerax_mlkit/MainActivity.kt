@@ -59,13 +59,6 @@ class MainActivity : AppCompatActivity() {
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
 
-        // Request camera permissions
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            requestCameraPermission()
-        }
-
         cameraExecutor = Executors.newSingleThreadExecutor()
         val options = BarcodeScannerOptions.Builder()
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
@@ -74,6 +67,16 @@ class MainActivity : AppCompatActivity() {
         val textOptions = TextRecognizerOptions.Builder().build()
         barcodeScanner = BarcodeScanning.getClient(options)
         textRecognizer = TextRecognition.getClient(textOptions)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Request camera permissions
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            requestCameraPermission()
+        }
     }
 
     private fun startCamera() {
@@ -143,8 +146,7 @@ class MainActivity : AppCompatActivity() {
                         requestMultiplePermissionLauncher.launch(REQUIRED_PERMISSIONS)
                     }.show()
             } else {
-                Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show()
-                finish()
+                requestMultiplePermissionLauncher.launch(REQUIRED_PERMISSIONS)
             }
         } else {
             Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show()
