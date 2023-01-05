@@ -51,7 +51,6 @@ import com.android.example.cameraxbasic.utils.MediaStoreUtils
 import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
@@ -457,7 +456,7 @@ class CameraFragment : Fragment() {
         )
 
         // In the background, load latest photo taken (if any) for gallery thumbnail
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch {
             val thumbnailUri = mediaStoreUtils.getLatestImageFilename()
             thumbnailUri?.let {
                 setGalleryThumbnail(it)
