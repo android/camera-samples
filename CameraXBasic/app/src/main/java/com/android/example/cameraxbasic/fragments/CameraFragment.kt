@@ -17,30 +17,23 @@
 package com.android.example.cameraxbasic.fragments
 
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.hardware.display.DisplayManager
-import android.media.MediaScannerConnection
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.camera.core.*
-import androidx.camera.core.ImageCapture.Metadata
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.core.content.ContextCompat
-import androidx.core.net.toFile
+import androidx.concurrent.futures.await
 import androidx.core.view.setPadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -49,25 +42,21 @@ import androidx.navigation.Navigation
 import androidx.window.WindowManager
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
-import com.android.example.cameraxbasic.MainActivity
 import com.android.example.cameraxbasic.R
 import com.android.example.cameraxbasic.databinding.CameraUiContainerBinding
 import com.android.example.cameraxbasic.databinding.FragmentCameraBinding
 import com.android.example.cameraxbasic.utils.ANIMATION_FAST_MILLIS
 import com.android.example.cameraxbasic.utils.ANIMATION_SLOW_MILLIS
+import com.android.example.cameraxbasic.utils.MediaStoreUtils
 import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
-import java.util.ArrayDeque
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.collections.ArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -89,8 +78,9 @@ class CameraFragment : Fragment() {
 
     private var cameraUiContainerBinding: CameraUiContainerBinding? = null
 
-    private lateinit var outputDirectory: File
     private lateinit var broadcastManager: LocalBroadcastManager
+
+    private lateinit var mediaStoreUtils: MediaStoreUtils
 
     private var displayId: Int = -1
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
@@ -169,7 +159,7 @@ class CameraFragment : Fragment() {
         return fragmentCameraBinding.root
     }
 
-    private fun setGalleryThumbnail(uri: Uri) {
+    private fun setGalleryThumbnail(filename: String) {
         // Run the operations in the view's thread
         cameraUiContainerBinding?.photoViewButton?.let { photoViewButton ->
             photoViewButton.post {
@@ -178,9 +168,9 @@ class CameraFragment : Fragment() {
 
                 // Load thumbnail into circular button using Glide
                 Glide.with(photoViewButton)
-                        .load(uri)
-                        .apply(RequestOptions.circleCropTransform())
-                        .into(photoViewButton)
+                    .load(filename)
+                    .apply(RequestOptions.circleCropTransform())
+                    .into(photoViewButton)
             }
         }
     }
@@ -201,11 +191,11 @@ class CameraFragment : Fragment() {
         // Every time the orientation of device changes, update rotation for use cases
         displayManager.registerDisplayListener(displayListener, null)
 
-        //Initialize WindowManager to retrieve display metrics
+        // Initialize WindowManager to retrieve display metrics
         windowManager = WindowManager(view.context)
 
-        // Determine the output directory
-        outputDirectory = MainActivity.getOutputDirectory(requireContext())
+        // Initialize MediaStoreUtils for fetching this app's images
+        mediaStoreUtils = MediaStoreUtils(requireContext())
 
         // Wait for the views to be properly laid out
         fragmentCameraBinding.viewFinder.post {
@@ -217,7 +207,9 @@ class CameraFragment : Fragment() {
             updateCameraUi()
 
             // Set up the camera and its use cases
-            setUpCamera()
+            lifecycleScope.launch {
+                setUpCamera()
+            }
         }
     }
 
@@ -240,26 +232,21 @@ class CameraFragment : Fragment() {
     }
 
     /** Initialize CameraX, and prepare to bind the camera use cases  */
-    private fun setUpCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-        cameraProviderFuture.addListener(Runnable {
+    private suspend fun setUpCamera() {
+        cameraProvider = ProcessCameraProvider.getInstance(requireContext()).await()
 
-            // CameraProvider
-            cameraProvider = cameraProviderFuture.get()
+        // Select lensFacing depending on the available cameras
+        lensFacing = when {
+            hasBackCamera() -> CameraSelector.LENS_FACING_BACK
+            hasFrontCamera() -> CameraSelector.LENS_FACING_FRONT
+            else -> throw IllegalStateException("Back and front camera are unavailable")
+        }
 
-            // Select lensFacing depending on the available cameras
-            lensFacing = when {
-                hasBackCamera() -> CameraSelector.LENS_FACING_BACK
-                hasFrontCamera() -> CameraSelector.LENS_FACING_FRONT
-                else -> throw IllegalStateException("Back and front camera are unavailable")
-            }
+        // Enable or disable switching between cameras
+        updateCameraSwitchButton()
 
-            // Enable or disable switching between cameras
-            updateCameraSwitchButton()
-
-            // Build and bind the camera use cases
-            bindCameraUseCases()
-        }, ContextCompat.getMainExecutor(requireContext()))
+        // Build and bind the camera use cases
+        bindCameraUseCases()
     }
 
     /** Declare and bind preview, capture and analysis use cases */
@@ -469,11 +456,10 @@ class CameraFragment : Fragment() {
         )
 
         // In the background, load latest photo taken (if any) for gallery thumbnail
-        lifecycleScope.launch(Dispatchers.IO) {
-            outputDirectory.listFiles { file ->
-                EXTENSION_WHITELIST.contains(file.extension.toUpperCase(Locale.ROOT))
-            }?.maxOrNull()?.let {
-                setGalleryThumbnail(Uri.fromFile(it))
+        lifecycleScope.launch {
+            val thumbnailUri = mediaStoreUtils.getLatestImageFilename()
+            thumbnailUri?.let {
+                setGalleryThumbnail(it)
             }
         }
 
@@ -483,20 +469,24 @@ class CameraFragment : Fragment() {
             // Get a stable reference of the modifiable image capture use case
             imageCapture?.let { imageCapture ->
 
-                // Create output file to hold the image
-                val photoFile = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION)
-
-                // Setup image capture metadata
-                val metadata = Metadata().apply {
-
-                    // Mirror image when using the front camera
-                    isReversedHorizontal = lensFacing == CameraSelector.LENS_FACING_FRONT
+                // Create time stamped name and MediaStore entry.
+                val name = SimpleDateFormat(FILENAME, Locale.US)
+                    .format(System.currentTimeMillis())
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, PHOTO_TYPE)
+                    if(Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                        val appName = requireContext().resources.getString(R.string.app_name)
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/${appName}")
+                    }
                 }
 
                 // Create output options object which contains file + metadata
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
-                        .setMetadata(metadata)
-                        .build()
+                val outputOptions = ImageCapture.OutputFileOptions
+                    .Builder(requireContext().contentResolver,
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        contentValues)
+                    .build()
 
                 // Setup image capture listener which is triggered after photo has been taken
                 imageCapture.takePicture(
@@ -506,34 +496,23 @@ class CameraFragment : Fragment() {
                     }
 
                     override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                        val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
+                        val savedUri = output.savedUri
                         Log.d(TAG, "Photo capture succeeded: $savedUri")
 
                         // We can only change the foreground Drawable using API level 23+ API
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                             // Update the gallery thumbnail with latest picture taken
-                            setGalleryThumbnail(savedUri)
+                            setGalleryThumbnail(savedUri.toString())
                         }
 
                         // Implicit broadcasts will be ignored for devices running API level >= 24
                         // so if you only target API level 24+ you can remove this statement
                         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                            // Suppress deprecated Camera usage needed for API level 23 and below
+                            @Suppress("DEPRECATION")
                             requireActivity().sendBroadcast(
                                     Intent(android.hardware.Camera.ACTION_NEW_PICTURE, savedUri)
                             )
-                        }
-
-                        // If the folder selected is an external media directory, this is
-                        // unnecessary but otherwise other apps will not be able to access our
-                        // images unless we scan them using [MediaScannerConnection]
-                        val mimeType = MimeTypeMap.getSingleton()
-                                .getMimeTypeFromExtension(savedUri.toFile().extension)
-                        MediaScannerConnection.scanFile(
-                                context,
-                                arrayOf(savedUri.toFile().absolutePath),
-                                arrayOf(mimeType)
-                        ) { _, uri ->
-                            Log.d(TAG, "Image capture scanned into media store: $uri")
                         }
                     }
                 })
@@ -572,11 +551,14 @@ class CameraFragment : Fragment() {
         // Listener for button used to view the most recent photo
         cameraUiContainerBinding?.photoViewButton?.setOnClickListener {
             // Only navigate when the gallery has photos
-            if (true == outputDirectory.listFiles()?.isNotEmpty()) {
-                Navigation.findNavController(
-                        requireActivity(), R.id.fragment_container
-                ).navigate(CameraFragmentDirections
-                        .actionCameraToGallery(outputDirectory.absolutePath))
+            lifecycleScope.launch {
+                if (mediaStoreUtils.getImages().isNotEmpty()) {
+                    Navigation.findNavController(requireActivity(), R.id.fragment_container)
+                        .navigate(CameraFragmentDirections.actionCameraToGallery(
+                            mediaStoreUtils.mediaStoreCollection.toString()
+                        )
+                    )
+                }
             }
         }
     }
@@ -613,11 +595,6 @@ class CameraFragment : Fragment() {
         private var lastAnalyzedTimestamp = 0L
         var framesPerSecond: Double = -1.0
             private set
-
-        /**
-         * Used to add listeners that will be called with each luma computed
-         */
-        fun onFrameAnalyzed(listener: LumaListener) = listeners.add(listener)
 
         /**
          * Helper extension function used to extract a byte array from an image plane buffer
@@ -688,16 +665,10 @@ class CameraFragment : Fragment() {
     }
 
     companion object {
-
         private const val TAG = "CameraXBasic"
         private const val FILENAME = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private const val PHOTO_EXTENSION = ".jpg"
+        private const val PHOTO_TYPE = "image/jpeg"
         private const val RATIO_4_3_VALUE = 4.0 / 3.0
         private const val RATIO_16_9_VALUE = 16.0 / 9.0
-
-        /** Helper function used to create a timestamped file */
-        private fun createFile(baseFolder: File, format: String, extension: String) =
-                File(baseFolder, SimpleDateFormat(format, Locale.US)
-                        .format(System.currentTimeMillis()) + extension)
     }
 }

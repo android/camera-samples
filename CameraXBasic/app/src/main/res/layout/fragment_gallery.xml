@@ -22,7 +22,7 @@
     android:background="@android:color/black"
     android:layoutDirection="ltr">
 
-    <androidx.viewpager.widget.ViewPager
+    <androidx.viewpager2.widget.ViewPager2
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/photo_view_pager" />

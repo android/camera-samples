@@ -61,6 +61,10 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.3.1'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.3.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    implementation 'androidx.viewpager2:viewpager2:1.0.0'
+
+    // Concurrent library for asynchronous coroutines
+    implementation 'androidx.concurrent:concurrent-futures-ktx:1.1.0'
 
     // Navigation library
     def nav_version = "2.3.5"
