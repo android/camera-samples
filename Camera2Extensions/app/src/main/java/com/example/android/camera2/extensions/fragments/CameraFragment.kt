@@ -18,51 +18,36 @@ package com.example.android.camera2.extensions.fragments
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.ImageFormat
-import android.graphics.Point
-import android.graphics.SurfaceTexture
-import android.hardware.camera2.CameraAccessException
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraExtensionCharacteristics
-import android.hardware.camera2.CameraExtensionSession
-import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CaptureRequest
+import android.graphics.*
+import android.hardware.camera2.*
 import android.hardware.camera2.params.ExtensionSessionConfiguration
+import android.hardware.camera2.params.MeteringRectangle
 import android.hardware.camera2.params.OutputConfiguration
 import android.media.Image
 import android.media.ImageReader
-import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
+import android.os.*
 import android.util.Log
 import android.util.Size
-import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.Surface
-import android.view.TextureView
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera2.extensions.R
+import com.example.android.camera2.extensions.ZoomUtil
 import com.example.android.camera2.extensions.databinding.FragmentCameraBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
-import java.util.ArrayList
 import java.util.stream.Collectors
-import kotlin.RuntimeException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.abs
-import kotlinx.coroutines.asExecutor
-import kotlinx.coroutines.launch
 
 /*
  * This is the main camera fragment where all camera extension logic can be found.
@@ -87,9 +72,24 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   private lateinit var stillImageReader: ImageReader
 
   /**
+   * Preview surface
+   */
+  private lateinit var previewSurface: Surface
+
+  /**
+   * Size of preview
+   */
+  private lateinit var previewSize: Size
+
+  /**
    * Camera extension characteristics for the current camera device.
    */
   private lateinit var extensionCharacteristics: CameraExtensionCharacteristics
+
+  /**
+   * Camera characteristics for the current camera device.
+   */
+  private lateinit var characteristics: CameraCharacteristics
 
   /**
    * Flag whether we should restart preview after an extension switch.
@@ -118,6 +118,38 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   private var _binding: FragmentCameraBinding? = null
   private val binding get() = _binding!!
 
+  private var zoomRatio: Float = ZoomUtil.minZoom()
+
+  /**
+   * Gesture detector used for tap to focus
+   */
+  private val tapToFocusListener = object : GestureDetector.SimpleOnGestureListener() {
+    override fun onSingleTapUp(event: MotionEvent): Boolean {
+      return tapToFocus(event)
+    }
+  }
+
+  // Define a scale gesture detector to respond to pinch events and call
+  // setZoom on Camera.Parameters.
+  private val scaleGestureListener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+    override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+      // In case there is any focus happening, stop it.
+      cancelPendingAutoFocus()
+      return true
+    }
+
+    override fun onScale(detector: ScaleGestureDetector): Boolean {
+      // Set the zoom level
+      startZoom(detector.scaleFactor)
+      return true
+    }
+  }
+
+  /**
+   * Used to dispatch auto focus cancel after a timeout
+   */
+  private val tapToFocusTimeoutHandler = Handler(Looper.getMainLooper())
+
   /**
    * Trivial capture callback implementation.
    */
@@ -135,6 +167,34 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         request: CaptureRequest
       ) {
         Log.v(TAG, "onCaptureProcessStarted")
+      }
+
+      override fun onCaptureResultAvailable(
+        session: CameraExtensionSession,
+        request: CaptureRequest,
+        result: TotalCaptureResult
+      ) {
+        Log.v(TAG, "onCaptureResultAvailable")
+        if (request.tag == AUTO_FOCUS_TAG) {
+          Log.v(TAG, "Auto focus region requested")
+
+          // Consider listening for auto focus state such as auto focus locked
+          cameraExtensionSession.stopRepeating()
+          val autoFocusRegions = request.get(CaptureRequest.CONTROL_AF_REGIONS)
+          submitRequest(
+            CameraDevice.TEMPLATE_PREVIEW,
+            previewSurface,
+            true,
+          ) { builder ->
+            builder.apply {
+              set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+              set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_IDLE)
+              set(CaptureRequest.CONTROL_AF_REGIONS, autoFocusRegions)
+            }
+          }
+
+          queueAutoFocusReset()
+        }
       }
 
       override fun onCaptureFailed(
@@ -207,7 +267,16 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     super.onViewCreated(view, savedInstanceState)
     binding.texture.surfaceTextureListener = this
 
+    val tapToFocusGestureDetector = GestureDetector(requireContext(), tapToFocusListener)
+    val scaleGestureDetector = ScaleGestureDetector(requireContext(), scaleGestureListener)
+    binding.texture.setOnTouchListener { _, event ->
+      tapToFocusGestureDetector.onTouchEvent(event)
+      scaleGestureDetector.onTouchEvent(event)
+      true
+    }
+
     extensionCharacteristics = cameraManager.getCameraExtensionCharacteristics(args.cameraId)
+    characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
     supportedExtensions.addAll(extensionCharacteristics.supportedExtensions)
     if (currentExtension == -1) {
       currentExtension = supportedExtensions[0]
@@ -238,6 +307,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
       when (event.action) {
         MotionEvent.ACTION_DOWN -> {
           lifecycleScope.launch(Dispatchers.IO) {
+            clearPendingAutoFocusReset()
             takePicture()
           }
         }
@@ -362,9 +432,9 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
       return
     }
     val texture = binding.texture.surfaceTexture
-    val previewSize = pickPreviewResolution(cameraManager, args.cameraId)
+    previewSize = pickPreviewResolution(cameraManager, args.cameraId)
     texture?.setDefaultBufferSize(previewSize.width, previewSize.height)
-    val previewSurface = Surface(texture)
+    previewSurface = Surface(texture)
     val yuvColorEncodingSystemSizes = extensionCharacteristics.getExtensionSupportedSizes(
       currentExtension, ImageFormat.YUV_420_888
     )
@@ -417,19 +487,14 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
 
         override fun onConfigured(session: CameraExtensionSession) {
           cameraExtensionSession = session
-          try {
-            val captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-            captureBuilder.addTarget(previewSurface)
-            cameraExtensionSession.setRepeatingRequest(
-              captureBuilder.build(),
-              Dispatchers.IO.asExecutor(), captureCallbacks
-            )
-          } catch (e: CameraAccessException) {
-            Toast.makeText(
-              requireActivity(), "Failed to preview capture request.",
-              Toast.LENGTH_SHORT
-            ).show()
-            requireActivity().finish()
+          submitRequest(
+            CameraDevice.TEMPLATE_PREVIEW,
+            previewSurface,
+            true
+          ) { request ->
+            request.apply {
+              set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio)
+            }
           }
         }
 
@@ -458,16 +523,47 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
    * Takes a picture.
    */
   private fun takePicture() {
+    submitRequest(
+      CameraDevice.TEMPLATE_STILL_CAPTURE,
+      stillImageReader.surface,
+      false
+    ) { request ->
+      request.apply {
+        set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio)
+      }
+    }
+  }
+
+  private fun submitRequest(
+    templateType: Int,
+    target: Surface,
+    isRepeating: Boolean,
+    block: (captureRequest: CaptureRequest.Builder) -> CaptureRequest.Builder) {
     try {
-      val captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-      captureBuilder.addTarget(stillImageReader.surface)
-      cameraExtensionSession.capture(
-        captureBuilder.build(),
-        Dispatchers.IO.asExecutor(), captureCallbacks
-      )
+      val captureBuilder = cameraDevice.createCaptureRequest(templateType)
+        .apply {
+          addTarget(target)
+          if (tag != null) {
+            setTag(tag)
+          }
+          block(this)
+        }
+      if (isRepeating) {
+        cameraExtensionSession.setRepeatingRequest(
+          captureBuilder.build(),
+          Dispatchers.IO.asExecutor(),
+          captureCallbacks
+        )
+      } else {
+        cameraExtensionSession.capture(
+          captureBuilder.build(),
+          Dispatchers.IO.asExecutor(),
+          captureCallbacks
+        )
+      }
     } catch (e: CameraAccessException) {
       Toast.makeText(
-        requireActivity(), "Camera failed to start still capture!.",
+        requireActivity(), "Camera failed to submit capture request!.",
         Toast.LENGTH_SHORT
       ).show()
     }
@@ -476,6 +572,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   override fun onStop() {
     super.onStop()
     try {
+      clearPendingAutoFocusReset()
       cameraDevice.close()
     } catch (exc: Throwable) {
       Log.e(TAG, "Error closing camera", exc)
@@ -494,15 +591,163 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     }
   }
 
+  /**
+   * Removes any pending operation to restart auto focus in continuous picture mode.
+   */
+  private fun clearPendingAutoFocusReset() {
+    tapToFocusTimeoutHandler.removeCallbacksAndMessages(null)
+  }
+
+  /**
+   * Queue operation to restart auto focus in continuous picture mode.
+   */
+  private fun queueAutoFocusReset() {
+    tapToFocusTimeoutHandler.postDelayed({
+      Log.v(TAG, "Reset auto focus back to continuous picture")
+      cameraExtensionSession.stopRepeating()
+
+      submitRequest(
+        CameraDevice.TEMPLATE_PREVIEW,
+        previewSurface,
+        true,
+      ) { builder ->
+        builder.apply {
+          set(
+            CaptureRequest.CONTROL_AF_MODE,
+            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+          )
+        }
+      }
+    }, AUTO_FOCUS_TIMEOUT_MILLIS)
+  }
+
+  /**
+   * Handles the tap to focus event.
+   * This will cancel any existing focus operation and restart it at the new point.
+   * Note: If the device doesn't support auto focus then this operation will abort and return
+   * false.
+   */
+  private fun tapToFocus(event: MotionEvent): Boolean {
+    if (!hasAutoFocusMeteringSupport()) {
+      return false
+    }
+
+    cameraExtensionSession.stopRepeating()
+    cancelPendingAutoFocus()
+    startAutoFocus(meteringRectangle(event))
+
+    return true
+  }
+
+  /**
+   * Not all camera extensions have auto focus metering support.
+   * Returns true if auto focus metering is supported otherwise false.
+   */
+  private fun hasAutoFocusMeteringSupport(): Boolean {
+    if (characteristics.get(CameraCharacteristics.CONTROL_MAX_REGIONS_AF) == 0) {
+      return false
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      val availableExtensionRequestKeys =
+        extensionCharacteristics.getAvailableCaptureRequestKeys(currentExtension)
+      return availableExtensionRequestKeys.contains(CaptureRequest.CONTROL_AF_TRIGGER) &&
+              availableExtensionRequestKeys.contains(CaptureRequest.CONTROL_AF_MODE) &&
+              availableExtensionRequestKeys.contains(CaptureRequest.CONTROL_AF_REGIONS)
+    }
+
+    return false
+  }
+
+  /**
+   * Translates a touch event relative to the preview surface to a region relative to the sensor.
+   * Note: This operation does not account for zoom / crop and should be handled otherwise the touch
+   * point won't correctly map to the sensor.
+   */
+  private fun meteringRectangle(event: MotionEvent): MeteringRectangle {
+    val sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)!!
+    val sensorSize = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)!!
+
+    val halfMeteringRectWidth = (METERING_RECTANGLE_SIZE * sensorSize.width()) / 2
+    val halfMeteringRectHeight = (METERING_RECTANGLE_SIZE * sensorSize.height()) / 2
+
+    // Normalize the [x,y] touch point in the view port to values in the range of [0,1]
+    val normalizedPoint = floatArrayOf(event.x / previewSize.width, event.y / previewSize.height)
+
+    // Scale and rotate the normalized point such that it maps to the sensor region
+    Matrix().apply {
+      postRotate(-sensorOrientation.toFloat(), 0.5f, 0.5f)
+      postScale(sensorSize.width().toFloat(), sensorSize.height().toFloat())
+      mapPoints(normalizedPoint)
+    }
+
+    val meteringRegion = Rect(
+      (normalizedPoint[0] - halfMeteringRectWidth).toInt().coerceIn(0, sensorSize.width()),
+      (normalizedPoint[1] - halfMeteringRectHeight).toInt().coerceIn(0, sensorSize.height()),
+      (normalizedPoint[0] + halfMeteringRectWidth).toInt().coerceIn(0, sensorSize.width()),
+      (normalizedPoint[1] + halfMeteringRectHeight).toInt().coerceIn(0, sensorSize.height())
+    )
+
+    return MeteringRectangle(meteringRegion, MeteringRectangle.METERING_WEIGHT_MAX)
+  }
+
+  private fun startAutoFocus(meteringRectangle: MeteringRectangle) {
+    submitRequest(
+      CameraDevice.TEMPLATE_PREVIEW,
+      previewSurface,
+      true,
+    ) { request ->
+      request.apply {
+        set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(meteringRectangle))
+        set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+        set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START)
+        setTag(AUTO_FOCUS_TAG)
+      }
+    }
+  }
+
+  private fun cancelPendingAutoFocus() {
+    clearPendingAutoFocusReset()
+    submitRequest(
+      CameraDevice.TEMPLATE_PREVIEW,
+      previewSurface,
+      false
+    ) { request ->
+      request.apply {
+        set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio)
+        set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+        set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START)
+      }
+    }
+  }
+
+  private fun startZoom(scaleFactor: Float) {
+    zoomRatio =
+      (zoomRatio * scaleFactor).coerceIn(ZoomUtil.minZoom(), ZoomUtil.maxZoom(characteristics))
+    Log.d(TAG, "onScale: $zoomRatio")
+    submitRequest(
+      CameraDevice.TEMPLATE_PREVIEW,
+      previewSurface,
+      true
+    ) { request ->
+      request.apply {
+        set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio)
+      }
+    }
+  }
+
   companion object {
     private val TAG = CameraFragment::class.java.simpleName
+    private const val AUTO_FOCUS_TAG = "auto_focus_tag"
+    private const val AUTO_FOCUS_TIMEOUT_MILLIS = 5_000L
+    private const val METERING_RECTANGLE_SIZE = 0.15f
 
     private fun getExtensionLabel(extension: Int): String {
       return when (extension) {
         CameraExtensionCharacteristics.EXTENSION_HDR -> "HDR"
         CameraExtensionCharacteristics.EXTENSION_NIGHT -> "NIGHT"
         CameraExtensionCharacteristics.EXTENSION_BOKEH -> "BOKEH"
-        CameraExtensionCharacteristics.EXTENSION_BEAUTY -> "BEAUTY"
+        CameraExtensionCharacteristics.EXTENSION_FACE_RETOUCH-> "FACE RETOUCH"
         else -> "AUTO"
       }
     }
