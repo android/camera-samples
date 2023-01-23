@@ -632,6 +632,9 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
       return false
     }
 
+    // Reset zoom -- TODO(Support zoom and tap to focus)
+    zoomRatio = ZoomUtil.minZoom()
+
     cameraExtensionSession.stopRepeating()
     cancelPendingAutoFocus()
     startAutoFocus(meteringRectangle(event))
