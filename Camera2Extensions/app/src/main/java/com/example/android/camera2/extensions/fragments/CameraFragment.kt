@@ -675,7 +675,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     val halfMeteringRectHeight = (METERING_RECTANGLE_SIZE * sensorSize.height()) / 2
 
     // Normalize the [x,y] touch point in the view port to values in the range of [0,1]
-    val normalizedPoint = floatArrayOf(event.x / previewSize.width, event.y / previewSize.height)
+    val normalizedPoint = floatArrayOf(event.x / previewSize.height, event.y / previewSize.width)
 
     // Scale and rotate the normalized point such that it maps to the sensor region
     Matrix().apply {
@@ -698,7 +698,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     submitRequest(
       CameraDevice.TEMPLATE_PREVIEW,
       previewSurface,
-      true,
+      false,
     ) { request ->
       request.apply {
         set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(meteringRectangle))
@@ -714,7 +714,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     submitRequest(
       CameraDevice.TEMPLATE_PREVIEW,
       previewSurface,
-      false
+      true
     ) { request ->
       request.apply {
         set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio)
