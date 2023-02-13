@@ -133,6 +133,10 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   // setZoom on Camera.Parameters.
   private val scaleGestureListener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
     override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+      if (!hasZoomSupport()) {
+        return false
+      }
+
       // In case there is any focus happening, stop it.
       cancelPendingAutoFocus()
       return true
@@ -661,6 +665,21 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
 
     return false
   }
+
+  /**
+   * Not all camera extensions have zoom support.
+   * Returns true if zoom is supported otherwise false.
+   */
+  private fun hasZoomSupport(): Boolean {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      val availableExtensionRequestKeys =
+        extensionCharacteristics.getAvailableCaptureRequestKeys(currentExtension)
+      return availableExtensionRequestKeys.contains(CaptureRequest.CONTROL_ZOOM_RATIO)
+    }
+
+    return false
+  }
+
 
   /**
    * Translates a touch event relative to the preview surface to a region relative to the sensor.
