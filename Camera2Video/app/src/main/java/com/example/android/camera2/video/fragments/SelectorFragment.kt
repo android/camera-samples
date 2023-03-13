@@ -72,8 +72,14 @@ class SelectorFragment : Fragment() {
                     if (android.os.Build.VERSION.SDK_INT >=
                             android.os.Build.VERSION_CODES.TIRAMISU) {
                         val characteristics = cameraManager.getCameraCharacteristics(item.cameraId)
-                        dynamicRangeProfiles = characteristics.get(
-                                CameraCharacteristics.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES)
+                        val capabilities = characteristics.get(
+                                CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)!!
+                        if (capabilities.contains(CameraCharacteristics
+                                .REQUEST_AVAILABLE_CAPABILITIES_DYNAMIC_RANGE_TEN_BIT)) {
+                            dynamicRangeProfiles = characteristics.get(
+                                    CameraCharacteristics.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES)
+                        }
+
                         val previewStabilizationModes = characteristics.get(
                                 CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)!!
                         supportsPreviewStabilization = previewStabilizationModes.contains(
