@@ -76,24 +76,19 @@ class DynamicRangeFragment : Fragment() {
         val navController =
             Navigation.findNavController(requireActivity(), R.id.fragment_container)
 
-        if (supportsPreviewStabilization(args.cameraId, cameraManager)) {
+        if (supportsPreviewStabilization(cameraManager)) {
             navController.navigate(
                     DynamicRangeFragmentDirections.actionDynamicRangeToPreviewStabilization(
                             args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
-        } else if (dynamicRangeProfile == DynamicRangeProfiles.STANDARD) {
+        } else {
             navController.navigate(
                     DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
                             args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile,
                             false))
-        } else {
-            navController.navigate(DynamicRangeFragmentDirections.actionDynamicRangeToPreview(
-                    args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile, false,
-                    false, false))
         }
     }
 
-    private fun supportsPreviewStabilization(cameraId: String,
-            cameraManager: CameraManager) : Boolean {
+    private fun supportsPreviewStabilization(cameraManager: CameraManager) : Boolean {
         val characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
         val previewStabilizationModes = characteristics.get(
             CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)!!

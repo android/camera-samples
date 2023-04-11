@@ -212,6 +212,52 @@
             app:launchSingleTop="true"
             app:destination="@id/preview_fragment" />
 
+        <action
+            android:id="@+id/action_filter_to_transfer"
+            app:launchSingleTop="true"
+            app:destination="@id/transfer_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/transfer_fragment"
+        android:name="com.example.android.camera2.video.fragments.TransferFragment"
+        android:label="Transfer" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
+
+        <argument
+            android:name="filterOn"
+            app:argType="boolean" />
+
+        <action
+            android:id="@+id/action_transfer_to_preview"
+            app:launchSingleTop="true"
+            app:destination="@id/preview_fragment" />
+
     </fragment>
 
     <fragment
@@ -251,6 +297,10 @@
         <argument
             android:name="useHardware"
             app:argType="boolean" />
+
+        <argument
+            android:name="transfer"
+            app:argType="integer" />
 
         <action
             android:id="@+id/action_preview_to_permissions"

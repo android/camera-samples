@@ -79,8 +79,9 @@ class EncoderWrapper(width: Int,
         if (codecProfile != -1) {
             format.setInteger(MediaFormat.KEY_PROFILE, codecProfile)
             format.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020)
-            format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+            format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_FULL)
             format.setInteger(MediaFormat.KEY_COLOR_TRANSFER, getTransferFunction(codecProfile))
+            format.setFeatureEnabled(MediaCodecInfo.CodecCapabilities.FEATURE_HdrEditing, true)
         }
 
         if (VERBOSE) Log.d(TAG, "format: " + format)

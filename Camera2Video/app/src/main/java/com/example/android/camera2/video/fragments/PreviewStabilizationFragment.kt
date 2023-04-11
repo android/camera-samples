@@ -67,18 +67,10 @@ class PreviewStabilizationFragment : Fragment() {
         val navController =
                 Navigation.findNavController(requireActivity(), R.id.fragment_container)
 
-        if (args.dynamicRange == DynamicRangeProfiles.STANDARD) {
-            navController.navigate(
-                    PreviewStabilizationFragmentDirections.actionPreviewStabilizationToRecordMode(
-                    args.cameraId, args.width, args.height, args.fps,
-                    DynamicRangeProfiles.STANDARD, stabilizationOn))
-        } else {
-            navController.navigate(
-                    PreviewStabilizationFragmentDirections.actionPreviewStabilizationToPreview(
-                    args.cameraId, args.width, args.height, args.fps,
-                    args.dynamicRange, stabilizationOn, false, false)
-            )
-        }
+        navController.navigate(
+                PreviewStabilizationFragmentDirections.actionPreviewStabilizationToRecordMode(
+                args.cameraId, args.width, args.height, args.fps,
+                args.dynamicRange, stabilizationOn))
     }
 
     companion object {

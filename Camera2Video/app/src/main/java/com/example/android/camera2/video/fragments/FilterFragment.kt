@@ -61,11 +61,19 @@ class FilterFragment : Fragment() {
                 view.setOnClickListener {
                     val navController =
                             Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                    navController.navigate(
-                        FilterFragmentDirections.actionFilterToPreview(
-                        args.cameraId, args.width, args.height, args.fps,
-                        DynamicRangeProfiles.STANDARD, args.previewStabilization,
-                        item.value, true))
+                    if (args.dynamicRange == DynamicRangeProfiles.STANDARD) {
+                        navController.navigate(
+                            FilterFragmentDirections.actionFilterToPreview(
+                            args.cameraId, args.width, args.height, args.fps,
+                            args.dynamicRange, args.previewStabilization,
+                            item.value, true, 0))
+                    } else {
+                        navController.navigate(
+                            FilterFragmentDirections.actionFilterToTransfer(
+                            args.cameraId, args.width, args.height, args.fps,
+                            args.dynamicRange, args.previewStabilization,
+                            item.value))
+                    }
                 }
             }
         }
