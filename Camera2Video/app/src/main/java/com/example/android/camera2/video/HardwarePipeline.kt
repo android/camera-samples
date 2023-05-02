@@ -849,7 +849,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             val texId = buffer.get(0)
             GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MIN_FILTER,
-                    GLES30.GL_NEAREST)
+                    GLES30.GL_LINEAR)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MAG_FILTER,
                     GLES30.GL_LINEAR)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_WRAP_S,
