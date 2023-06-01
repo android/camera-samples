@@ -911,13 +911,13 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
             /** The camera display is not the same size as the video. Letterbox the preview so that
                 we can see exactly how the video will turn out. */
-            if (previewAspectRatio < cameraAspectRatio) {
+            if (previewAspectRatio > cameraAspectRatio) {
                 /** Avoid vertical stretching */
-                viewportHeight = (viewportWidth.toFloat() / cameraAspectRatio).toInt()
+                viewportHeight = ((viewportHeight.toFloat() / previewAspectRatio) * cameraAspectRatio).toInt()
                 viewportY = (previewSize.height - viewportHeight) / 2
             } else {
                 /** Avoid horizontal stretching */
-                viewportWidth = (viewportHeight.toFloat() * cameraAspectRatio).toInt()
+                viewportWidth = ((viewportWidth.toFloat() / cameraAspectRatio) * previewAspectRatio).toInt()
                 viewportX = (previewSize.width - viewportWidth) / 2
             }
 
