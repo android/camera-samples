@@ -51,7 +51,9 @@ abstract class Pipeline(width: Int, height: Int, fps: Int, filterOn: Boolean,
 
     open public fun createResources(surface: Surface) { }
 
-    public abstract fun getTargets(): List<Surface>
+    public abstract fun getPreviewTargets(): List<Surface>
+
+    public abstract fun getRecordTargets(): List<Surface>
 
     open public fun actionDown(encoderSurface: Surface) { }
 

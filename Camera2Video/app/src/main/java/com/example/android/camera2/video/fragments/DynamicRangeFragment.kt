@@ -82,7 +82,7 @@ class DynamicRangeFragment : Fragment() {
                             args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
         } else {
             navController.navigate(
-                    DynamicRangeFragmentDirections.actionDynamicRangeToRecordMode(
+                    DynamicRangeFragmentDirections.actionDynamicRangeToEncodeApi(
                             args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile,
                             false))
         }

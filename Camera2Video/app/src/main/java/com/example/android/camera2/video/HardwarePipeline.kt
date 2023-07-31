@@ -399,7 +399,11 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                 RenderHandler.MSG_CREATE_RESOURCES, 0, 0, surface))
     }
 
-    override fun getTargets(): List<Surface> {
+    override fun getPreviewTargets(): List<Surface> {
+        return renderHandler.getTargets()
+    }
+
+    override fun getRecordTargets(): List<Surface> {
         return renderHandler.getTargets()
     }
 
@@ -849,7 +853,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             val texId = buffer.get(0)
             GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MIN_FILTER,
-                    GLES30.GL_NEAREST)
+                    GLES30.GL_LINEAR)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MAG_FILTER,
                     GLES30.GL_LINEAR)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_WRAP_S,
@@ -911,13 +915,13 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
             /** The camera display is not the same size as the video. Letterbox the preview so that
                 we can see exactly how the video will turn out. */
-            if (previewAspectRatio < cameraAspectRatio) {
+            if (previewAspectRatio > cameraAspectRatio) {
                 /** Avoid vertical stretching */
-                viewportHeight = (viewportWidth.toFloat() / cameraAspectRatio).toInt()
+                viewportHeight = ((viewportHeight.toFloat() / previewAspectRatio) * cameraAspectRatio).toInt()
                 viewportY = (previewSize.height - viewportHeight) / 2
             } else {
                 /** Avoid horizontal stretching */
-                viewportWidth = (viewportHeight.toFloat() * cameraAspectRatio).toInt()
+                viewportWidth = ((viewportWidth.toFloat() / cameraAspectRatio) * previewAspectRatio).toInt()
                 viewportX = (previewSize.width - viewportWidth) / 2
             }
 

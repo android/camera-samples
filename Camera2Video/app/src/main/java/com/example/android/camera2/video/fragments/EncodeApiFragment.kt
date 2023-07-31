@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,11 +34,11 @@ import com.example.android.camera.utils.GenericListAdapter
 import com.example.android.camera2.video.R
 
 /**
- * In this [Fragment] we let users pick whether or not preview stabilization is on.
+ * In this [Fragment] we let users pick the encoding API to use (MediaCodec or MediaRecorder)
  */
-class PreviewStabilizationFragment : Fragment() {
+class EncodeApiFragment : Fragment() {
 
-    private val args: PreviewStabilizationFragmentArgs by navArgs()
+    private val args: EncodeApiFragmentArgs by navArgs()
 
     override fun onCreateView(
             inflater: LayoutInflater,
@@ -63,27 +63,27 @@ class PreviewStabilizationFragment : Fragment() {
         }
     }
 
-    private fun navigate(stabilizationOn: Boolean) {
+    private fun navigate(useMediaRecorder: Boolean) {
         val navController =
                 Navigation.findNavController(requireActivity(), R.id.fragment_container)
 
         navController.navigate(
-                PreviewStabilizationFragmentDirections.actionPreviewStabilizationToEncodeApi(
+                EncodeApiFragmentDirections.actionEncodeApiToRecordMode(
                 args.cameraId, args.width, args.height, args.fps,
-                args.dynamicRange, stabilizationOn))
+                args.dynamicRange, args.previewStabilization, useMediaRecorder))
     }
 
     companion object {
-        private data class ModeInfo(
+        private data class ApiInfo(
                 val name: String,
                 val value: Boolean)
 
         @SuppressLint("InlinedApi")
-        private fun enumerateModes(): List<ModeInfo> {
-            val modeList: MutableList<ModeInfo> = mutableListOf()
+        private fun enumerateModes(): List<ApiInfo> {
+            val modeList: MutableList<ApiInfo> = mutableListOf()
 
-            modeList.add(ModeInfo("Stabilization On", true))
-            modeList.add(ModeInfo("Stabilization Off", false))
+            modeList.add(ApiInfo("MediaCodec", false))
+            modeList.add(ApiInfo("MediaRecorder", true))
 
             return modeList
         }
