@@ -948,8 +948,6 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
             encoder.frameAvailable()
 
-            EGLExt.eglPresentationTimeANDROID(eglDisplay, eglEncoderSurface,
-                    cameraTexture.getTimestamp())
             EGL14.eglSwapBuffers(eglDisplay, eglEncoderSurface)
         }
 

@@ -287,7 +287,8 @@ class PreviewFragment : Fragment() {
         val previewTargets = pipeline.getPreviewTargets()
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
-        session = createCaptureSession(camera, previewTargets, cameraHandler)
+        session = createCaptureSession(camera, previewTargets, cameraHandler,
+                recordingCompleteOnClose = (pipeline !is SoftwarePipeline))
 
         // Sends the capture request as frequently as possible until the session is torn down or
         //  session.stopRepeating() is called
@@ -323,7 +324,8 @@ class PreviewFragment : Fragment() {
                             val recordTargets = pipeline.getRecordTargets()
 
                             session.close()
-                            session = createCaptureSession(camera, recordTargets, cameraHandler)
+                            session = createCaptureSession(camera, recordTargets, cameraHandler,
+                                    recordingCompleteOnClose = true)
 
                             session.setRepeatingRequest(recordRequest,
                                     object : CameraCaptureSession.CaptureCallback() {
@@ -352,6 +354,7 @@ class PreviewFragment : Fragment() {
                     encoder.waitForFirstFrame()
 
                     session.stopRepeating()
+                    session.close()
 
                     pipeline.clearFrameListener()
                     fragmentBinding.captureButton.setOnTouchListener(null)
@@ -464,7 +467,8 @@ class PreviewFragment : Fragment() {
     private suspend fun createCaptureSession(
             device: CameraDevice,
             targets: List<Surface>,
-            handler: Handler
+            handler: Handler,
+            recordingCompleteOnClose: Boolean
     ): CameraCaptureSession = suspendCoroutine { cont ->
         val stateCallback = object: CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
@@ -476,8 +480,8 @@ class PreviewFragment : Fragment() {
             }
 
             /** Called after all captures have completed - shut down the encoder */
-            override fun onReady(session: CameraCaptureSession) {
-                if (!isCurrentlyRecording()) {
+            override fun onClosed(session: CameraCaptureSession) {
+                if (!recordingCompleteOnClose or !isCurrentlyRecording()) {
                     return
                 }
 
