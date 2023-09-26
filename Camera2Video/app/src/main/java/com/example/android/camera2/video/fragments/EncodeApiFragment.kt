@@ -70,7 +70,7 @@ class EncodeApiFragment : Fragment() {
         navController.navigate(
                 EncodeApiFragmentDirections.actionEncodeApiToRecordMode(
                 args.cameraId, args.width, args.height, args.fps,
-                args.dynamicRange, args.previewStabilization, useMediaRecorder))
+                args.dynamicRange, args.colorSpace, args.previewStabilization, useMediaRecorder))
     }
 
     companion object {

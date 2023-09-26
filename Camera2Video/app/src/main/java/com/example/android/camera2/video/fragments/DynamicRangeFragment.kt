@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.params.ColorSpaceProfiles
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.os.Bundle
 import android.util.Size
@@ -76,20 +77,36 @@ class DynamicRangeFragment : Fragment() {
         val navController =
             Navigation.findNavController(requireActivity(), R.id.fragment_container)
 
-        if (supportsPreviewStabilization(cameraManager)) {
+        val characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
+
+        if (supportsColorSpaces(characteristics)) {
+            navController.navigate(
+                    DynamicRangeFragmentDirections.actionDynamicRangeToColorSpace(
+                            args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
+        } else if (supportsPreviewStabilization(characteristics)) {
             navController.navigate(
                     DynamicRangeFragmentDirections.actionDynamicRangeToPreviewStabilization(
-                            args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile))
+                            args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile,
+                            ColorSpaceProfiles.UNSPECIFIED))
         } else {
             navController.navigate(
                     DynamicRangeFragmentDirections.actionDynamicRangeToEncodeApi(
                             args.cameraId, args.width, args.height, args.fps, dynamicRangeProfile,
-                            false))
+                            ColorSpaceProfiles.UNSPECIFIED, false))
         }
     }
 
-    private fun supportsPreviewStabilization(cameraManager: CameraManager) : Boolean {
-        val characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
+    private fun supportsColorSpaces(characteristics: CameraCharacteristics): Boolean {
+        if (android.os.Build.VERSION.SDK_INT >=
+                    android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val colorSpaceProfiles = characteristics.get(
+                CameraCharacteristics.REQUEST_AVAILABLE_COLOR_SPACE_PROFILES)
+            return colorSpaceProfiles != null
+        }
+        return false
+    }
+
+    private fun supportsPreviewStabilization(characteristics: CameraCharacteristics) : Boolean {
         val previewStabilizationModes = characteristics.get(
             CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)!!
         return previewStabilizationModes.contains(

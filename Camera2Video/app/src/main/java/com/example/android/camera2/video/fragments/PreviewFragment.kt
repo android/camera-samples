@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.ColorSpace
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
@@ -28,6 +29,7 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
+import android.hardware.camera2.params.ColorSpaceProfiles
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
@@ -452,6 +454,11 @@ class PreviewFragment : Fragment() {
 
             val sessionConfig = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,
                     outputConfigs, HandlerExecutor(handler), stateCallback)
+            if (android.os.Build.VERSION.SDK_INT >=
+                    android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && args.colorSpace != ColorSpaceProfiles.UNSPECIFIED) {
+                sessionConfig.setColorSpace(ColorSpace.Named.values()[args.colorSpace])
+            }
             device.createCaptureSession(sessionConfig)
             return true
         } else {

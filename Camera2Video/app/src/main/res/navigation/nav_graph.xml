@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ~ Copyright 2020 The Android Open Source Project
+  ~ Copyright 2023 The Android Open Source Project
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -43,6 +43,10 @@
             app:destination="@id/dynamic_range_fragment" />
 
         <action
+            android:id="@+id/action_selector_to_color_space"
+            app:destination="@id/color_space_fragment" />
+
+        <action
             android:id="@+id/action_selector_to_preview_stabilization"
             app:destination="@id/preview_stabilization_fragment" />
 
@@ -76,12 +80,55 @@
             app:argType="integer" />
 
         <action
+            android:id="@+id/action_dynamic_range_to_color_space"
+            app:launchSingleTop="true"
+            app:destination="@id/color_space_fragment" />
+
+        <action
             android:id="@+id/action_dynamic_range_to_preview_stabilization"
             app:launchSingleTop="true"
             app:destination="@id/preview_stabilization_fragment" />
 
         <action
             android:id="@+id/action_dynamic_range_to_encode_api"
+            app:launchSingleTop="true"
+            app:destination="@id/encode_api_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/color_space_fragment"
+        android:name="com.example.android.camera2.video.fragments.ColorSpaceFragment"
+        android:label="ColorSpace" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <action
+            android:id="@+id/action_color_space_to_preview_stabilization"
+            app:launchSingleTop="true"
+            app:destination="@id/preview_stabilization_fragment" />
+
+        <action
+            android:id="@+id/action_color_space_to_encode_api"
             app:launchSingleTop="true"
             app:destination="@id/encode_api_fragment" />
 
@@ -112,6 +159,10 @@
         <argument
             android:name="dynamicRange"
             app:argType="long" />
+
+        <argument
+            android:name="colorSpace"
+            app:argType="integer" />
 
         <action
             android:id="@+id/action_preview_stabilization_to_encode_api"
@@ -145,6 +196,10 @@
         <argument
             android:name="dynamicRange"
             app:argType="long" />
+
+        <argument
+            android:name="colorSpace"
+            app:argType="integer" />
 
         <argument
             android:name="previewStabilization"
@@ -182,6 +237,10 @@
         <argument
             android:name="dynamicRange"
             app:argType="long" />
+
+        <argument
+            android:name="colorSpace"
+            app:argType="integer" />
 
         <argument
             android:name="previewStabilization"
@@ -230,6 +289,10 @@
             app:argType="long" />
 
         <argument
+            android:name="colorSpace"
+            app:argType="integer" />
+
+        <argument
             android:name="previewStabilization"
             app:argType="boolean" />
 
@@ -276,6 +339,10 @@
             app:argType="long" />
 
         <argument
+            android:name="colorSpace"
+            app:argType="integer" />
+
+        <argument
             android:name="previewStabilization"
             app:argType="boolean" />
 
@@ -319,6 +386,10 @@
         <argument
             android:name="dynamicRange"
             app:argType="long" />
+
+        <argument
+            android:name="colorSpace"
+            app:argType="integer" />
 
         <argument
             android:name="previewStabilization"
