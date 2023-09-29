@@ -23,14 +23,13 @@ buildscript {
     ext.camerax_version = '1.4.0-alpha03'
     ext.coroutines_version = '1.6.0'
     ext.lifecycle_version = '2.5.1'
-    ext.camerax = '1.2.0-alpha04'
 
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.3.0'
+        classpath 'com.android.tools.build:gradle:8.1.1'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
 
         // NOTE: Do not place your application dependencies here; they belong
