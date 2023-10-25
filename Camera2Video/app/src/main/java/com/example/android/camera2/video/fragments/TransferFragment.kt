@@ -63,7 +63,7 @@ class TransferFragment : Fragment() {
                     val direction = TransferFragmentDirections.actionTransferToPreview(
                             args.cameraId, args.width, args.height, args.fps,
                             args.dynamicRange, args.colorSpace, args.previewStabilization,
-                            args.useMediaRecorder, args.filterOn, true, item.id)
+                            args.useMediaRecorder, args.videoCodec, args.filterOn, true, item.id)
                     navController.navigate(direction)
                 }
             }

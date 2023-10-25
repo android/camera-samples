@@ -68,7 +68,7 @@ class EncodeApiFragment : Fragment() {
                 Navigation.findNavController(requireActivity(), R.id.fragment_container)
 
         navController.navigate(
-                EncodeApiFragmentDirections.actionEncodeApiToRecordMode(
+                EncodeApiFragmentDirections.actionEncodeApiToVideoCodec(
                 args.cameraId, args.width, args.height, args.fps,
                 args.dynamicRange, args.colorSpace, args.previewStabilization, useMediaRecorder))
     }

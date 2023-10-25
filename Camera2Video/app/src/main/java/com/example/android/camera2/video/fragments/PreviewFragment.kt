@@ -241,7 +241,8 @@ class PreviewFragment : Fragment() {
         }
 
         return EncoderWrapper(width, height, RECORDER_VIDEO_BITRATE, args.fps,
-                args.dynamicRange, orientationHint, outputFile, args.useMediaRecorder)
+                args.dynamicRange, orientationHint, outputFile, args.useMediaRecorder,
+                args.videoCodec)
     }
 
     /**
