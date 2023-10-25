@@ -170,7 +170,7 @@ void main() {
 
 /** Passthrough fragment shader, simply copies from the source texture */
 private val PASSTHROUGH_FSHADER = """
-#extension GL_OES_EGL_image_external_essl3 : require
+#extension GL_OES_EGL_image_external : require
 precision mediump float;
 varying vec2 vTextureCoord;
 uniform samplerExternalOES sTexture;
