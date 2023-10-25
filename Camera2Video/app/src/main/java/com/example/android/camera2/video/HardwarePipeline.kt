@@ -170,7 +170,7 @@ void main() {
 
 /** Passthrough fragment shader, simply copies from the source texture */
 private val PASSTHROUGH_FSHADER = """
-#extension GL_OES_EGL_image_external : require
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 varying vec2 vTextureCoord;
 uniform samplerExternalOES sTexture;
@@ -180,7 +180,7 @@ void main() {
 """
 
 private val PASSTHROUGH_HDR_FSHADER = """#version 300 es
-#extension GL_OES_EGL_image_external : require
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 in vec2 vTextureCoord;
 uniform samplerExternalOES sTexture;
@@ -192,7 +192,7 @@ void main() {
 
 private val YUV_TO_RGB_PASSTHROUGH_HDR_FSHADER = """#version 300 es
 #extension GL_EXT_YUV_target : require
-#extension GL_OES_EGL_image_external : require
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 uniform __samplerExternal2DY2YEXT sTexture;
 in vec2 vTextureCoord;
@@ -208,7 +208,7 @@ void main() {
 
 private val YUV_TO_RGB_PORTRAIT_HDR_FSHADER = """#version 300 es
 #extension GL_EXT_YUV_target : require
-#extension GL_OES_EGL_image_external : require
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 uniform __samplerExternal2DY2YEXT sTexture;
 in vec2 vTextureCoord;
@@ -260,7 +260,7 @@ void main() {
 """
 
 private val HLG_TO_LINEAR_HDR_FSHADER = """#version 300 es
-#extension GL_OES_EGL_image_external : require
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 uniform samplerExternalOES sTexture;
 in vec2 vTextureCoord;
@@ -278,7 +278,7 @@ void main() {
 """
 
 private val HLG_TO_PQ_HDR_FSHADER = """#version 300 es
-#extension GL_OES_EGL_image_external : require
+#extension GL_OES_EGL_image_external_essl3 : require
 precision mediump float;
 uniform samplerExternalOES sTexture;
 in vec2 vTextureCoord;
