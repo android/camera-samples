@@ -376,10 +376,10 @@ class PreviewFragment : Fragment() {
 
                     delay(CameraActivity.ANIMATION_SLOW_MILLIS)
 
+                    pipeline.cleanup()
+
                     Log.d(TAG, "Recording stopped. Output file: $outputFile")
                     encoder.shutdown()
-
-                    pipeline.cleanup()
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
@@ -512,6 +512,8 @@ class PreviewFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
+        pipeline.clearFrameListener()
+        pipeline.cleanup()
         cameraThread.quitSafely()
         encoderSurface.release()
     }

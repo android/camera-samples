@@ -388,6 +388,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
     override fun destroyWindowSurface() {
         renderHandler.sendMessage(renderHandler.obtainMessage(
                 RenderHandler.MSG_DESTROY_WINDOW_SURFACE))
+        renderHandler.waitDestroyWindowSurface()
     }
 
     override fun setPreviewSize(previewSize: Size) {
@@ -415,11 +416,13 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
     override fun clearFrameListener() {
         renderHandler.sendMessage(renderHandler.obtainMessage(
                 RenderHandler.MSG_CLEAR_FRAME_LISTENER))
+        renderHandler.waitClearFrameListener()
     }
 
     override fun cleanup() {
         renderHandler.sendMessage(renderHandler.obtainMessage(
                 RenderHandler.MSG_CLEANUP))
+        renderHandler.waitCleanup()
     }
 
     private class ShaderProgram(id: Int,
@@ -513,9 +516,9 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         private var eglDisplay = EGL14.EGL_NO_DISPLAY
         private var eglContext = EGL14.EGL_NO_CONTEXT
         private var eglConfig: EGLConfig? = null
-        private var eglRenderSurface: EGLSurface? = null
-        private var eglEncoderSurface: EGLSurface? = null
-        private var eglWindowSurface: EGLSurface? = null
+        private var eglRenderSurface: EGLSurface = EGL14.EGL_NO_SURFACE
+        private var eglEncoderSurface: EGLSurface = EGL14.EGL_NO_SURFACE
+        private var eglWindowSurface: EGLSurface = EGL14.EGL_NO_SURFACE
         private var vertexShader = 0
         private var cameraToRenderFragmentShader = 0
         private var renderToPreviewFragmentShader = 0
@@ -526,6 +529,9 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         private var renderToEncodeShaderProgram: ShaderProgram? = null
 
         private val cvResourcesCreated = ConditionVariable(false)
+        private val cvDestroyWindowSurface = ConditionVariable(false)
+        private val cvClearFrameListener = ConditionVariable(false)
+        private val cvCleanup = ConditionVariable(false)
 
         public fun startRecording() {
             currentlyRecording = true
@@ -865,7 +871,12 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
         private fun destroyWindowSurface() {
             EGL14.eglDestroySurface(eglDisplay, eglWindowSurface)
-            eglWindowSurface = null
+            eglWindowSurface = EGL14.EGL_NO_SURFACE
+            cvDestroyWindowSurface.open()
+        }
+
+        public fun waitDestroyWindowSurface() {
+            cvDestroyWindowSurface.block()
         }
 
         private fun copyTexture(texId: Int, texture: SurfaceTexture, viewportRect: Rect,
@@ -964,36 +975,54 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
         private fun clearFrameListener() {
             cameraTexture.setOnFrameAvailableListener(null)
+            cvClearFrameListener.open()
+        }
+
+        public fun waitClearFrameListener() {
+            cvClearFrameListener.block()
         }
 
         private fun cleanup() {
             EGL14.eglDestroySurface(eglDisplay, eglEncoderSurface)
-            eglEncoderSurface = null
+            eglEncoderSurface = EGL14.EGL_NO_SURFACE
             EGL14.eglDestroySurface(eglDisplay, eglRenderSurface)
-            eglRenderSurface = null
+            eglRenderSurface = EGL14.EGL_NO_SURFACE
 
             cameraTexture.release()
 
             EGL14.eglDestroyContext(eglDisplay, eglContext)
+
+            eglDisplay = EGL14.EGL_NO_DISPLAY
+            eglContext = EGL14.EGL_NO_CONTEXT
+
+            cvCleanup.open()
+        }
+
+        public fun waitCleanup() {
+            cvCleanup.block()
         }
 
         @Suppress("UNUSED_PARAMETER")
         private fun onFrameAvailableImpl(surfaceTexture: SurfaceTexture) {
+            if (eglContext == EGL14.EGL_NO_CONTEXT) {
+                return
+            }
+
             /** The camera API does not update the tex image. Do so here. */
             cameraTexture.updateTexImage()
 
             /** Copy from the camera texture to the render texture */
-            if (eglRenderSurface != null) {
+            if (eglRenderSurface != EGL14.EGL_NO_SURFACE) {
                 copyCameraToRender()
             }
 
             /** Copy from the render texture to the TextureView */
-            if (eglWindowSurface != null) {
+            if (eglWindowSurface != EGL14.EGL_NO_SURFACE) {
                 copyRenderToPreview()
             }
 
             /** Copy to the encoder surface if we're currently recording. */
-            if (eglEncoderSurface != null && currentlyRecording) {
+            if (eglEncoderSurface != EGL14.EGL_NO_SURFACE && currentlyRecording) {
                 copyRenderToEncode()
             }
         }
