@@ -681,6 +681,21 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             }
 
             if (eglWindowSurface != EGL_NO_SURFACE) {
+                /**
+                 * This is only experimental for the transfer function. It is intended to be
+                 * supplied alongside CTA 861.3 metadata
+                 * https://registry.khronos.org/EGL/extensions/EXT/EGL_EXT_surface_CTA861_3_metadata.txt.
+                 * which describes the max and average luminance of the content).
+                 *
+                 * The display will use these parameters to map the source content colors to a
+                 * colors that fill the display's capabilities.
+                 *
+                 * Without providing these parameters, the display will assume "reasonable defaults",
+                 * which may not be accurate for the source content. This would most likely result
+                 * in inaccurate colors, although the exact effect is device-dependent.
+                 *
+                 * The parameters needs to be tuned.
+                 * */
                 if (isHDR() and (transfer == TransferFragment.PQ_ID)) {
                     val SMPTE2086_MULTIPLIER = 50000
                     EGL14.eglSurfaceAttrib(
