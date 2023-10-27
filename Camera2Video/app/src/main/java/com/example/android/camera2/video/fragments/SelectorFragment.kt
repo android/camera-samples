@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.params.ColorSpaceProfiles
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.media.MediaRecorder
 import android.os.Bundle
@@ -65,13 +66,14 @@ class SelectorFragment : Fragment() {
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
                 view.setOnClickListener {
                     var dynamicRangeProfiles: DynamicRangeProfiles? = null
+                    var colorSpaceProfiles: ColorSpaceProfiles? = null
                     var supportsPreviewStabilization = false
+                    val characteristics = cameraManager.getCameraCharacteristics(item.cameraId)
 
                     // DynamicRangeProfiles is introduced in android Tiramisu. If the SDK residing on
                     // our device is older, do not call the non-existant paths.
                     if (android.os.Build.VERSION.SDK_INT >=
                             android.os.Build.VERSION_CODES.TIRAMISU) {
-                        val characteristics = cameraManager.getCameraCharacteristics(item.cameraId)
                         val capabilities = characteristics.get(
                                 CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)!!
                         if (capabilities.contains(CameraCharacteristics
@@ -86,6 +88,12 @@ class SelectorFragment : Fragment() {
                                 CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION)
                     }
 
+                    if (android.os.Build.VERSION.SDK_INT >=
+                                android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        colorSpaceProfiles = characteristics.get(
+                            CameraCharacteristics.REQUEST_AVAILABLE_COLOR_SPACE_PROFILES)
+                    }
+
                     val navController =
                         Navigation.findNavController(requireActivity(), R.id.fragment_container)
 
@@ -95,16 +103,22 @@ class SelectorFragment : Fragment() {
                         navController.navigate(
                             SelectorFragmentDirections.actionSelectorToDynamicRange(
                             item.cameraId, item.size.width, item.size.height, item.fps))
+                    } else if (colorSpaceProfiles != null) {
+                        navController.navigate(
+                            SelectorFragmentDirections.actionSelectorToColorSpace(
+                                item.cameraId, item.size.width, item.size.height, item.fps,
+                                DynamicRangeProfiles.STANDARD))
                     } else if (supportsPreviewStabilization) {
                         navController.navigate(
                             SelectorFragmentDirections.actionSelectorToPreviewStabilization(
                             item.cameraId, item.size.width, item.size.height, item.fps,
-                            DynamicRangeProfiles.STANDARD))
+                            DynamicRangeProfiles.STANDARD, ColorSpaceProfiles.UNSPECIFIED))
                     } else {
                         navController.navigate(
                             SelectorFragmentDirections.actionSelectorToEncodeApi(
                             item.cameraId, item.size.width, item.size.height, item.fps,
-                            DynamicRangeProfiles.STANDARD, /*previewStabilization*/ false))
+                            DynamicRangeProfiles.STANDARD, ColorSpaceProfiles.UNSPECIFIED,
+                            /*previewStabilization*/ false))
                     }
                 }
             }

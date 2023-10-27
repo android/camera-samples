@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,13 +66,14 @@ class RecordModeFragment : Fragment() {
                         navController.navigate(
                             RecordModeFragmentDirections.actionRecordModeToFilter(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization, args.useMediaRecorder))
+                            args.dynamicRange, args.colorSpace, args.previewStabilization,
+                            args.useMediaRecorder))
                     } else {
                         navController.navigate(
                             RecordModeFragmentDirections.actionRecordModeToPreview(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization, args.useMediaRecorder,
-                            false, false, 0))
+                            args.dynamicRange, args.colorSpace, args.previewStabilization,
+                            args.useMediaRecorder, false, false, 0))
                     }
                 }
             }

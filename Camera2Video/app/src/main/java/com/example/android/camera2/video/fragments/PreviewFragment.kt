@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.ColorSpace
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
@@ -28,6 +29,7 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
+import android.hardware.camera2.params.ColorSpaceProfiles
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
@@ -287,7 +289,8 @@ class PreviewFragment : Fragment() {
         val previewTargets = pipeline.getPreviewTargets()
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
-        session = createCaptureSession(camera, previewTargets, cameraHandler)
+        session = createCaptureSession(camera, previewTargets, cameraHandler,
+                recordingCompleteOnClose = (pipeline !is SoftwarePipeline))
 
         // Sends the capture request as frequently as possible until the session is torn down or
         //  session.stopRepeating() is called
@@ -323,7 +326,8 @@ class PreviewFragment : Fragment() {
                             val recordTargets = pipeline.getRecordTargets()
 
                             session.close()
-                            session = createCaptureSession(camera, recordTargets, cameraHandler)
+                            session = createCaptureSession(camera, recordTargets, cameraHandler,
+                                    recordingCompleteOnClose = true)
 
                             session.setRepeatingRequest(recordRequest,
                                     object : CameraCaptureSession.CaptureCallback() {
@@ -352,6 +356,7 @@ class PreviewFragment : Fragment() {
                     encoder.waitForFirstFrame()
 
                     session.stopRepeating()
+                    session.close()
 
                     pipeline.clearFrameListener()
                     fragmentBinding.captureButton.setOnTouchListener(null)
@@ -371,10 +376,10 @@ class PreviewFragment : Fragment() {
 
                     delay(CameraActivity.ANIMATION_SLOW_MILLIS)
 
+                    pipeline.cleanup()
+
                     Log.d(TAG, "Recording stopped. Output file: $outputFile")
                     encoder.shutdown()
-
-                    pipeline.cleanup()
 
                     // Broadcasts the media file to the rest of the system
                     MediaScannerConnection.scanFile(
@@ -449,6 +454,11 @@ class PreviewFragment : Fragment() {
 
             val sessionConfig = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,
                     outputConfigs, HandlerExecutor(handler), stateCallback)
+            if (android.os.Build.VERSION.SDK_INT >=
+                    android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && args.colorSpace != ColorSpaceProfiles.UNSPECIFIED) {
+                sessionConfig.setColorSpace(ColorSpace.Named.values()[args.colorSpace])
+            }
             device.createCaptureSession(sessionConfig)
             return true
         } else {
@@ -464,7 +474,8 @@ class PreviewFragment : Fragment() {
     private suspend fun createCaptureSession(
             device: CameraDevice,
             targets: List<Surface>,
-            handler: Handler
+            handler: Handler,
+            recordingCompleteOnClose: Boolean
     ): CameraCaptureSession = suspendCoroutine { cont ->
         val stateCallback = object: CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
@@ -476,8 +487,8 @@ class PreviewFragment : Fragment() {
             }
 
             /** Called after all captures have completed - shut down the encoder */
-            override fun onReady(session: CameraCaptureSession) {
-                if (!isCurrentlyRecording()) {
+            override fun onClosed(session: CameraCaptureSession) {
+                if (!recordingCompleteOnClose or !isCurrentlyRecording()) {
                     return
                 }
 
@@ -501,6 +512,8 @@ class PreviewFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
+        pipeline.clearFrameListener()
+        pipeline.cleanup()
         cameraThread.quitSafely()
         encoderSurface.release()
     }

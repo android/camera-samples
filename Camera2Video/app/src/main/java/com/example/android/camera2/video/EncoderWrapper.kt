@@ -50,8 +50,13 @@ class EncoderWrapper(width: Int,
         val IFRAME_INTERVAL = 1 // sync one frame every second
     }
 
+    private val mWidth = width
+    private val mHeight = height
+    private val mBitRate = bitRate
+    private val mFrameRate = frameRate
+    private val mDynamicRange = dynamicRange
     private val mOrientationHint = orientationHint
-
+    private val mOutputFile = outputFile
     private val mUseMediaRecorder = useMediaRecorder
 
     private val mMimeType = when {
@@ -79,17 +84,48 @@ class EncoderWrapper(width: Int,
     private val mInputSurface: Surface by lazy {
         if (useMediaRecorder) {
             // Get a persistent Surface from MediaCodec, don't forget to release when done
-            MediaCodec.createPersistentInputSurface()
+            val surface = MediaCodec.createPersistentInputSurface()
+
+            // Prepare and release a dummy MediaRecorder with our new surface
+            // Required to allocate an appropriately sized buffer before passing the Surface as the
+            //  output target to the capture session
+            createRecorder(surface).apply {
+                prepare()
+                release()
+            }
+
+            surface
         } else {
             mEncoder!!.createInputSurface()
         }
     }
 
-    private val mMediaRecorder: MediaRecorder? by lazy {
-        if (useMediaRecorder) {
-            MediaRecorder()
-        } else {
-            null
+    private var mMediaRecorder: MediaRecorder? = null
+
+    private fun createRecorder(surface: Surface): MediaRecorder {
+        return MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFile(mOutputFile.absolutePath)
+            setVideoEncodingBitRate(mBitRate)
+            if (mFrameRate > 0) setVideoFrameRate(mFrameRate)
+            setVideoSize(mWidth, mHeight)
+
+            val videoEncoder = when {
+                mDynamicRange == DynamicRangeProfiles.STANDARD ->
+                        MediaRecorder.VideoEncoder.H264
+                mDynamicRange < DynamicRangeProfiles.PUBLIC_MAX ->
+                        MediaRecorder.VideoEncoder.HEVC
+                else -> throw IllegalArgumentException("Unknown dynamic range format")
+            }
+
+            setVideoEncoder(videoEncoder)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioEncodingBitRate(16)
+            setAudioSamplingRate(44100)
+            setInputSurface(surface)
+            setOrientationHint(mOrientationHint)
         }
     }
 
@@ -98,30 +134,7 @@ class EncoderWrapper(width: Int,
      */
     init {
         if (useMediaRecorder) {
-            mMediaRecorder!!.apply {
-                Log.i(TAG, "useMediaRecorder");
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setVideoSource(MediaRecorder.VideoSource.SURFACE)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setOutputFile(outputFile.absolutePath)
-                setVideoEncodingBitRate(bitRate)
-                if (frameRate > 0) setVideoFrameRate(frameRate)
-                setVideoSize(width, height)
-
-                val videoEncoder = when {
-                    dynamicRange == DynamicRangeProfiles.STANDARD ->
-                            MediaRecorder.VideoEncoder.H264
-                    dynamicRange < DynamicRangeProfiles.PUBLIC_MAX ->
-                            MediaRecorder.VideoEncoder.HEVC
-                    else -> throw IllegalArgumentException("Unknown dynamic range format")
-                }
-
-                setVideoEncoder(videoEncoder)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(16)
-                setAudioSamplingRate(44100)
-                setInputSurface(mInputSurface)
-            }
+            mMediaRecorder = createRecorder(mInputSurface)
         } else {
             val codecProfile = when {
                 dynamicRange == DynamicRangeProfiles.HLG10 ->
