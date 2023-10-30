@@ -17,4 +17,5 @@
     <string name="app_name">Camera2Video</string>
     <string name="capture">Capture</string>
     <string name="error_file_not_found">Recorded file not found</string>
+    <string name="recorder_shutdown_error">Recording stops too fast, please press longer</string>
 </resources>

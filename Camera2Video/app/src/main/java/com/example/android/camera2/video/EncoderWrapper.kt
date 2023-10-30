@@ -209,11 +209,23 @@ class EncoderWrapper(width: Int,
      * <p>
      * Does not return until the encoder thread has stopped.
      */
-    public fun shutdown() {
+    public fun shutdown(): Boolean {
         if (VERBOSE) Log.d(TAG, "releasing encoder objects")
 
         if (mUseMediaRecorder) {
-            mMediaRecorder!!.stop()
+            try {
+                mMediaRecorder!!.stop()
+            } catch (e: RuntimeException) {
+                // https://developer.android.com/reference/android/media/MediaRecorder.html#stop()
+                // RuntimeException will be thrown if no valid audio/video data has been received
+                // when stop() is called, it usually happens when stop() is called immediately after
+                // start(). In this case the output file is not properly constructed ans should be
+                // deleted.
+                Log.d(TAG, "RuntimeException: stop() is called immediately after start()");
+                //noinspection ResultOfMethodCallIgnored
+                mOutputFile.delete()
+                return false
+            }
         } else {
             val handler = mEncoderThread!!.getHandler()
             handler.sendMessage(handler.obtainMessage(EncoderThread.EncoderHandler.MSG_SHUTDOWN))
@@ -226,6 +238,7 @@ class EncoderWrapper(width: Int,
             mEncoder!!.stop()
             mEncoder!!.release()
         }
+        return true
     }
 
     /**

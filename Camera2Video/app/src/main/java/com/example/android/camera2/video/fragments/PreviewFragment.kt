@@ -369,30 +369,38 @@ class PreviewFragment : Fragment() {
                     pipeline.cleanup()
 
                     Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                    encoder.shutdown()
 
-                    // Broadcasts the media file to the rest of the system
-                    MediaScannerConnection.scanFile(
-                            requireView().context, arrayOf(outputFile.absolutePath), null, null)
+                    if (encoder.shutdown()) {
+                        // Broadcasts the media file to the rest of the system
+                        MediaScannerConnection.scanFile(
+                                requireView().context, arrayOf(outputFile.absolutePath), null, null)
 
-                    // Launch external activity via intent to play video recorded using our provider
-                    if (outputFile.exists()) {
-                        startActivity(Intent().apply {
-                            action = Intent.ACTION_VIEW
-                            type = MimeTypeMap.getSingleton()
-                                    .getMimeTypeFromExtension(outputFile.extension)
-                            val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                            data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                    Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        })
+                        if (outputFile.exists()) {
+                            // Launch external activity via intent to play video recorded using our provider
+                            startActivity(Intent().apply {
+                                action = Intent.ACTION_VIEW
+                                type = MimeTypeMap.getSingleton()
+                                        .getMimeTypeFromExtension(outputFile.extension)
+                                val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                                data = FileProvider.getUriForFile(view.context, authority, outputFile)
+                                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            })
+                        } else {
+                            // TODO: 
+                            //  1. Move the callback to ACTION_DOWN, activating it on the second press
+                            //  2. Add an animation to the button before the user can press it again
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(activity, R.string.error_file_not_found,
+                                        Toast.LENGTH_LONG).show()
+                            }
+                        }
                     } else {
                         Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(activity, R.string.error_file_not_found,
+                            Toast.makeText(activity, R.string.recorder_shutdown_error,
                                     Toast.LENGTH_LONG).show()
                         }
                     }
-
                     navController.popBackStack()
                 }
             }
