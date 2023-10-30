@@ -20,29 +20,24 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.graphics.Color
 import android.graphics.ColorSpace
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.ColorSpaceProfiles
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
 import android.media.MediaScannerConnection
 import android.os.Bundle
 import android.os.ConditionVariable
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.util.Log
-import android.util.Range
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
@@ -50,18 +45,18 @@ import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
-import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
+import com.example.android.camera2.video.EncoderWrapper
 import com.example.android.camera2.video.R
 import com.example.android.camera2.video.databinding.FragmentPreviewBinding
 import kotlinx.coroutines.Dispatchers
@@ -72,15 +67,11 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.RuntimeException
+import java.util.concurrent.Executor
+import java.util.concurrent.RejectedExecutionException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-
-import com.example.android.camera2.video.EncoderWrapper
-
-import java.util.concurrent.Executor
-import java.util.concurrent.RejectedExecutionException
 
 class PreviewFragment : Fragment() {
 
@@ -146,26 +137,6 @@ class PreviewFragment : Fragment() {
 
     /** [Handler] corresponding to [cameraThread] */
     private val cameraHandler = Handler(cameraThread.looper)
-
-    /** Performs recording animation of flashing screen */
-    private val animationTask: Runnable by lazy {
-        Runnable {
-            // Flash white animation
-            fragmentBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
-            // Wait for ANIMATION_FAST_MILLIS
-            fragmentBinding.overlay.postDelayed({
-                if (isCurrentlyRecording()) {
-                    // Remove white flash animation
-                    fragmentBinding.overlay.foreground = null
-                    // Restart animation recursively
-                    if (isCurrentlyRecording()) {
-                        fragmentBinding.overlay.postDelayed(animationTask,
-                                CameraActivity.ANIMATION_FAST_MILLIS)
-                    }
-                }
-            }, CameraActivity.ANIMATION_FAST_MILLIS)
-        }
-    }
 
     /** Captures frames from a [CameraDevice] for our video recording */
     private lateinit var session: CameraCaptureSession
@@ -344,8 +315,16 @@ class PreviewFragment : Fragment() {
                         recordingStartMillis = System.currentTimeMillis()
                         Log.d(TAG, "Recording started")
 
-                        // Starts recording animation
-                        fragmentBinding.overlay.post(animationTask)
+                        // Set color to RED and show timer when recording begins
+                        fragmentBinding.captureButton.post {
+                            fragmentBinding.captureButton.background =
+                                    context?.let {
+                                        ContextCompat.getDrawable(it,
+                                                R.drawable.ic_shutter_pressed)
+                                    }
+                            fragmentBinding.captureTimer?.visibility = View.VISIBLE
+                            fragmentBinding.captureTimer?.start()
+                        }
                     }
                 }
 
@@ -360,6 +339,17 @@ class PreviewFragment : Fragment() {
 
                     pipeline.clearFrameListener()
                     fragmentBinding.captureButton.setOnTouchListener(null)
+
+                    // Set color to GRAY and hide timer when recording stops
+                    fragmentBinding.captureButton.post {
+                        fragmentBinding.captureButton.background =
+                                context?.let {
+                                    ContextCompat.getDrawable(it,
+                                            R.drawable.ic_shutter_normal)
+                                }
+                        fragmentBinding.captureTimer?.visibility = View.GONE
+                        fragmentBinding.captureTimer?.stop()
+                    }
 
                     /* Wait until the session signals onReady */
                     cvRecordingComplete.block()
@@ -386,15 +376,22 @@ class PreviewFragment : Fragment() {
                             requireView().context, arrayOf(outputFile.absolutePath), null, null)
 
                     // Launch external activity via intent to play video recorded using our provider
-                    startActivity(Intent().apply {
-                        action = Intent.ACTION_VIEW
-                        type = MimeTypeMap.getSingleton()
-                                .getMimeTypeFromExtension(outputFile.extension)
-                        val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                        data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    })
+                    if (outputFile.exists()) {
+                        startActivity(Intent().apply {
+                            action = Intent.ACTION_VIEW
+                            type = MimeTypeMap.getSingleton()
+                                    .getMimeTypeFromExtension(outputFile.extension)
+                            val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                            data = FileProvider.getUriForFile(view.context, authority, outputFile)
+                            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        })
+                    } else {
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(activity, R.string.error_file_not_found,
+                                    Toast.LENGTH_LONG).show()
+                        }
+                    }
 
                     navController.popBackStack()
                 }

@@ -21,8 +21,8 @@
     android:viewportHeight="74">
     <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
         android:pathData="M73.1,37C73.1,17.0637 56.9373,0.9 37,0.9C17.0627,0.9 0.9,17.0637 0.9,37C0.9,56.9373 17.0627,73.1 37,73.1C56.9373,73.1 73.1,56.9373 73.1,37"
-        android:strokeColor="#00000000" android:strokeWidth="1"/>
-    <path android:fillColor="#58A0C4" android:fillType="evenOdd"
+        android:strokeColor="#ffff4444" android:strokeWidth="1"/>
+    <path android:fillColor="#ffff4444" android:fillType="evenOdd"
         android:pathData="M67.4,37C67.4,53.7895 53.7895,67.4 37,67.4C20.2105,67.4 6.6,53.7895 6.6,37C6.6,20.2105 20.2105,6.6 37,6.6C53.7895,6.6 67.4,20.2105 67.4,37"
-        android:strokeColor="#00000000" android:strokeWidth="1"/>
+        android:strokeColor="#ffff4444" android:strokeWidth="1"/>
 </vector>
