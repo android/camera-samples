@@ -22,6 +22,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.graphics.ColorSpace
+import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
@@ -43,6 +44,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.util.Range
+import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
@@ -62,6 +64,7 @@ import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
+import com.example.android.camera2.video.FeatureCombination
 import com.example.android.camera2.video.R
 import com.example.android.camera2.video.databinding.FragmentPreviewBinding
 import kotlinx.coroutines.Dispatchers
@@ -173,6 +176,9 @@ class PreviewFragment : Fragment() {
     /** The [CameraDevice] that will be opened in this fragment */
     private lateinit var camera: CameraDevice
 
+    /** The [FeatureCombination] that will be used to initialize camera */
+    private lateinit var validFeatureCombination: FeatureCombination
+
     /** Requests used for preview only in the [CameraCaptureSession] */
     private val previewRequest: CaptureRequest? by lazy {
         pipeline.createPreviewRequest(session, args.previewStabilization)
@@ -233,7 +239,7 @@ class PreviewFragment : Fragment() {
                     height: Int) = Unit
 
             override fun surfaceCreated(holder: SurfaceHolder) {
-
+                setValidFeatureCombination()
                 // Selects appropriate preview size and configures view finder
                 val previewSize = getPreviewOutputSize(
                         fragmentBinding.viewFinder.display, characteristics, SurfaceHolder::class.java)
@@ -246,6 +252,7 @@ class PreviewFragment : Fragment() {
                 // To ensure that size is set, initialize camera in the view's thread
                 fragmentBinding.viewFinder.post {
                     pipeline.createResources(holder.surface)
+                    // Camera is already opened here
                     initializeCamera()
                 }
             }
@@ -281,10 +288,6 @@ class PreviewFragment : Fragment() {
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
-
-        // Open the selected camera
-        camera = openCamera(cameraManager, args.cameraId, cameraHandler)
-
         // Creates list of Surfaces where the camera will output frames
         val previewTargets = pipeline.getPreviewTargets()
 
@@ -436,6 +439,76 @@ class PreviewFragment : Fragment() {
     }
 
     /**
+     * Testing some static feature combinations
+     */
+    private fun setValidFeatureCombination() = lifecycleScope.launch(Dispatchers.Main) {
+        camera = openCamera(cameraManager, args.cameraId, cameraHandler)
+        val emptyStateCallback = object: CameraCaptureSession.StateCallback() {
+            override fun onConfigured(session: CameraCaptureSession) {}
+            override fun onConfigureFailed(session: CameraCaptureSession) {}
+            override fun onReady(session: CameraCaptureSession) {}
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val resolution4K = Size(3840, 2160);
+            val resolution1080p = Size(1920, 1080);
+
+            val hlg = DynamicRangeProfiles.HLG10;
+            val hdr = DynamicRangeProfiles.HDR10;
+            val standardDynamicRange = DynamicRangeProfiles.STANDARD;
+
+            val fps60 = Range(60, 60);
+            val fps30 = Range(30, 60);
+
+            val previewStabilization = CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION;
+            val standardStabilization = CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON;
+            val noStabilization = CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_OFF;
+
+            val acceptableCombinations = arrayOf(
+                    FeatureCombination(resolution4K, hlg, fps60, previewStabilization),
+                    // FeatureCombination(resolution4K, hdr, fps60, previewStabilization),
+                    // FeatureCombination(resolution4K, hdr, fps30, previewStabilization),
+                    FeatureCombination(resolution4K, hlg, fps30, previewStabilization),
+                    // FeatureCombination(resolution1080p, hdr, fps30, previewStabilization),
+                    FeatureCombination(resolution1080p, hlg, fps30, standardStabilization),
+                    FeatureCombination(resolution1080p, standardDynamicRange, fps30, noStabilization),
+            )
+
+            for (combination: FeatureCombination in acceptableCombinations) {
+                try {
+                    val outputConfigs = mutableListOf<OutputConfiguration>()
+                    val outputConfig = OutputConfiguration(combination.getResolution(), SurfaceTexture::class.java)
+                    outputConfig.setDynamicRangeProfile(combination.getDynamicRangeProfile())
+                    outputConfigs.add(outputConfig)
+
+                    sessionConfig = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,
+                            outputConfigs, HandlerExecutor(cameraHandler), emptyStateCallback)
+
+                    val builder: CaptureRequest.Builder = device.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                    builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, combination.getFpsRange())
+                    builder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, combination.getVideoStabilization())
+                    val request = builder.build()
+
+                    sessionConfig.setSessionParameters(request)
+
+                    Log.i(TAG, "====== TESTING combination ======")
+                    Log.i(TAG, combination.toString())
+                    val isSupported: Boolean = device.isSessionConfigurationSupported(sessionConfig);
+                    Log.i(TAG, "supported: $isSupported")
+                    if (isSupported) {
+                        // combination works
+                        validFeatureCombination = combination
+                        break
+                    }
+                } catch (exception: Exception) {
+                    Log.i(TAG, "The given combination does not work because of the following exception:")
+                    Log.i(TAG, exception.toString());
+                }
+            }
+        }
+    }
+
+    /**
      * Creates a [CameraCaptureSession] with the dynamic range profile set.
      */
     private fun setupSessionWithDynamicRangeProfile(
@@ -498,7 +571,24 @@ class PreviewFragment : Fragment() {
             }
         }
 
-        setupSessionWithDynamicRangeProfile(device, targets, handler, stateCallback)
+        val outputConfigs = mutableListOf<OutputConfiguration>()
+        for (target in targets) {
+            val outputConfig = OutputConfiguration(target)
+            outputConfig.setDynamicRangeProfile(validFeatureCombination.getDynamicRangeProfile())
+            outputConfigs.add(outputConfig)
+        }
+
+        val sessionConfig = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,
+                outputConfigs, HandlerExecutor(handler), stateCallback)
+
+        val builder: CaptureRequest.Builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+        builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, validFeatureCombination.getFpsRange())
+        builder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, validFeatureCombination.getVideoStabilization())
+        val request = builder.build()
+        sessionConfig.setSessionParameters(request)
+
+        device.createCaptureSession(sessionConfig)
+        // setupSessionWithDynamicRangeProfile(device, targets, handler, stateCallback)
     }
 
     override fun onStop() {
