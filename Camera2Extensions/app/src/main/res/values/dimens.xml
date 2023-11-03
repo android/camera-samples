@@ -17,7 +17,14 @@
 
 <resources>
   <dimen name="button_padding">20dp</dimen>
+  <dimen name="circle_indicator_padding">24dp</dimen>
   <dimen name="image_button_width">96dp</dimen>
   <dimen name="image_button_height">96dp</dimen>
   <dimen name="image_button_bottom_margin">96dp</dimen>
+  <dimen name="postview_image_height">90dp</dimen>
+  <dimen name="postview_image_width">120dp</dimen>
+  <dimen name="progress_info_padding">8dp</dimen>
+  <dimen name="progress_info_margin">24dp</dimen>
+  <dimen name="text_size_progress_state">32sp</dimen>
+  <dimen name="text_size_latency_duration">24sp</dimen>
 </resources>
