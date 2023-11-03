@@ -20,6 +20,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
 import android.hardware.camera2.*
+import android.hardware.camera2.CameraExtensionSession.StillCaptureLatency
 import android.hardware.camera2.params.ExtensionSessionConfiguration
 import android.hardware.camera2.params.MeteringRectangle
 import android.hardware.camera2.params.OutputConfiguration
@@ -33,21 +34,41 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.navArgs
+import com.example.android.camera.utils.YuvToRgbConverter
 import com.example.android.camera2.extensions.R
 import com.example.android.camera2.extensions.ZoomUtil
 import com.example.android.camera2.extensions.databinding.FragmentCameraBinding
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asExecutor
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import com.google.android.material.slider.Slider
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import java.util.stream.Collectors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.abs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+/**
+ * The still capture progress is in DONE state.
+ */
+private const val PROGRESS_STATE_DONE = 0
+/**
+ * The still capture progress is in HOLD_STILL state which should show a message to request the end
+ * users to hold still.
+ */
+private const val PROGRESS_STATE_HOLD_STILL = 1
+/**
+ * The still capture progress is in STILL_PROCESSING state which should show a message to let the
+ * end users know the still image is under processing.
+ */
+private const val PROGRESS_STATE_STILL_PROCESSING = 2
 
 /*
  * This is the main camera fragment where all camera extension logic can be found.
@@ -121,6 +142,107 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   private var zoomRatio: Float = ZoomUtil.minZoom()
 
   /**
+   * Track the extension strength support for current extension mode.
+   */
+  private var isExtensionStrengthAvailable = false
+
+  /**
+   * Track the extension strength setting.
+   */
+  private var extensionStrength = -1
+  /**
+   * Track the postview support for current extension mode.
+   */
+  private var isPostviewAvailable = false
+  /**
+   * Track the capture process progress support for current extension mode.
+   */
+  private var isCaptureProcessProgressAvailable = false
+  /**
+   * A reference to the image reader to receive the postview when it can be supported for current
+   * extension mode.
+   */
+  private var postviewImageReader: ImageReader? = null
+  /**
+   * A ScheduledFuture for repeatedly updating the capture progress info.
+   */
+  private var progressInfoScheduledFuture: ScheduledFuture<*>? = null
+  /**
+   * Track the process state of current still capture request.
+   */
+  private var progressState = PROGRESS_STATE_DONE
+  /**
+   * Track the still capture latency of current still capture request.
+   */
+  private var stillCaptureLatency: StillCaptureLatency? = null
+  /**
+   *  Track the HOLD_STILL or STILL_PROCESSING start timestamp of current still capture request.
+   */
+  private var progressStartTimestampMs: Long = 0
+  /**
+   * Track the capture processing progress of current still capture request.
+   */
+  private var captureProcessingProgress = -1
+
+  /**
+   * Calculates the remaining duration for the latency of current state.
+   *
+   * The duration is calculated against the start timestamp which was stored when current process
+   * state was begun.
+   */
+  private fun calculateRemainingDurationInMs(): Long {
+    // Only supported when API level is 34 or above
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      return 0
+    }
+
+    // Only supported when capture latency info is provided
+    if (stillCaptureLatency == null) {
+      return 0
+    }
+
+    val currentTimestampMs = SystemClock.elapsedRealtime()
+    val pastTimeMs = currentTimestampMs - progressStartTimestampMs
+    val remainingTimeMs = if (progressState == PROGRESS_STATE_HOLD_STILL) {
+      stillCaptureLatency!!.captureLatency - pastTimeMs
+    } else {
+      stillCaptureLatency!!.processingLatency - pastTimeMs
+    }
+
+    return if (remainingTimeMs > 0) remainingTimeMs else 0
+  }
+
+  /**
+   * Calculates the process progress for the latency of current state.
+   *
+   * The progress is calculated against the total latency duration of current state.
+   */
+  private fun calculateProgressByRemainingDuration(): Int {
+    // Only supported when API level is 34 or above
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      return 0
+    }
+
+    // Only supported when capture latency info is provided
+    if (stillCaptureLatency == null) {
+      return 0
+    }
+
+    val currentTimestampMs = SystemClock.elapsedRealtime()
+    val pastTimeMs = currentTimestampMs - progressStartTimestampMs
+    return (if (progressState == PROGRESS_STATE_HOLD_STILL) {
+      pastTimeMs * 100 / stillCaptureLatency!!.captureLatency
+    } else {
+      pastTimeMs * 100 / stillCaptureLatency!!.processingLatency
+    }).toInt()
+  }
+
+  /**
+   * Lens facing of the working camera
+   */
+  private var lensFacing = CameraCharacteristics.LENS_FACING_BACK
+
+  /**
    * Gesture detector used for tap to focus
    */
   private val tapToFocusListener = object : GestureDetector.SimpleOnGestureListener() {
@@ -171,6 +293,14 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         request: CaptureRequest
       ) {
         Log.v(TAG, "onCaptureProcessStarted")
+        // Turns to STILL_PROCESSING stage when the request tag is STILL_CAPTURE_TAG
+        if (request.tag == STILL_CAPTURE_TAG && progressState == PROGRESS_STATE_HOLD_STILL) {
+          progressState = PROGRESS_STATE_STILL_PROCESSING
+          progressStartTimestampMs = SystemClock.elapsedRealtime()
+          requireActivity().runOnUiThread {
+            binding.progressState?.text = getString(R.string.state_still_processing)
+          }
+        }
       }
 
       override fun onCaptureResultAvailable(
@@ -199,6 +329,23 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
 
           queueAutoFocusReset()
         }
+
+        // The initial extension strength value will be provided by the capture results. Checks it
+        // to set and show the slider for end users to adjust their preferred strength setting.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+          isExtensionStrengthAvailable && extensionStrength == -1 &&
+          result.keys.contains(CaptureResult.EXTENSION_STRENGTH)
+        ) {
+          result.get(CaptureResult.EXTENSION_STRENGTH)?.let {
+            extensionStrength = it
+            requireActivity().runOnUiThread {
+              binding.strengthSlider?.apply {
+                value = extensionStrength.toFloat()
+                visibility = View.VISIBLE
+              }
+            }
+          }
+        }
       }
 
       override fun onCaptureFailed(
@@ -206,6 +353,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         request: CaptureRequest
       ) {
         Log.v(TAG, "onCaptureProcessFailed")
+        hideCaptureProgressUI()
       }
 
       override fun onCaptureSequenceCompleted(
@@ -220,6 +368,45 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         sequenceId: Int
       ) {
         Log.v(TAG, "onCaptureProcessSequenceAborted: $sequenceId")
+        hideCaptureProgressUI()
+      }
+
+      override fun onCaptureProcessProgressed(
+        session: CameraExtensionSession,
+        request: CaptureRequest,
+        progress: Int,
+      ) {
+        // Caches current processing progress and updates the progress info
+        captureProcessingProgress = progress
+        updateProgressInfo()
+      }
+    }
+
+  /**
+   * The slide OnChangeListener implementation for receiving the value change and submitting the
+   * request to change the extension strength setting.
+   */
+  private val sliderOnChangeListener: Slider.OnChangeListener =
+    object : Slider.OnChangeListener {
+      override fun onValueChange(slider: Slider, value: Float, fromUser: Boolean) {
+        if (!fromUser || Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+          return
+        }
+
+        extensionStrength = value.toInt()
+        submitRequest(
+          CameraDevice.TEMPLATE_PREVIEW,
+          previewSurface,
+          true,
+        ) { builder ->
+          builder.apply {
+            set(
+              CaptureRequest.EXTENSION_STRENGTH,
+              extensionStrength
+            )
+            Log.d(TAG, "submit request for extension strength: $extensionStrength")
+          }
+        }
       }
     }
 
@@ -281,10 +468,14 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
 
     extensionCharacteristics = cameraManager.getCameraExtensionCharacteristics(args.cameraId)
     characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
+    lensFacing = characteristics[CameraCharacteristics.LENS_FACING]!!
     supportedExtensions.addAll(extensionCharacteristics.supportedExtensions)
     if (currentExtension == -1) {
       currentExtension = supportedExtensions[0]
       currentExtensionIdx = 0
+      refreshStrengthAndCaptureProgressAvailabilityInfo()
+      binding.strengthSlider?.visibility = View.GONE
+      extensionStrength = -1
       binding.switchButton.text = getExtensionLabel(currentExtension)
     }
 
@@ -293,7 +484,10 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         lifecycleScope.launch(Dispatchers.IO) {
           currentExtensionIdx = (currentExtensionIdx + 1) % supportedExtensions.size
           currentExtension = supportedExtensions[currentExtensionIdx]
+          refreshStrengthAndCaptureProgressAvailabilityInfo()
+          extensionStrength = -1
           requireActivity().runOnUiThread {
+            binding.strengthSlider?.visibility = View.GONE
             binding.switchButton.text = getExtensionLabel(currentExtension)
             restartPreview = true
           }
@@ -318,6 +512,23 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
       }
 
       true
+    }
+
+    // Sets strength slider change listener
+    binding.strengthSlider?.addOnChangeListener(sliderOnChangeListener)
+  }
+
+  /**
+   * Refreshes the extension strength and capture progress related availability info.
+   */
+  private fun refreshStrengthAndCaptureProgressAvailabilityInfo() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      isExtensionStrengthAvailable =
+        extensionCharacteristics.getAvailableCaptureRequestKeys(currentExtension)
+          .contains(CaptureRequest.EXTENSION_STRENGTH)
+      isPostviewAvailable = extensionCharacteristics.isPostviewAvailable(currentExtension)
+      isCaptureProcessProgressAvailable =
+        extensionCharacteristics.isCaptureProcessProgressAvailable(currentExtension)
     }
   }
 
@@ -435,44 +646,12 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     if (!binding.texture.isAvailable) {
       return
     }
-    val texture = binding.texture.surfaceTexture
+
     previewSize = pickPreviewResolution(cameraManager, args.cameraId)
-    texture?.setDefaultBufferSize(previewSize.width, previewSize.height)
-    previewSurface = Surface(texture)
-    val yuvColorEncodingSystemSizes = extensionCharacteristics.getExtensionSupportedSizes(
-      currentExtension, ImageFormat.YUV_420_888
-    )
-    val jpegSizes = extensionCharacteristics.getExtensionSupportedSizes(
-      currentExtension, ImageFormat.JPEG
-    )
-    val stillFormat = if (jpegSizes.isEmpty()) ImageFormat.YUV_420_888 else ImageFormat.JPEG
-    val stillCaptureSize = if (jpegSizes.isEmpty()) yuvColorEncodingSystemSizes[0] else jpegSizes[0]
-    stillImageReader = ImageReader.newInstance(
-      stillCaptureSize.width,
-      stillCaptureSize.height, stillFormat, 1
-    )
-    stillImageReader.setOnImageAvailableListener(
-      { reader: ImageReader ->
-        var output: OutputStream
-        try {
-          reader.acquireLatestImage().use { image ->
-            val file = File(
-              requireActivity().getExternalFilesDir(null),
-              if (image.format == ImageFormat.JPEG) "frame.jpg" else "frame.yuv"
-            )
-            output = FileOutputStream(file)
-            output.write(getDataFromImage(image))
-            output.close()
-            Toast.makeText(
-              requireActivity(), "Frame saved at: " + file.path,
-              Toast.LENGTH_SHORT
-            ).show()
-          }
-        } catch (e: Exception) {
-          e.printStackTrace()
-        }
-      }, storeHandler
-    )
+    previewSurface = createPreviewSurface(previewSize)
+    stillImageReader = createStillImageReader()
+    postviewImageReader = createPostviewImageReader()
+
     val outputConfig = ArrayList<OutputConfiguration>()
     outputConfig.add(OutputConfiguration(stillImageReader.surface))
     outputConfig.add(OutputConfiguration(previewSurface))
@@ -482,6 +661,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         override fun onClosed(session: CameraExtensionSession) {
           if (restartPreview) {
             stillImageReader.close()
+            postviewImageReader?.close()
             restartPreview = false
             startPreview()
           } else {
@@ -512,6 +692,12 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
         }
       }
     )
+    // Adds postview image reader surface to extension session configuration if it is supported.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      postviewImageReader?.let {
+        extensionConfiguration.postviewOutputConfiguration = OutputConfiguration(it.surface)
+      }
+    }
     try {
       cameraDevice.createExtensionSession(extensionConfiguration)
     } catch (e: CameraAccessException) {
@@ -524,17 +710,269 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
   }
 
   /**
+   * Creates the preview surface
+   */
+  private fun createPreviewSurface(previewSize: Size): Surface {
+    val texture = binding.texture.surfaceTexture
+    texture?.setDefaultBufferSize(previewSize.width, previewSize.height)
+    return Surface(texture)
+  }
+
+  /**
+   * Creates the still image reader and sets up OnImageAvailableListener
+   */
+  private fun createStillImageReader(): ImageReader {
+    val yuvColorEncodingSystemSizes = extensionCharacteristics.getExtensionSupportedSizes(
+      currentExtension, ImageFormat.YUV_420_888
+    )
+    val jpegSizes = extensionCharacteristics.getExtensionSupportedSizes(
+      currentExtension, ImageFormat.JPEG
+    )
+    val stillFormat = if (jpegSizes.isEmpty()) ImageFormat.YUV_420_888 else ImageFormat.JPEG
+    val stillCaptureSize = if (jpegSizes.isEmpty()) yuvColorEncodingSystemSizes[0] else jpegSizes[0]
+    val stillImageReader = ImageReader.newInstance(
+      stillCaptureSize.width,
+      stillCaptureSize.height, stillFormat, 1
+    )
+    stillImageReader.setOnImageAvailableListener(
+      { reader: ImageReader ->
+        var output: OutputStream
+        try {
+          reader.acquireLatestImage().use { image ->
+            hideCaptureProgressUI()
+            val file = File(
+              requireActivity().getExternalFilesDir(null),
+              if (image.format == ImageFormat.JPEG) "frame.jpg" else "frame.yuv"
+            )
+            output = FileOutputStream(file)
+            output.write(getDataFromImage(image))
+            output.close()
+            Toast.makeText(
+              requireActivity(), "Frame saved at: " + file.path,
+              Toast.LENGTH_SHORT
+            ).show()
+          }
+        } catch (e: Exception) {
+          e.printStackTrace()
+        }
+      }, storeHandler
+    )
+    return stillImageReader
+  }
+
+  /**
+   * Creates postview image reader and sets up OnImageAvailableListener if current extension mode
+   * supports postview.
+   */
+  private fun createPostviewImageReader(): ImageReader? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || !isPostviewAvailable) {
+      return null
+    }
+
+    val jpegSupportedSizes = extensionCharacteristics.getPostviewSupportedSizes(
+      currentExtension,
+      Size(
+        stillImageReader.width,
+        stillImageReader.height
+      ),
+      ImageFormat.JPEG
+    )
+    val yuvSupportedSizes = extensionCharacteristics.getPostviewSupportedSizes(
+      currentExtension,
+      Size(
+        stillImageReader.width,
+        stillImageReader.height
+      ),
+      ImageFormat.YUV_420_888
+    )
+    val postviewSize: Size
+    val postviewFormat: Int
+    if (!jpegSupportedSizes.isEmpty()) {
+      postviewSize = jpegSupportedSizes[0]
+      postviewFormat = ImageFormat.JPEG
+    } else {
+      postviewSize = yuvSupportedSizes[0]
+      postviewFormat = ImageFormat.YUV_420_888
+    }
+    val postviewImageReader =
+      ImageReader.newInstance(postviewSize.width, postviewSize.height, postviewFormat, 1)
+    postviewImageReader.setOnImageAvailableListener(
+      { reader: ImageReader ->
+        try {
+          reader.acquireLatestImage().use { image ->
+            drawPostviewImage(image)
+          }
+        } catch (e: Exception) {
+          e.printStackTrace()
+        }
+      }, storeHandler
+    )
+
+    return postviewImageReader
+  }
+
+  /**
+   * Draw postview image to the capture progress UI
+   */
+  private fun drawPostviewImage(image: Image) {
+    createBitmapFromImage(image)?.let { bitmap ->
+      requireActivity().runOnUiThread {
+        binding.progressInfoImage?.apply {
+          // The following settings are for correctly displaying the postview image in portrait
+          // orientation which Camera2Extensions sample app currently supports for.
+          if (lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
+            rotation = 90.0f
+            scaleY = 1.0f
+          } else {
+            rotation = 270.0f
+            scaleY = -1.0f
+          }
+          setImageBitmap(bitmap)
+          visibility = View.VISIBLE
+        }
+      }
+    }
+  }
+
+  private fun createBitmapFromImage(image: Image): Bitmap? {
+    Log.d(TAG, "createBitmapFromImage from image of format ${image.format}")
+    when (image.format) {
+      ImageFormat.JPEG -> {
+        val data = getDataFromImage(image)
+        return BitmapFactory.decodeByteArray(data, 0, data.size, null)
+      }
+
+      ImageFormat.YUV_420_888 -> {
+        val yuvToRgbConverter = YuvToRgbConverter(requireContext())
+        val bitmap = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
+        yuvToRgbConverter.yuvToRgb(image, bitmap)
+        return bitmap
+      }
+    }
+
+    return null
+  }
+
+  /**
    * Takes a picture.
    */
   private fun takePicture() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      // Retrieves the still capture latency info
+      cameraExtensionSession.realtimeStillCaptureLatency?.let {
+        stillCaptureLatency = it
+        progressStartTimestampMs = SystemClock.elapsedRealtime()
+      }
+      captureProcessingProgress = -1
+      showCaptureProgressUI()
+    }
     submitRequest(
       CameraDevice.TEMPLATE_STILL_CAPTURE,
-      stillImageReader.surface,
+      if (isPostviewAvailable) {
+        listOf(stillImageReader.surface, postviewImageReader!!.surface)
+      } else {
+        listOf(stillImageReader.surface)
+      },
       false
     ) { request ->
       request.apply {
         set(CaptureRequest.CONTROL_ZOOM_RATIO, zoomRatio)
+        setTag(STILL_CAPTURE_TAG)
       }
+    }
+  }
+
+  /**
+   * Shows the UI for capture progress info
+   */
+  private fun showCaptureProgressUI() {
+    // Do not show the UI if none of still capture latency, process progress or postview is
+    // supported.
+    if (stillCaptureLatency == null && !isCaptureProcessProgressAvailable && !isPostviewAvailable) {
+      return
+    }
+
+    progressState = PROGRESS_STATE_HOLD_STILL
+    requireActivity().runOnUiThread {
+      enableUiControls(false)
+      binding.progressInfoContainer?.visibility = View.VISIBLE
+      binding.progressState?.text = getString(R.string.state_hold_still)
+      binding.progressIndicator?.isIndeterminate = stillCaptureLatency == null
+    }
+    // Schedules to execute a runnable repeatedly to update the progress info
+    if (stillCaptureLatency != null) {
+      progressInfoScheduledFuture = Executors.newSingleThreadScheduledExecutor()
+        .scheduleAtFixedRate(
+          { updateProgressInfo() }, 0, 100, TimeUnit.MILLISECONDS
+        )
+    }
+  }
+
+  private fun enableUiControls(isEnabled: Boolean) {
+    requireActivity().runOnUiThread {
+      binding.switchButton.isEnabled = isEnabled
+      binding.captureButton.isEnabled = isEnabled
+      binding.strengthSlider?.isEnabled = isEnabled
+    }
+  }
+
+  /**
+   * Updates the capture progress info
+   */
+  private fun updateProgressInfo() {
+    requireActivity().runOnUiThread {
+      binding.progressState?.text = when (progressState) {
+        PROGRESS_STATE_HOLD_STILL -> resources.getString(R.string.state_hold_still)
+        PROGRESS_STATE_STILL_PROCESSING -> resources.getString(R.string.state_still_processing)
+        else -> ""
+      }
+
+      binding.progressIndicator?.isIndeterminate = false
+
+      if (progressState == PROGRESS_STATE_STILL_PROCESSING && isCaptureProcessProgressAvailable) {
+        binding.progressIndicator?.progress = captureProcessingProgress
+
+        if (captureProcessingProgress == 100) {
+          hideCaptureProgressUI()
+        }
+      }
+
+      stillCaptureLatency?.let {
+        val remainingDurationMs = calculateRemainingDurationInMs()
+        binding.progressLatencyDuration?.text =
+          resources.getString(R.string.latency_duration, (remainingDurationMs + 500) / 1000)
+        // Updates the progress indicator according to the remaining duration of latency time if
+        // capture process progress is not supported.
+        if (progressState == PROGRESS_STATE_HOLD_STILL || !isCaptureProcessProgressAvailable) {
+          binding.progressIndicator?.progress = calculateProgressByRemainingDuration()
+        }
+        // Automatically turns to still-processing state if capture process progress is not
+        // supported
+        if (remainingDurationMs.toInt() == 0 && progressState == PROGRESS_STATE_HOLD_STILL) {
+          progressState = PROGRESS_STATE_STILL_PROCESSING
+          progressStartTimestampMs = SystemClock.elapsedRealtime()
+          updateProgressInfo()
+        }
+      }
+    }
+  }
+
+  /**
+   * Hides the UI for capture progress info
+   */
+  private fun hideCaptureProgressUI() {
+    progressState = PROGRESS_STATE_DONE
+    requireActivity().runOnUiThread {
+      binding.progressInfoContainer?.apply {
+        visibility = View.GONE
+        binding.progressInfoImage?.visibility = View.GONE
+        binding.progressLatencyDuration?.text = ""
+      }
+      enableUiControls(true)
+    }
+    progressInfoScheduledFuture?.apply {
+      cancel(true)
+      progressInfoScheduledFuture = null
     }
   }
 
@@ -543,10 +981,20 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     target: Surface,
     isRepeating: Boolean,
     block: (captureRequest: CaptureRequest.Builder) -> CaptureRequest.Builder) {
+    return submitRequest(templateType, listOf(target), isRepeating, block)
+  }
+
+  private fun submitRequest(
+    templateType: Int,
+    targets: List<Surface>,
+    isRepeating: Boolean,
+    block: (captureRequest: CaptureRequest.Builder) -> CaptureRequest.Builder) {
     try {
       val captureBuilder = cameraDevice.createCaptureRequest(templateType)
         .apply {
-          addTarget(target)
+          targets.forEach {
+            addTarget(it)
+          }
           if (tag != null) {
             setTag(tag)
           }
@@ -760,6 +1208,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
 
   companion object {
     private val TAG = CameraFragment::class.java.simpleName
+    private const val STILL_CAPTURE_TAG = "still_capture_tag"
     private const val AUTO_FOCUS_TAG = "auto_focus_tag"
     private const val AUTO_FOCUS_TIMEOUT_MILLIS = 5_000L
     private const val METERING_RECTANGLE_SIZE = 0.15f
