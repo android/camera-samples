@@ -402,7 +402,9 @@ class PreviewFragment : Fragment() {
                                     Toast.LENGTH_LONG).show()
                         }
                     }
-                    navController.popBackStack()
+                    Handler(Looper.getMainLooper()).post {
+                        navController.popBackStack()
+                    }
                 }
             }
 
