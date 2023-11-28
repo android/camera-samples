@@ -52,7 +52,7 @@ class EncodeApiFragment : Fragment() {
         view as RecyclerView
         view.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            val modeList = enumerateModes()
+            val modeList = enumerateModes(args.dynamicRange)
             val layoutId = android.R.layout.simple_list_item_1
             adapter = GenericListAdapter(modeList, itemLayoutId = layoutId) { view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.name
@@ -79,11 +79,13 @@ class EncodeApiFragment : Fragment() {
                 val value: Boolean)
 
         @SuppressLint("InlinedApi")
-        private fun enumerateModes(): List<ApiInfo> {
+        private fun enumerateModes(dynamicRange: Long): List<ApiInfo> {
             val modeList: MutableList<ApiInfo> = mutableListOf()
 
             modeList.add(ApiInfo("MediaCodec", false))
-            modeList.add(ApiInfo("MediaRecorder", true))
+            if (dynamicRange == DynamicRangeProfiles.STANDARD) {
+                modeList.add(ApiInfo("MediaRecorder", true))
+            }
 
             return modeList
         }
