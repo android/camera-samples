@@ -67,13 +67,13 @@ class RecordModeFragment : Fragment() {
                             RecordModeFragmentDirections.actionRecordModeToFilter(
                             args.cameraId, args.width, args.height, args.fps,
                             args.dynamicRange, args.colorSpace, args.previewStabilization,
-                            args.useMediaRecorder))
+                            args.useMediaRecorder, args.videoCodec))
                     } else {
                         navController.navigate(
                             RecordModeFragmentDirections.actionRecordModeToPreview(
                             args.cameraId, args.width, args.height, args.fps,
                             args.dynamicRange, args.colorSpace, args.previewStabilization,
-                            args.useMediaRecorder, false, false, 0))
+                            args.useMediaRecorder, args.videoCodec, false, false, 0))
                     }
                 }
             }

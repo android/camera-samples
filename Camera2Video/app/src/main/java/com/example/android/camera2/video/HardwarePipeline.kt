@@ -16,43 +16,31 @@
 
 package com.example.android.camera2.video.fragments
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.graphics.Color
-import android.graphics.ColorSpace
-import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.SurfaceTexture
+import android.hardware.DataSpace
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.params.DynamicRangeProfiles
-import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.HardwareBuffer
-import android.media.Image
-import android.media.ImageReader
-import android.media.ImageWriter
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
-import android.media.MediaScannerConnection
+import android.hardware.SyncFence
 import android.opengl.EGL14
-import android.opengl.EGL14.EGL_CONTEXT_CLIENT_VERSION
-import android.opengl.EGL14.EGL_OPENGL_ES2_BIT
+import android.opengl.EGL14.EGL_NO_DISPLAY
+import android.opengl.EGL14.EGL_NO_SURFACE
 import android.opengl.EGL15
 import android.opengl.EGLConfig
-import android.opengl.EGLContext
-import android.opengl.EGLDisplay
 import android.opengl.EGLExt
-import android.opengl.EGLImage
 import android.opengl.EGLSurface
 import android.opengl.GLES11Ext
+import android.opengl.GLES20.GL_COLOR_ATTACHMENT0
+import android.opengl.GLES20.GL_FRAMEBUFFER
+import android.opengl.GLES20.GL_TEXTURE_2D
+import android.opengl.GLES20.glFinish
+import android.opengl.GLES20.glFlush
 import android.opengl.GLES30
-import android.os.Bundle
+import android.os.Build
 import android.os.ConditionVariable
 import android.os.Handler
 import android.os.HandlerThread
@@ -61,42 +49,16 @@ import android.os.Message
 import android.util.Log
 import android.util.Range
 import android.util.Size
-import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.TextureView
-import android.view.View
-import android.view.ViewGroup
-import android.webkit.MimeTypeMap
-import androidx.core.content.FileProvider
-import androidx.core.graphics.drawable.toDrawable
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
-import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavController
-import androidx.navigation.Navigation
-import androidx.navigation.fragment.navArgs
-import com.example.android.camera.utils.getPreviewOutputSize
+import android.view.SurfaceControl
+import androidx.annotation.RequiresApi
+import androidx.opengl.EGLExt.Companion.eglCreateSyncKHR
+import androidx.opengl.EGLImageKHR
 import com.example.android.camera.utils.AutoFitSurfaceView
-import com.example.android.camera2.video.BuildConfig
-import com.example.android.camera2.video.CameraActivity
-import com.example.android.camera2.video.R
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.RuntimeException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 import com.example.android.camera2.video.EncoderWrapper
 
@@ -348,6 +310,7 @@ private val FULLSCREEN_QUAD = floatArrayOf(
 private val EGL_GL_COLORSPACE_KHR               = 0x309D
 private val EGL_GL_COLORSPACE_BT2020_LINEAR_EXT = 0x333F
 private val EGL_GL_COLORSPACE_BT2020_PQ_EXT     = 0x3340
+private val EGL_GL_COLORSPACE_BT2020_HLG_EXT     = 0x3540
 private val EGL_SMPTE2086_DISPLAY_PRIMARY_RX_EXT       = 0x3341
 private val EGL_SMPTE2086_DISPLAY_PRIMARY_RY_EXT       = 0x3342
 private val EGL_SMPTE2086_DISPLAY_PRIMARY_GX_EXT       = 0x3343
@@ -370,7 +333,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
     }
 
     private val renderHandler = RenderHandler(renderThread.getLooper(),
-            width, height, fps, filterOn, transfer, dynamicRange, characteristics, encoder)
+            width, height, fps, filterOn, transfer, dynamicRange, characteristics, encoder, viewFinder)
 
     override fun createRecordRequest(session: CameraCaptureSession,
             previewStabilization: Boolean) : CaptureRequest {
@@ -459,7 +422,8 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
     private class RenderHandler(looper: Looper, width: Int, height: Int, fps: Int,
             filterOn: Boolean, transfer: Int, dynamicRange: Long,
-            characteristics: CameraCharacteristics, encoder: EncoderWrapper): Handler(looper),
+            characteristics: CameraCharacteristics, encoder: EncoderWrapper,
+            viewFinder: AutoFitSurfaceView): Handler(looper),
             SurfaceTexture.OnFrameAvailableListener {
         companion object {
             val MSG_CREATE_RESOURCES = 0
@@ -476,8 +440,8 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         private val filterOn = filterOn
         private val transfer = transfer
         private val dynamicRange = dynamicRange
-        private val characteristics = characteristics
         private val encoder = encoder
+        private val viewFinder = viewFinder
 
         private var previewSize = Size(0, 0)
 
@@ -490,8 +454,6 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         /** The above SurfaceTexture cast as a Surface */
         private lateinit var cameraSurface: Surface
 
-        private lateinit var cameraImage: EGLImage
-
         /** OpenGL texture that will combine the camera output with rendering */
         private var renderTexId: Int = 0
 
@@ -500,6 +462,13 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
         /** The above SurfaceTexture cast as a Surface */
         private lateinit var renderSurface: Surface
+
+        /** Stuff needed for displaying HLG via SurfaceControl */
+        private var contentSurfaceControl: SurfaceControl? = null
+        private var windowTexId: Int = 0
+        private var windowFboId: Int = 0
+
+        private var supportsNativeFences = false
 
         /** Storage space for setting the texMatrix uniform */
         private val texMatrix = FloatArray(16)
@@ -516,9 +485,9 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         private var eglDisplay = EGL14.EGL_NO_DISPLAY
         private var eglContext = EGL14.EGL_NO_CONTEXT
         private var eglConfig: EGLConfig? = null
-        private var eglRenderSurface: EGLSurface = EGL14.EGL_NO_SURFACE
-        private var eglEncoderSurface: EGLSurface = EGL14.EGL_NO_SURFACE
-        private var eglWindowSurface: EGLSurface = EGL14.EGL_NO_SURFACE
+        private var eglRenderSurface: EGLSurface? = EGL_NO_SURFACE
+        private var eglEncoderSurface: EGLSurface? = EGL_NO_SURFACE
+        private var eglWindowSurface: EGLSurface? = EGL_NO_SURFACE
         private var vertexShader = 0
         private var cameraToRenderFragmentShader = 0
         private var renderToPreviewFragmentShader = 0
@@ -594,6 +563,8 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                     requiredExtensionsList.add("EGL_EXT_gl_colorspace_bt2020_pq")
                 } else if (transfer == TransferFragment.LINEAR_ID) {
                     requiredExtensionsList.add("EGL_EXT_gl_colorspace_bt2020_linear")
+                } else if (transfer == TransferFragment.HLG_ID) {
+                    requiredExtensionsList.add("EGL_EXT_gl_colorspace_bt2020_hlg")
                 }
 
                 val eglExtensions = EGL14.eglQueryString(eglDisplay, EGL14.EGL_EXTENSIONS)
@@ -606,6 +577,11 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                         throw RuntimeException("EGL extension not supported: " + requiredExtension)
                     }
                 }
+
+                // More devices can be supported if the eglCreateSyncKHR is used instead of
+                // EGL15.eglCreateSync
+                supportsNativeFences = eglVersion >= 15
+                        && eglExtensions.contains("EGL_ANDROID_native_fence_sync")
             }
 
             Log.i(TAG, "isHDR: " + isHDR())
@@ -684,55 +660,115 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                         EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_BT2020_LINEAR_EXT,
                         EGL14.EGL_NONE
                     )
+                    // We configure HLG below
+                    TransferFragment.HLG_ID -> intArrayOf(
+                            EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_BT2020_HLG_EXT,
+                            EGL14.EGL_NONE
+                    )
+                    TransferFragment.HLG_WORKAROUND_ID -> intArrayOf(EGL14.EGL_NONE)
                     else -> throw RuntimeException("Unexpected transfer " + transfer)
                 }
             }
 
-            eglWindowSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, surface,
-                    windowSurfaceAttribs, 0)
-            if (eglWindowSurface == EGL14.EGL_NO_SURFACE) {
-                throw RuntimeException("Failed to create EGL texture view surface")
+            if (!isHDR() or (transfer != TransferFragment.HLG_WORKAROUND_ID)) {
+                eglWindowSurface = EGL14.eglCreateWindowSurface(
+                    eglDisplay, eglConfig, surface,
+                    windowSurfaceAttribs, 0
+                )
+                if (eglWindowSurface == EGL_NO_SURFACE) {
+                    throw RuntimeException("Failed to create EGL texture view surface")
+                }
             }
 
-            if (isHDR() and (transfer == TransferFragment.PQ_ID)) {
-                val SMPTE2086_MULTIPLIER = 50000
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
-                        EGL_SMPTE2086_MAX_LUMINANCE_EXT, 10000 * SMPTE2086_MULTIPLIER)
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
-                        EGL_SMPTE2086_MIN_LUMINANCE_EXT, 0)
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+            if (eglWindowSurface != EGL_NO_SURFACE) {
+                /**
+                 * This is only experimental for the transfer function. It is intended to be
+                 * supplied alongside CTA 861.3 metadata
+                 * https://registry.khronos.org/EGL/extensions/EXT/EGL_EXT_surface_CTA861_3_metadata.txt.
+                 * which describes the max and average luminance of the content).
+                 *
+                 * The display will use these parameters to map the source content colors to a
+                 * colors that fill the display's capabilities.
+                 *
+                 * Without providing these parameters, the display will assume "reasonable defaults",
+                 * which may not be accurate for the source content. This would most likely result
+                 * in inaccurate colors, although the exact effect is device-dependent.
+                 *
+                 * The parameters needs to be tuned.
+                 * */
+                if (isHDR() and (transfer == TransferFragment.PQ_ID)) {
+                    val SMPTE2086_MULTIPLIER = 50000
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_MAX_LUMINANCE_EXT, 10000 * SMPTE2086_MULTIPLIER
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
+                        EGL_SMPTE2086_MIN_LUMINANCE_EXT, 0
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_DISPLAY_PRIMARY_RX_EXT,
-                        (0.708f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.708f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_DISPLAY_PRIMARY_RY_EXT,
-                        (0.292f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.292f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_DISPLAY_PRIMARY_GX_EXT,
-                        (0.170f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.170f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_DISPLAY_PRIMARY_GY_EXT,
-                        (0.797f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.797f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_DISPLAY_PRIMARY_BX_EXT,
-                        (0.131f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.131f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_DISPLAY_PRIMARY_BY_EXT,
-                        (0.046f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.046f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_WHITE_POINT_X_EXT,
-                        (0.3127f * SMPTE2086_MULTIPLIER).toInt())
-                EGL14.eglSurfaceAttrib(eglDisplay, eglWindowSurface,
+                        (0.3127f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                    EGL14.eglSurfaceAttrib(
+                        eglDisplay, eglWindowSurface,
                         EGL_SMPTE2086_WHITE_POINT_Y_EXT,
-                        (0.3290f * SMPTE2086_MULTIPLIER).toInt())
+                        (0.3290f * SMPTE2086_MULTIPLIER).toInt()
+                    )
+                }
             }
-
-            EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglWindowSurface, eglContext)
 
             cameraTexId = createTexture()
             cameraTexture = SurfaceTexture(cameraTexId)
             cameraTexture.setOnFrameAvailableListener(this)
             cameraTexture.setDefaultBufferSize(width, height)
             cameraSurface = Surface(cameraTexture)
+
+
+            if (isHDR() and (transfer == TransferFragment.HLG_WORKAROUND_ID)) {
+                // Communicating HLG content may not be supported on EGLSurface in API 33, as there
+                // is no EGL extension for communicating the surface color space. Instead, create
+                // a child SurfaceControl whose parent is the viewFinder's SurfaceView and push
+                // buffers directly to the SurfaceControl.
+                contentSurfaceControl = SurfaceControl.Builder()
+                    .setName("HardwarePipeline")
+                    .setParent(viewFinder.surfaceControl)
+                    .setHidden(false)
+                    .build()
+                windowTexId = createTexId()
+                windowFboId = createFboId()
+            }
 
             renderTexId = createTexture()
             renderTexture = SurfaceTexture(renderTexId)
@@ -742,7 +778,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             var renderSurfaceAttribs = intArrayOf(EGL14.EGL_NONE)
             eglRenderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig, renderSurface,
                     renderSurfaceAttribs, 0)
-            if (eglRenderSurface == EGL14.EGL_NO_SURFACE) {
+            if (eglRenderSurface == EGL_NO_SURFACE) {
                 throw RuntimeException("Failed to create EGL render surface")
             }
 
@@ -773,6 +809,9 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                             HLG_TO_PQ_HDR_FSHADER)
                     TransferFragment.LINEAR_ID -> createShader(GLES30.GL_FRAGMENT_SHADER,
                             HLG_TO_LINEAR_HDR_FSHADER)
+                    TransferFragment.HLG_ID,
+                    TransferFragment.HLG_WORKAROUND_ID -> createShader(GLES30.GL_FRAGMENT_SHADER,
+                            PASSTHROUGH_HDR_FSHADER)
                     else -> throw RuntimeException("Unexpected transfer " + transfer)
                 }
 
@@ -847,6 +886,30 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             return shader
         }
 
+        private fun createTexId(): Int {
+            val buffer = IntBuffer.allocate(1)
+            GLES30.glGenTextures(1, buffer)
+            return buffer.get(0)
+        }
+
+        private fun destroyTexId(id: Int) {
+            val buffer = IntBuffer.allocate(1)
+            buffer.put(0, id)
+            GLES30.glDeleteTextures(1, buffer)
+        }
+
+        private fun createFboId(): Int {
+            val buffer = IntBuffer.allocate(1)
+            GLES30.glGenFramebuffers(1, buffer)
+            return buffer.get(0)
+        }
+
+        private fun destroyFboId(id: Int) {
+            val buffer = IntBuffer.allocate(1)
+            buffer.put(0, id)
+            GLES30.glDeleteFramebuffers(1, buffer)
+        }
+
         /** Create an OpenGL texture */
         private fun createTexture(): Int {
             /* Check that EGL has been initialized. */
@@ -854,9 +917,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                 throw IllegalStateException("EGL not initialized before call to createTexture()");
             }
 
-            val buffer = IntBuffer.allocate(1)
-            GLES30.glGenTextures(1, buffer)
-            val texId = buffer.get(0)
+            val texId = createTexId()
             GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
             GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MIN_FILTER,
                     GLES30.GL_LINEAR)
@@ -870,7 +931,9 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         }
 
         private fun destroyWindowSurface() {
-            EGL14.eglDestroySurface(eglDisplay, eglWindowSurface)
+            if (eglWindowSurface != EGL_NO_SURFACE && eglDisplay != EGL_NO_DISPLAY) {
+                EGL14.eglDestroySurface(eglDisplay, eglWindowSurface)
+            }
             eglWindowSurface = EGL14.EGL_NO_SURFACE
             cvDestroyWindowSurface.open()
         }
@@ -880,7 +943,7 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
         }
 
         private fun copyTexture(texId: Int, texture: SurfaceTexture, viewportRect: Rect,
-                shaderProgram: ShaderProgram) {
+                shaderProgram: ShaderProgram, outputIsFramebuffer: Boolean) {
             GLES30.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
             checkGlError("glClearColor")
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
@@ -893,6 +956,17 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             checkGlError("glBindTexture")
 
             texture.getTransformMatrix(texMatrix)
+
+            // HardwareBuffer coordinates are flipped relative to what GLES expects
+            if (outputIsFramebuffer) {
+                val flipMatrix = floatArrayOf(
+                    1f, 0f, 0f, 0f,
+                    0f, -1f, 0f, 0f,
+                    0f, 0f, 1f, 0f,
+                    0f, 1f, 0f, 1f
+                )
+                android.opengl.Matrix.multiplyMM(texMatrix, 0, flipMatrix, 0, texMatrix.clone(), 0)
+            }
             shaderProgram.setTexMatrix(texMatrix)
 
             shaderProgram.setVertexAttribArray(FULLSCREEN_QUAD)
@@ -908,14 +982,50 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             EGL14.eglMakeCurrent(eglDisplay, eglRenderSurface, eglRenderSurface, eglContext)
 
             copyTexture(cameraTexId, cameraTexture, Rect(0, 0, width, height),
-                cameraToRenderShaderProgram!!)
+                cameraToRenderShaderProgram!!, false)
 
             EGL14.eglSwapBuffers(eglDisplay, eglRenderSurface)
             renderTexture.updateTexImage()
         }
 
         private fun copyRenderToPreview() {
-            EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglRenderSurface, eglContext)
+
+            var hardwareBuffer: HardwareBuffer? = null
+            var eglImage: EGLImageKHR? = null
+            if (transfer == TransferFragment.HLG_WORKAROUND_ID) {
+                EGL14.eglMakeCurrent(eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, eglContext)
+
+                // TODO: use GLFrameBufferRenderer to optimize the performance
+                // Note that pooling and reusing HardwareBuffers will have significantly better
+                // memory utilization so the HardwareBuffers do not have to be allocated every frame
+                hardwareBuffer = HardwareBuffer.create(
+                        previewSize.width, previewSize.height,
+                        HardwareBuffer.RGBA_1010102, 1,
+                        HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
+                                or HardwareBuffer.USAGE_GPU_COLOR_OUTPUT
+                                or HardwareBuffer.USAGE_COMPOSER_OVERLAY)
+
+                // If we're sending output buffers to a SurfaceControl we cannot render to an
+                // EGLSurface. We need to render to a HardwareBuffer instead by importing the
+                // HardwareBuffer into EGL, associating it with a texture, and framebuffer, and
+                // drawing directly into the HardwareBuffer.
+                eglImage = androidx.opengl.EGLExt.eglCreateImageFromHardwareBuffer(
+                    eglDisplay, hardwareBuffer)
+                checkGlError("eglCreateImageFromHardwareBuffer")
+
+                GLES30.glBindTexture(GL_TEXTURE_2D, windowTexId)
+                checkGlError("glBindTexture")
+                androidx.opengl.EGLExt.glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, eglImage!!)
+                checkGlError("glEGLImageTargetTexture2DOES")
+
+                GLES30.glBindFramebuffer(GL_FRAMEBUFFER, windowFboId);
+                checkGlError("glBindFramebuffer")
+                GLES30.glFramebufferTexture2D(
+                    GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, windowTexId, 0);
+                checkGlError("glFramebufferTexture2D")
+            } else {
+                EGL14.eglMakeCurrent(eglDisplay, eglWindowSurface, eglRenderSurface, eglContext)
+            }
 
             val cameraAspectRatio = width.toFloat() / height.toFloat()
             val previewAspectRatio = previewSize.width.toFloat() / previewSize.height.toFloat()
@@ -925,8 +1035,8 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             var viewportY = 0
 
             /** The camera display is not the same size as the video. Letterbox the preview so that
-                we can see exactly how the video will turn out. */
-            if (previewAspectRatio > cameraAspectRatio) {
+             * we can see exactly how the video will turn out. */
+            if (previewAspectRatio < cameraAspectRatio) {
                 /** Avoid vertical stretching */
                 viewportHeight = ((viewportHeight.toFloat() / previewAspectRatio) * cameraAspectRatio).toInt()
                 viewportY = (previewSize.height - viewportHeight) / 2
@@ -936,10 +1046,47 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
                 viewportX = (previewSize.width - viewportWidth) / 2
             }
 
-            copyTexture(renderTexId, renderTexture, Rect(viewportX, viewportY, viewportWidth,
-                    viewportHeight), renderToPreviewShaderProgram!!)
+            copyTexture(renderTexId, renderTexture,
+                        Rect(viewportX, viewportY, viewportWidth, viewportHeight),
+                        renderToPreviewShaderProgram!!, hardwareBuffer != null)
 
-            EGL14.eglSwapBuffers(eglDisplay, eglWindowSurface)
+            if (hardwareBuffer != null) {
+                if (contentSurfaceControl == null) {
+                    throw RuntimeException("Forgot to set up SurfaceControl for HLG preview!")
+                }
+
+                // When rendering to HLG, send each camera frame to the display and communicate the
+                // HLG colorspace here.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val fence = createSyncFence()
+                    if (fence == null) {
+                        glFinish()
+                        checkGlError("glFinish")
+                    }
+                    SurfaceControl.Transaction()
+                            .setBuffer(
+                                    contentSurfaceControl!!,
+                                    hardwareBuffer,
+                                    fence)
+                            .setDataSpace(
+                                    contentSurfaceControl!!,
+                                    DataSpace.pack(
+                                        DataSpace.STANDARD_BT2020,
+                                        DataSpace.TRANSFER_HLG,
+                                        DataSpace.RANGE_FULL
+                                    ))
+                            .apply()
+                    hardwareBuffer.close()
+                }
+            } else {
+                EGL14.eglSwapBuffers(eglDisplay, eglWindowSurface)
+            }
+
+            if (eglImage != null) {
+                GLES30.glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                androidx.opengl.EGLExt.eglDestroyImageKHR(eglDisplay, eglImage)
+            }
+
         }
 
         private fun copyRenderToEncode() {
@@ -955,18 +1102,37 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             }
 
             copyTexture(renderTexId, renderTexture, Rect(0, 0, viewportWidth, viewportHeight),
-                    renderToEncodeShaderProgram!!)
+                    renderToEncodeShaderProgram!!, false)
 
             encoder.frameAvailable()
 
             EGL14.eglSwapBuffers(eglDisplay, eglEncoderSurface)
         }
 
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        private fun createSyncFence() : SyncFence? {
+            if (!supportsNativeFences) {
+                return null
+            }
+
+            val eglSync = EGL15.eglCreateSync(
+                    eglDisplay, androidx.opengl.EGLExt.EGL_SYNC_NATIVE_FENCE_ANDROID,
+                    longArrayOf(EGL14.EGL_NONE.toLong()), 0)
+            checkGlError("eglCreateSync")
+            glFlush()
+            checkGlError("glFlush")
+            return eglSync?.let {
+                val fence = EGLExt.eglDupNativeFenceFDANDROID(eglDisplay, it)
+                checkGlError("eglDupNativeFenceFDANDROID")
+                fence
+            }
+        }
+
         private fun actionDown(encoderSurface: Surface) {
             val surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
             eglEncoderSurface = EGL14.eglCreateWindowSurface(eglDisplay, eglConfig,
                     encoderSurface, surfaceAttribs, 0)
-            if (eglEncoderSurface == EGL14.EGL_NO_SURFACE) {
+            if (eglEncoderSurface == EGL_NO_SURFACE) {
                 val error = EGL14.eglGetError()
                 throw RuntimeException("Failed to create EGL encoder surface"
                         + ": eglGetError = 0x" + Integer.toHexString(error))
@@ -984,11 +1150,19 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
 
         private fun cleanup() {
             EGL14.eglDestroySurface(eglDisplay, eglEncoderSurface)
-            eglEncoderSurface = EGL14.EGL_NO_SURFACE
+            eglEncoderSurface = EGL_NO_SURFACE
             EGL14.eglDestroySurface(eglDisplay, eglRenderSurface)
-            eglRenderSurface = EGL14.EGL_NO_SURFACE
+            eglRenderSurface = EGL_NO_SURFACE
 
             cameraTexture.release()
+
+            if (windowTexId > 0) {
+                destroyTexId(windowTexId)
+            }
+
+            if (windowFboId > 0) {
+                destroyFboId(windowFboId)
+            }
 
             EGL14.eglDestroyContext(eglDisplay, eglContext)
 
@@ -1012,17 +1186,15 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             cameraTexture.updateTexImage()
 
             /** Copy from the camera texture to the render texture */
-            if (eglRenderSurface != EGL14.EGL_NO_SURFACE) {
+            if (eglRenderSurface != EGL_NO_SURFACE) {
                 copyCameraToRender()
             }
 
             /** Copy from the render texture to the TextureView */
-            if (eglWindowSurface != EGL14.EGL_NO_SURFACE) {
-                copyRenderToPreview()
-            }
+            copyRenderToPreview()
 
             /** Copy to the encoder surface if we're currently recording. */
-            if (eglEncoderSurface != EGL14.EGL_NO_SURFACE && currentlyRecording) {
+            if (eglEncoderSurface != EGL_NO_SURFACE && currentlyRecording) {
                 copyRenderToEncode()
             }
         }
@@ -1069,4 +1241,5 @@ class HardwarePipeline(width: Int, height: Int, fps: Int, filterOn: Boolean, tra
             }
         }
     }
+
 }

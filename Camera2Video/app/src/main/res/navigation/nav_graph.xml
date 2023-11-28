@@ -206,7 +206,52 @@
             app:argType="boolean" />
 
         <action
-            android:id="@+id/action_encode_api_to_record_mode"
+            android:id="@+id/action_encode_api_to_video_codec"
+            app:launchSingleTop="true"
+            app:destination="@id/video_codec_fragment" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/video_codec_fragment"
+        android:name="com.example.android.camera2.video.fragments.VideoCodecFragment"
+        android:label="Video Codec" >
+
+        <argument
+            android:name="camera_id"
+            app:argType="string"
+            app:nullable="false"/>
+
+        <argument
+            android:name="width"
+            app:argType="integer" />
+
+        <argument
+            android:name="height"
+            app:argType="integer" />
+
+        <argument
+            android:name="fps"
+            app:argType="integer" />
+
+        <argument
+            android:name="dynamicRange"
+            app:argType="long" />
+
+        <argument
+            android:name="colorSpace"
+            app:argType="integer" />
+
+        <argument
+            android:name="previewStabilization"
+            app:argType="boolean" />
+
+        <argument
+            android:name="useMediaRecorder"
+            app:argType="boolean" />
+
+        <action
+            android:id="@+id/action_video_codec_to_record_mode"
             app:launchSingleTop="true"
             app:destination="@id/record_mode_fragment" />
 
@@ -249,6 +294,10 @@
         <argument
             android:name="useMediaRecorder"
             app:argType="boolean" />
+
+        <argument
+            android:name="videoCodec"
+            app:argType="integer" />
 
         <action
             android:id="@+id/action_record_mode_to_preview"
@@ -299,6 +348,10 @@
         <argument
             android:name="useMediaRecorder"
             app:argType="boolean" />
+
+        <argument
+            android:name="videoCodec"
+            app:argType="integer" />
 
         <action
             android:id="@+id/action_filter_to_preview"
@@ -351,6 +404,10 @@
             app:argType="boolean" />
 
         <argument
+            android:name="videoCodec"
+            app:argType="integer" />
+
+        <argument
             android:name="filterOn"
             app:argType="boolean" />
 
@@ -398,6 +455,10 @@
         <argument
             android:name="useMediaRecorder"
             app:argType="boolean" />
+
+        <argument
+            android:name="videoCodec"
+            app:argType="integer" />
 
         <argument
             android:name="filterOn"
