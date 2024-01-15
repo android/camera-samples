@@ -27,7 +27,7 @@ kapt {
 
 android {
     namespace 'com.example.android.cameraxextensions'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.example.android.cameraxextensions"
@@ -44,7 +44,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.3.2"
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
 
     buildTypes {
