@@ -243,7 +243,7 @@ class CameraFragment : Fragment() {
                         Log.d(TAG, "EXIF metadata saved: ${output.absolutePath}")
                     }
 
-                    // Display the photo taken to user
+                    // Display the photo taken by the user
                     lifecycleScope.launch(Dispatchers.Main) {
                         navController.navigate(CameraFragmentDirections
                                 .actionCameraToJpegViewer(output.absolutePath)
