@@ -74,6 +74,17 @@
         app:tint="@color/button" />
 
     <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/photoPostview"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/photoPreview"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -96,6 +107,21 @@
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/ic_close"
         app:tint="@color/button" />
+
+    <com.google.android.material.progressindicator.CircularProgressIndicator
+        android:id="@+id/processProgressIndicator"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:visibility="gone"
+        app:indicatorSize="80dp"
+        app:indicatorColor="#FFBE0B"
+        app:trackColor="#272727"
+        app:trackThickness="4dp"
+        app:trackCornerRadius="2dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/permissionsRationaleContainer"
