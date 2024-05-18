@@ -16,6 +16,7 @@
 
 package com.example.android.cameraxextensions.model
 
+import android.graphics.Bitmap
 import androidx.camera.core.CameraSelector.LENS_FACING_BACK
 import androidx.camera.core.CameraSelector.LensFacing
 import androidx.camera.core.ImageCapture
@@ -73,6 +74,16 @@ sealed class CaptureState {
      * Capture process has started.
      */
     object CaptureStarted : CaptureState()
+
+    /**
+     * Capture postview is ready
+     */
+    data class CapturePostview(val bitmap: Bitmap): CaptureState()
+
+    /**
+     * Capture process progress updated with the [progress] value
+     */
+    data class CaptureProcessProgress(val progress: Int): CaptureState()
 
     /**
      * Capture completed successfully.

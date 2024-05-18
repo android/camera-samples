@@ -24,7 +24,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.extensions.ExtensionMode
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.android.cameraxextensions.adapter.CameraExtensionItem
 import com.example.android.cameraxextensions.model.CameraState
 import com.example.android.cameraxextensions.model.CameraUiAction
@@ -203,9 +207,10 @@ class MainActivity : AppCompatActivity() {
                                     } else {
                                         PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
                                     }
-                                }
-                                .updateCameraScreen {
+                                }.updateCameraScreen {
                                     it.hideCameraControls()
+                                        .hideProcessProgressViewState()
+                                        .hidePostview()
                                 }
                         )
                     }
@@ -220,6 +225,24 @@ class MainActivity : AppCompatActivity() {
                                     it.showCameraControls()
                                         .enableCameraShutter(true)
                                         .enableSwitchLens(true)
+                                        .hideProcessProgressViewState()
+                                        .hidePostview()
+                                }
+                        )
+                    }
+                    is CaptureState.CapturePostview -> {
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.showPostview(state.bitmap)
+                                }
+                        )
+                    }
+                    is CaptureState.CaptureProcessProgress -> {
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.showProcessProgressViewState(state.progress)
                                 }
                         )
                     }
