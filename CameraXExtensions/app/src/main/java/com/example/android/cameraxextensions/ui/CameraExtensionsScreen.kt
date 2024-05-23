@@ -230,7 +230,10 @@ class CameraExtensionsScreen(private val root: View) {
     private fun showPostview(bitmap: Bitmap) {
         if (photoPostview.isVisible) return
         photoPostview.isVisible = true
-        photoPostview.load(bitmap)
+        photoPostview.load(bitmap) {
+            crossfade(true)
+            crossfade(200)
+        }
     }
 
     private fun hidePostview() {
@@ -261,7 +264,10 @@ class CameraExtensionsScreen(private val root: View) {
     private fun showPhoto(uri: Uri?) {
         if (uri == null) return
         photoPreview.isVisible = true
-        photoPreview.load(uri)
+        photoPreview.load(uri) {
+            crossfade(true)
+            crossfade(200)
+        }
         closePhotoPreview.isVisible = true
     }
 

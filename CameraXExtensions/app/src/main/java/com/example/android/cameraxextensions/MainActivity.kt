@@ -20,6 +20,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -97,7 +98,6 @@ class MainActivity : AppCompatActivity() {
                 }.updateCameraScreen {
                     it.hideCameraControls()
                         .hideProcessProgressViewState()
-                        .hidePostview()
                 }
         )
         captureUri = null
@@ -201,6 +201,7 @@ class MainActivity : AppCompatActivity() {
                                 .updateCameraScreen {
                                     it.enableCameraShutter(true)
                                         .enableSwitchLens(true)
+                                        .hidePostview()
                                 }
                         )
                     }
@@ -302,6 +303,7 @@ class MainActivity : AppCompatActivity() {
                                     }
                                     .updateCameraScreen {
                                         it.showCameraControls()
+                                            .hidePostview()
                                             .enableCameraShutter(false)
                                             .enableSwitchLens(false)
                                     }
@@ -342,6 +344,7 @@ class MainActivity : AppCompatActivity() {
             captureScreenViewState.value
                 .updateCameraScreen { state ->
                     state.showCameraControls()
+                    state.hidePostview()
                 }
                 .updatePostCaptureScreen {
                     PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
