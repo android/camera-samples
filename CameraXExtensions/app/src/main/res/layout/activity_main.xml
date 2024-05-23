@@ -108,20 +108,41 @@
         app:srcCompat="@drawable/ic_close"
         app:tint="@color/button" />
 
-    <com.google.android.material.progressindicator.CircularProgressIndicator
-        android:id="@+id/processProgressIndicator"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:visibility="gone"
-        app:indicatorSize="80dp"
-        app:indicatorColor="#FFBE0B"
-        app:trackColor="#272727"
-        app:trackThickness="4dp"
-        app:trackCornerRadius="2dp"
+    <LinearLayout
+        android:id="@+id/processProgressContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/selector_background"
+        android:gravity="center"
+        android:visibility="visible"
+        android:paddingHorizontal="84dp"
+        android:paddingVertical="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" >
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textColor="#FFBE0B"
+            android:textSize="16sp"
+            android:text="@string/hold_still"
+            android:layout_marginBottom="8dp"
+            />
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/processProgressIndicator"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            app:indicatorSize="64dp"
+            app:indicatorColor="#FFBE0B"
+            app:trackColor="#272727"
+            app:trackThickness="6dp"
+            app:trackCornerRadius="3dp" />
+    </LinearLayout>
 
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/permissionsRationaleContainer"

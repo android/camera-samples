@@ -32,6 +32,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.camera.view.PreviewView
+import androidx.core.animation.doOnEnd
 import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.isVisible
 import androidx.dynamicanimation.animation.DynamicAnimation
@@ -85,6 +86,8 @@ class CameraExtensionsScreen(private val root: View) {
     private val permissionsRequestButton: TextView =
         root.findViewById(R.id.permissionsRequestButton)
     private val photoPostview: ImageView = root.findViewById(R.id.photoPostview)
+    private val processProgressContainer: View =
+        root.findViewById(R.id.processProgressContainer)
     private val processProgressIndicator: CircularProgressIndicator =
         root.findViewById(R.id.processProgressIndicator)
 
@@ -235,17 +238,24 @@ class CameraExtensionsScreen(private val root: View) {
     }
 
     private fun showProcessProgressIndicator(progress: Int) {
-        processProgressIndicator.isVisible = true
+        processProgressContainer.isVisible = true
         ObjectAnimator.ofInt(processProgressIndicator, "progress", progress).apply {
             val currentProgress = processProgressIndicator.progress
             val progressStep = max(0, progress - currentProgress)
             duration = (progressStep / 100f * MAX_PROGRESS_ANIM_DURATION_MS).toLong()
+            doOnEnd {
+                if (animatedValue == 100) {
+                    root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+                        _action.emit(CameraUiAction.ProcessProgressComplete)
+                    }
+                }
+            }
             start()
         }
     }
 
     private fun hideProcessProgressIndicator() {
-        processProgressIndicator.isVisible = false
+        processProgressContainer.isVisible = false
     }
 
     private fun showPhoto(uri: Uri?) {

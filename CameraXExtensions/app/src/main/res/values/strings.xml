@@ -27,4 +27,6 @@
     <string name="camera_permissions_request_with_rationale">You can\'t use camera extensions unless CameraX Extensions has access to your camera.</string>
     <string name="camera_permissions_request">Allow CameraX Extensions access to your camera to try camera extensions.</string>
     <string name="camera_permissions_action">Turn On</string>
+
+    <string name="hold_still">Hold Still</string>
 </resources>
