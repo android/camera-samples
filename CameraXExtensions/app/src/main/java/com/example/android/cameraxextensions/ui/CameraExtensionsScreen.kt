@@ -259,6 +259,7 @@ class CameraExtensionsScreen(private val root: View) {
 
     private fun hideProcessProgressIndicator() {
         processProgressContainer.isVisible = false
+        processProgressIndicator.progress = 0
     }
 
     private fun showPhoto(uri: Uri?) {
