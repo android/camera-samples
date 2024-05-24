@@ -206,6 +206,8 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                     CaptureState.CaptureReady -> {
+                        captureUri = null
+                        progressComplete = false
                         captureScreenViewState.emit(
                             captureScreenViewState.value
                                 .updateCameraScreen {
@@ -225,13 +227,8 @@ class MainActivity : AppCompatActivity() {
                     }
                     is CaptureState.CaptureFinished -> {
                         captureUri = state.outputResults.savedUri
-                        if (!progressComplete) {
-                            captureScreenViewState.emit(
-                                captureScreenViewState.value
-                                    .updateCameraScreen {
-                                        it.showProcessProgressViewState(100)
-                                    }
-                            )
+                        if (!state.isProcessProgressSupported) {
+                            progressComplete = true
                         }
                         showCapture()
                     }

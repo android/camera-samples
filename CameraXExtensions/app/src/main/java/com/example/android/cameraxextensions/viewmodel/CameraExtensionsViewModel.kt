@@ -261,8 +261,19 @@ class CameraExtensionsViewModel(
                         application,
                         outputFileResults.savedUri ?: photoFile.toUri()
                     )
+                    val isProcessProgressSupported = camera?.cameraInfo?.let {
+                        ImageCapture.getImageCaptureCapabilities(it).isCaptureProcessProgressSupported
+                    } ?: false
                     viewModelScope.launch {
-                        _captureUiState.emit(CaptureState.CaptureFinished(outputFileResults))
+                        if (isProcessProgressSupported) {
+                            _captureUiState.emit(CaptureState.CaptureProcessProgress(100))
+                        }
+                        _captureUiState.emit(
+                            CaptureState.CaptureFinished(
+                                outputFileResults,
+                                isProcessProgressSupported
+                            )
+                        )
                     }
                 }
 

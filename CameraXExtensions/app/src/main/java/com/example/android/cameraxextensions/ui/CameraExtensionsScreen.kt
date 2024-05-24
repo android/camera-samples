@@ -242,6 +242,8 @@ class CameraExtensionsScreen(private val root: View) {
 
     private fun showProcessProgressIndicator(progress: Int) {
         processProgressContainer.isVisible = true
+        if (progress == processProgressIndicator.progress) return
+
         ObjectAnimator.ofInt(processProgressIndicator, "progress", progress).apply {
             val currentProgress = processProgressIndicator.progress
             val progressStep = max(0, progress - currentProgress)

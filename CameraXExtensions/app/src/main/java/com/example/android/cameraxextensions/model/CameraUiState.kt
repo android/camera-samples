@@ -88,7 +88,10 @@ sealed class CaptureState {
     /**
      * Capture completed successfully.
      */
-    data class CaptureFinished(val outputResults: ImageCapture.OutputFileResults) : CaptureState()
+    data class CaptureFinished(
+        val outputResults: ImageCapture.OutputFileResults,
+        val isProcessProgressSupported: Boolean
+    ) : CaptureState()
 
     /**
      * Capture failed with an error.
