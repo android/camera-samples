@@ -18,13 +18,19 @@ package com.example.android.cameraxextensions
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.extensions.ExtensionMode
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.android.cameraxextensions.adapter.CameraExtensionItem
 import com.example.android.cameraxextensions.model.CameraState
 import com.example.android.cameraxextensions.model.CameraUiAction
@@ -75,6 +81,28 @@ class MainActivity : AppCompatActivity() {
 
     // monitors changes in camera permission state
     private lateinit var permissionState: MutableStateFlow<PermissionState>
+
+    private var captureUri: Uri? = null
+    private var progressComplete: Boolean = false
+
+    private suspend fun showCapture() {
+        if (captureUri == null || !progressComplete) return
+
+        cameraExtensionsViewModel.stopPreview()
+        captureScreenViewState.emit(
+            captureScreenViewState.value
+                .updatePostCaptureScreen {
+                    captureUri?.let {
+                        PostCaptureScreenViewState.PostCaptureScreenVisibleViewState(it)
+                    } ?: PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
+                }.updateCameraScreen {
+                    it.hideCameraControls()
+                        .hideProcessProgressViewState()
+                }
+        )
+        captureUri = null
+        progressComplete = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -145,6 +173,10 @@ class MainActivity : AppCompatActivity() {
                     CameraUiAction.RequestPermissionClick -> {
                         requestPermissionsLauncher.launch(Manifest.permission.CAMERA)
                     }
+                    CameraUiAction.ProcessProgressComplete -> {
+                        progressComplete = true
+                        showCapture()
+                    }
                     is CameraUiAction.Focus -> {
                         cameraExtensionsViewModel.focus(action.meteringPoint)
                     }
@@ -169,10 +201,13 @@ class MainActivity : AppCompatActivity() {
                                 .updateCameraScreen {
                                     it.enableCameraShutter(true)
                                         .enableSwitchLens(true)
+                                        .hidePostview()
                                 }
                         )
                     }
                     CaptureState.CaptureReady -> {
+                        captureUri = null
+                        progressComplete = false
                         captureScreenViewState.emit(
                             captureScreenViewState.value
                                 .updateCameraScreen {
@@ -191,23 +226,11 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                     is CaptureState.CaptureFinished -> {
-                        cameraExtensionsViewModel.stopPreview()
-                        captureScreenViewState.emit(
-                            captureScreenViewState.value
-                                .updatePostCaptureScreen {
-                                    val uri = state.outputResults.savedUri
-                                    if (uri != null) {
-                                        PostCaptureScreenViewState.PostCaptureScreenVisibleViewState(
-                                            uri
-                                        )
-                                    } else {
-                                        PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
-                                    }
-                                }
-                                .updateCameraScreen {
-                                    it.hideCameraControls()
-                                }
-                        )
+                        captureUri = state.outputResults.savedUri
+                        if (!state.isProcessProgressSupported) {
+                            progressComplete = true
+                        }
+                        showCapture()
                     }
                     is CaptureState.CaptureFailed -> {
                         cameraExtensionsScreen.showCaptureError("Couldn't take photo")
@@ -220,6 +243,24 @@ class MainActivity : AppCompatActivity() {
                                     it.showCameraControls()
                                         .enableCameraShutter(true)
                                         .enableSwitchLens(true)
+                                        .hideProcessProgressViewState()
+                                        .hidePostview()
+                                }
+                        )
+                    }
+                    is CaptureState.CapturePostview -> {
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.showPostview(state.bitmap)
+                                }
+                        )
+                    }
+                    is CaptureState.CaptureProcessProgress -> {
+                        captureScreenViewState.emit(
+                            captureScreenViewState.value
+                                .updateCameraScreen {
+                                    it.showProcessProgressViewState(state.progress)
                                 }
                         )
                     }
@@ -259,6 +300,7 @@ class MainActivity : AppCompatActivity() {
                                     }
                                     .updateCameraScreen {
                                         it.showCameraControls()
+                                            .hidePostview()
                                             .enableCameraShutter(false)
                                             .enableSwitchLens(false)
                                     }
@@ -299,6 +341,7 @@ class MainActivity : AppCompatActivity() {
             captureScreenViewState.value
                 .updateCameraScreen { state ->
                     state.showCameraControls()
+                    state.hidePostview()
                 }
                 .updatePostCaptureScreen {
                     PostCaptureScreenViewState.PostCaptureScreenHiddenViewState
