@@ -18,8 +18,10 @@ package com.example.android.cameraxextensions.ui
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.TypedValue
 import android.view.GestureDetector.SimpleOnGestureListener
@@ -30,6 +32,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.camera.view.PreviewView
+import androidx.core.animation.doOnEnd
 import androidx.core.view.GestureDetectorCompat
 import androidx.core.view.isVisible
 import androidx.dynamicanimation.animation.DynamicAnimation
@@ -46,9 +49,11 @@ import com.example.android.cameraxextensions.model.CameraUiAction
 import com.example.android.cameraxextensions.viewstate.CameraPreviewScreenViewState
 import com.example.android.cameraxextensions.viewstate.CaptureScreenViewState
 import com.example.android.cameraxextensions.viewstate.PostCaptureScreenViewState
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlin.math.max
 
 /**
  * Displays the camera preview and captured photo.
@@ -63,6 +68,7 @@ class CameraExtensionsScreen(private val root: View) {
         private const val SPRING_STIFFNESS_ALPHA_OUT = 100f
         private const val SPRING_STIFFNESS = 800f
         private const val SPRING_DAMPING_RATIO = 0.35f
+        private const val MAX_PROGRESS_ANIM_DURATION_MS = 3000
     }
 
     private val context: Context = root.context
@@ -79,6 +85,11 @@ class CameraExtensionsScreen(private val root: View) {
     private val permissionsRationale: TextView = root.findViewById(R.id.permissionsRationale)
     private val permissionsRequestButton: TextView =
         root.findViewById(R.id.permissionsRequestButton)
+    private val photoPostview: ImageView = root.findViewById(R.id.photoPostview)
+    private val processProgressContainer: View =
+        root.findViewById(R.id.processProgressContainer)
+    private val processProgressIndicator: CircularProgressIndicator =
+        root.findViewById(R.id.processProgressIndicator)
 
     val previewView: PreviewView = root.findViewById(R.id.previewView)
 
@@ -216,10 +227,50 @@ class CameraExtensionsScreen(private val root: View) {
         }
     }
 
+    private fun showPostview(bitmap: Bitmap) {
+        if (photoPostview.isVisible) return
+        photoPostview.isVisible = true
+        photoPostview.load(bitmap) {
+            crossfade(true)
+            crossfade(200)
+        }
+    }
+
+    private fun hidePostview() {
+        photoPostview.isVisible = false
+    }
+
+    private fun showProcessProgressIndicator(progress: Int) {
+        processProgressContainer.isVisible = true
+        if (progress == processProgressIndicator.progress) return
+
+        ObjectAnimator.ofInt(processProgressIndicator, "progress", progress).apply {
+            val currentProgress = processProgressIndicator.progress
+            val progressStep = max(0, progress - currentProgress)
+            duration = (progressStep / 100f * MAX_PROGRESS_ANIM_DURATION_MS).toLong()
+            doOnEnd {
+                if (animatedValue == 100) {
+                    root.findViewTreeLifecycleOwner()?.lifecycleScope?.launch {
+                        _action.emit(CameraUiAction.ProcessProgressComplete)
+                    }
+                }
+            }
+            start()
+        }
+    }
+
+    private fun hideProcessProgressIndicator() {
+        processProgressContainer.isVisible = false
+        processProgressIndicator.progress = 0
+    }
+
     private fun showPhoto(uri: Uri?) {
         if (uri == null) return
         photoPreview.isVisible = true
-        photoPreview.load(uri)
+        photoPreview.load(uri) {
+            crossfade(true)
+            crossfade(200)
+        }
         closePhotoPreview.isVisible = true
     }
 
@@ -237,6 +288,18 @@ class CameraExtensionsScreen(private val root: View) {
 
         extensionSelector.isVisible = state.extensionsSelectorViewState.isVisible
         extensionsAdapter.submitList(state.extensionsSelectorViewState.extensions)
+
+        if (state.postviewViewState.isVisible) {
+            showPostview(state.postviewViewState.bitmap!!)
+        } else {
+            hidePostview()
+        }
+
+        if (state.processProgressViewState.isVisible) {
+            showProcessProgressIndicator(state.processProgressViewState.progress)
+        } else {
+            hideProcessProgressIndicator()
+        }
     }
 
     private fun onItemClick(view: View) {
