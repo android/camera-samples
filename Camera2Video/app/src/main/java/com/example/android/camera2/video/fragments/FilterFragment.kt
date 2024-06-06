@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,14 +65,14 @@ class FilterFragment : Fragment() {
                         navController.navigate(
                             FilterFragmentDirections.actionFilterToPreview(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization,
-                            args.useMediaRecorder, item.value, true, 0))
+                            args.dynamicRange, args.colorSpace, args.previewStabilization,
+                            args.useMediaRecorder, args.videoCodec, item.value, true, 0))
                     } else {
                         navController.navigate(
                             FilterFragmentDirections.actionFilterToTransfer(
                             args.cameraId, args.width, args.height, args.fps,
-                            args.dynamicRange, args.previewStabilization,
-                            args.useMediaRecorder, item.value))
+                            args.dynamicRange, args.colorSpace, args.previewStabilization,
+                            args.useMediaRecorder, args.videoCodec, item.value))
                     }
                 }
             }

@@ -18,6 +18,10 @@
 <resources>
     <string name="app_name">Camera2Extensions</string>
     <string name="capture">Capture</string>
-    <string name="switch_content">Switch extension</string>
+    <string name="latency_duration">%ds</string>
     <string name="permission_required">Camera permission required!</string>
+    <string name="slider_content">Extension strength slider</string>>
+    <string name="state_hold_still">Hold Still...</string>
+    <string name="state_still_processing">Processing...</string>
+    <string name="switch_content">Switch extension</string>
 </resources>

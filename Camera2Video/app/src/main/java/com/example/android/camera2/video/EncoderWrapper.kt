@@ -28,6 +28,8 @@ import android.os.Message
 import android.util.Log
 import android.view.Surface
 
+import com.example.android.camera2.video.fragments.VideoCodecFragment
+
 import java.io.File
 import java.io.IOException
 import java.lang.ref.WeakReference
@@ -43,22 +45,25 @@ class EncoderWrapper(width: Int,
                      dynamicRange: Long,
                      orientationHint: Int,
                      outputFile: File,
-                     useMediaRecorder: Boolean) {
+                     useMediaRecorder: Boolean,
+                     videoCodec: Int) {
     companion object {
         val TAG = "EncoderWrapper"
         val VERBOSE = false
         val IFRAME_INTERVAL = 1 // sync one frame every second
     }
 
+    private val mWidth = width
+    private val mHeight = height
+    private val mBitRate = bitRate
+    private val mFrameRate = frameRate
+    private val mDynamicRange = dynamicRange
     private val mOrientationHint = orientationHint
-
+    private val mOutputFile = outputFile
     private val mUseMediaRecorder = useMediaRecorder
+    private val mVideoCodec = videoCodec
 
-    private val mMimeType = when {
-        dynamicRange == DynamicRangeProfiles.STANDARD -> MediaFormat.MIMETYPE_VIDEO_AVC
-        dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> MediaFormat.MIMETYPE_VIDEO_HEVC
-        else -> throw IllegalArgumentException("Unknown dynamic range format")
-    }
+    private val mMimeType = VideoCodecFragment.idToType(mVideoCodec)
 
     private val mEncoderThread: EncoderThread? by lazy {
         if (useMediaRecorder) {
@@ -79,17 +84,50 @@ class EncoderWrapper(width: Int,
     private val mInputSurface: Surface by lazy {
         if (useMediaRecorder) {
             // Get a persistent Surface from MediaCodec, don't forget to release when done
-            MediaCodec.createPersistentInputSurface()
+            val surface = MediaCodec.createPersistentInputSurface()
+
+            // Prepare and release a dummy MediaRecorder with our new surface
+            // Required to allocate an appropriately sized buffer before passing the Surface as the
+            //  output target to the capture session
+            createRecorder(surface).apply {
+                prepare()
+                release()
+            }
+
+            surface
         } else {
             mEncoder!!.createInputSurface()
         }
     }
 
-    private val mMediaRecorder: MediaRecorder? by lazy {
-        if (useMediaRecorder) {
-            MediaRecorder()
-        } else {
-            null
+    private var mMediaRecorder: MediaRecorder? = null
+
+    private fun createRecorder(surface: Surface): MediaRecorder {
+        return MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setVideoSource(MediaRecorder.VideoSource.SURFACE)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFile(mOutputFile.absolutePath)
+            setVideoEncodingBitRate(mBitRate)
+            if (mFrameRate > 0) setVideoFrameRate(mFrameRate)
+            setVideoSize(mWidth, mHeight)
+
+            val videoEncoder = when (mVideoCodec) {
+                VideoCodecFragment.VIDEO_CODEC_ID_H264 ->
+                        MediaRecorder.VideoEncoder.H264
+                VideoCodecFragment.VIDEO_CODEC_ID_HEVC ->
+                        MediaRecorder.VideoEncoder.HEVC
+                VideoCodecFragment.VIDEO_CODEC_ID_AV1 ->
+                        MediaRecorder.VideoEncoder.AV1
+                else -> throw IllegalArgumentException("Unknown video codec id")
+            }
+
+            setVideoEncoder(videoEncoder)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioEncodingBitRate(16)
+            setAudioSamplingRate(44100)
+            setInputSurface(surface)
+            setOrientationHint(mOrientationHint)
         }
     }
 
@@ -98,38 +136,27 @@ class EncoderWrapper(width: Int,
      */
     init {
         if (useMediaRecorder) {
-            mMediaRecorder!!.apply {
-                Log.i(TAG, "useMediaRecorder");
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setVideoSource(MediaRecorder.VideoSource.SURFACE)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setOutputFile(outputFile.absolutePath)
-                setVideoEncodingBitRate(bitRate)
-                if (frameRate > 0) setVideoFrameRate(frameRate)
-                setVideoSize(width, height)
-
-                val videoEncoder = when {
-                    dynamicRange == DynamicRangeProfiles.STANDARD ->
-                            MediaRecorder.VideoEncoder.H264
-                    dynamicRange < DynamicRangeProfiles.PUBLIC_MAX ->
-                            MediaRecorder.VideoEncoder.HEVC
-                    else -> throw IllegalArgumentException("Unknown dynamic range format")
-                }
-
-                setVideoEncoder(videoEncoder)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(16)
-                setAudioSamplingRate(44100)
-                setInputSurface(mInputSurface)
-            }
+            mMediaRecorder = createRecorder(mInputSurface)
         } else {
-            val codecProfile = when {
-                dynamicRange == DynamicRangeProfiles.HLG10 ->
-                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10
-                dynamicRange == DynamicRangeProfiles.HDR10 ->
-                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
-                dynamicRange == DynamicRangeProfiles.HDR10_PLUS ->
-                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus
+            val codecProfile = when (mVideoCodec) {
+                VideoCodecFragment.VIDEO_CODEC_ID_HEVC -> when {
+                    dynamicRange == DynamicRangeProfiles.HLG10 ->
+                            MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10
+                    dynamicRange == DynamicRangeProfiles.HDR10 ->
+                            MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
+                    dynamicRange == DynamicRangeProfiles.HDR10_PLUS ->
+                            MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus
+                    else -> -1
+                }
+                VideoCodecFragment.VIDEO_CODEC_ID_AV1 -> when {
+                    dynamicRange == DynamicRangeProfiles.HLG10 ->
+                            MediaCodecInfo.CodecProfileLevel.AV1ProfileMain10
+                    dynamicRange == DynamicRangeProfiles.HDR10 ->
+                            MediaCodecInfo.CodecProfileLevel.AV1ProfileMain10HDR10
+                    dynamicRange == DynamicRangeProfiles.HDR10_PLUS ->
+                            MediaCodecInfo.CodecProfileLevel.AV1ProfileMain10HDR10Plus
+                    else -> -1
+                }
                 else -> -1
             }
 
@@ -147,7 +174,7 @@ class EncoderWrapper(width: Int,
                 format.setInteger(MediaFormat.KEY_PROFILE, codecProfile)
                 format.setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020)
                 format.setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_FULL)
-                format.setInteger(MediaFormat.KEY_COLOR_TRANSFER, getTransferFunction(codecProfile))
+                format.setInteger(MediaFormat.KEY_COLOR_TRANSFER, getTransferFunction())
                 format.setFeatureEnabled(MediaCodecInfo.CodecCapabilities.FEATURE_HdrEditing, true)
             }
 
@@ -159,12 +186,10 @@ class EncoderWrapper(width: Int,
         }
     }
 
-    private fun getTransferFunction(codecProfile: Int) = when (codecProfile) {
-        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 -> MediaFormat.COLOR_TRANSFER_HLG
-        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10 ->
-                MediaFormat.COLOR_TRANSFER_ST2084
-        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus ->
-                MediaFormat.COLOR_TRANSFER_ST2084
+    private fun getTransferFunction() = when (mDynamicRange) {
+        DynamicRangeProfiles.HLG10 -> MediaFormat.COLOR_TRANSFER_HLG
+        DynamicRangeProfiles.HDR10 -> MediaFormat.COLOR_TRANSFER_ST2084
+        DynamicRangeProfiles.HDR10_PLUS -> MediaFormat.COLOR_TRANSFER_ST2084
         else -> MediaFormat.COLOR_TRANSFER_SDR_VIDEO
     }
 
@@ -196,11 +221,23 @@ class EncoderWrapper(width: Int,
      * <p>
      * Does not return until the encoder thread has stopped.
      */
-    public fun shutdown() {
+    public fun shutdown(): Boolean {
         if (VERBOSE) Log.d(TAG, "releasing encoder objects")
 
         if (mUseMediaRecorder) {
-            mMediaRecorder!!.stop()
+            try {
+                mMediaRecorder!!.stop()
+            } catch (e: RuntimeException) {
+                // https://developer.android.com/reference/android/media/MediaRecorder.html#stop()
+                // RuntimeException will be thrown if no valid audio/video data has been received
+                // when stop() is called, it usually happens when stop() is called immediately after
+                // start(). In this case the output file is not properly constructed ans should be
+                // deleted.
+                Log.d(TAG, "RuntimeException: stop() is called immediately after start()");
+                //noinspection ResultOfMethodCallIgnored
+                mOutputFile.delete()
+                return false
+            }
         } else {
             val handler = mEncoderThread!!.getHandler()
             handler.sendMessage(handler.obtainMessage(EncoderThread.EncoderHandler.MSG_SHUTDOWN))
@@ -213,6 +250,7 @@ class EncoderWrapper(width: Int,
             mEncoder!!.stop()
             mEncoder!!.release()
         }
+        return true
     }
 
     /**

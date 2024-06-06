@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,27 +20,24 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.graphics.Color
+import android.graphics.ColorSpace
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
-import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
+import android.hardware.camera2.params.ColorSpaceProfiles
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
 import android.media.MediaScannerConnection
 import android.os.Bundle
 import android.os.ConditionVariable
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.util.Log
-import android.util.Range
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
@@ -48,18 +45,18 @@ import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.navigation.fragment.navArgs
-import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera.utils.getPreviewOutputSize
 import com.example.android.camera2.video.BuildConfig
 import com.example.android.camera2.video.CameraActivity
+import com.example.android.camera2.video.EncoderWrapper
 import com.example.android.camera2.video.R
 import com.example.android.camera2.video.databinding.FragmentPreviewBinding
 import kotlinx.coroutines.Dispatchers
@@ -70,15 +67,11 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.RuntimeException
+import java.util.concurrent.Executor
+import java.util.concurrent.RejectedExecutionException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-
-import com.example.android.camera2.video.EncoderWrapper
-
-import java.util.concurrent.Executor
-import java.util.concurrent.RejectedExecutionException
 
 class PreviewFragment : Fragment() {
 
@@ -144,26 +137,6 @@ class PreviewFragment : Fragment() {
 
     /** [Handler] corresponding to [cameraThread] */
     private val cameraHandler = Handler(cameraThread.looper)
-
-    /** Performs recording animation of flashing screen */
-    private val animationTask: Runnable by lazy {
-        Runnable {
-            // Flash white animation
-            fragmentBinding.overlay.foreground = Color.argb(150, 255, 255, 255).toDrawable()
-            // Wait for ANIMATION_FAST_MILLIS
-            fragmentBinding.overlay.postDelayed({
-                if (isCurrentlyRecording()) {
-                    // Remove white flash animation
-                    fragmentBinding.overlay.foreground = null
-                    // Restart animation recursively
-                    if (isCurrentlyRecording()) {
-                        fragmentBinding.overlay.postDelayed(animationTask,
-                                CameraActivity.ANIMATION_FAST_MILLIS)
-                    }
-                }
-            }, CameraActivity.ANIMATION_FAST_MILLIS)
-        }
-    }
 
     /** Captures frames from a [CameraDevice] for our video recording */
     private lateinit var session: CameraCaptureSession
@@ -268,7 +241,8 @@ class PreviewFragment : Fragment() {
         }
 
         return EncoderWrapper(width, height, RECORDER_VIDEO_BITRATE, args.fps,
-                args.dynamicRange, orientationHint, outputFile, args.useMediaRecorder)
+                args.dynamicRange, orientationHint, outputFile, args.useMediaRecorder,
+                args.videoCodec)
     }
 
     /**
@@ -287,7 +261,8 @@ class PreviewFragment : Fragment() {
         val previewTargets = pipeline.getPreviewTargets()
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
-        session = createCaptureSession(camera, previewTargets, cameraHandler)
+        session = createCaptureSession(camera, previewTargets, cameraHandler,
+                recordingCompleteOnClose = (pipeline !is SoftwarePipeline))
 
         // Sends the capture request as frequently as possible until the session is torn down or
         //  session.stopRepeating() is called
@@ -323,7 +298,8 @@ class PreviewFragment : Fragment() {
                             val recordTargets = pipeline.getRecordTargets()
 
                             session.close()
-                            session = createCaptureSession(camera, recordTargets, cameraHandler)
+                            session = createCaptureSession(camera, recordTargets, cameraHandler,
+                                    recordingCompleteOnClose = true)
 
                             session.setRepeatingRequest(recordRequest,
                                     object : CameraCaptureSession.CaptureCallback() {
@@ -340,8 +316,16 @@ class PreviewFragment : Fragment() {
                         recordingStartMillis = System.currentTimeMillis()
                         Log.d(TAG, "Recording started")
 
-                        // Starts recording animation
-                        fragmentBinding.overlay.post(animationTask)
+                        // Set color to RED and show timer when recording begins
+                        fragmentBinding.captureButton.post {
+                            fragmentBinding.captureButton.background =
+                                    context?.let {
+                                        ContextCompat.getDrawable(it,
+                                                R.drawable.ic_shutter_pressed)
+                                    }
+                            fragmentBinding.captureTimer?.visibility = View.VISIBLE
+                            fragmentBinding.captureTimer?.start()
+                        }
                     }
                 }
 
@@ -352,9 +336,21 @@ class PreviewFragment : Fragment() {
                     encoder.waitForFirstFrame()
 
                     session.stopRepeating()
+                    session.close()
 
                     pipeline.clearFrameListener()
                     fragmentBinding.captureButton.setOnTouchListener(null)
+
+                    // Set color to GRAY and hide timer when recording stops
+                    fragmentBinding.captureButton.post {
+                        fragmentBinding.captureButton.background =
+                                context?.let {
+                                    ContextCompat.getDrawable(it,
+                                            R.drawable.ic_shutter_normal)
+                                }
+                        fragmentBinding.captureTimer?.visibility = View.GONE
+                        fragmentBinding.captureTimer?.stop()
+                    }
 
                     /* Wait until the session signals onReady */
                     cvRecordingComplete.block()
@@ -371,27 +367,44 @@ class PreviewFragment : Fragment() {
 
                     delay(CameraActivity.ANIMATION_SLOW_MILLIS)
 
-                    Log.d(TAG, "Recording stopped. Output file: $outputFile")
-                    encoder.shutdown()
-
                     pipeline.cleanup()
 
-                    // Broadcasts the media file to the rest of the system
-                    MediaScannerConnection.scanFile(
-                            requireView().context, arrayOf(outputFile.absolutePath), null, null)
+                    Log.d(TAG, "Recording stopped. Output file: $outputFile")
 
-                    // Launch external activity via intent to play video recorded using our provider
-                    startActivity(Intent().apply {
-                        action = Intent.ACTION_VIEW
-                        type = MimeTypeMap.getSingleton()
-                                .getMimeTypeFromExtension(outputFile.extension)
-                        val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                        data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    })
+                    if (encoder.shutdown()) {
+                        // Broadcasts the media file to the rest of the system
+                        MediaScannerConnection.scanFile(
+                                requireView().context, arrayOf(outputFile.absolutePath), null, null)
 
-                    navController.popBackStack()
+                        if (outputFile.exists()) {
+                            // Launch external activity via intent to play video recorded using our provider
+                            startActivity(Intent().apply {
+                                action = Intent.ACTION_VIEW
+                                type = MimeTypeMap.getSingleton()
+                                        .getMimeTypeFromExtension(outputFile.extension)
+                                val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                                data = FileProvider.getUriForFile(view.context, authority, outputFile)
+                                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            })
+                        } else {
+                            // TODO: 
+                            //  1. Move the callback to ACTION_DOWN, activating it on the second press
+                            //  2. Add an animation to the button before the user can press it again
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(activity, R.string.error_file_not_found,
+                                        Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(activity, R.string.recorder_shutdown_error,
+                                    Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    Handler(Looper.getMainLooper()).post {
+                        navController.popBackStack()
+                    }
                 }
             }
 
@@ -449,6 +462,11 @@ class PreviewFragment : Fragment() {
 
             val sessionConfig = SessionConfiguration(SessionConfiguration.SESSION_REGULAR,
                     outputConfigs, HandlerExecutor(handler), stateCallback)
+            if (android.os.Build.VERSION.SDK_INT >=
+                    android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && args.colorSpace != ColorSpaceProfiles.UNSPECIFIED) {
+                sessionConfig.setColorSpace(ColorSpace.Named.values()[args.colorSpace])
+            }
             device.createCaptureSession(sessionConfig)
             return true
         } else {
@@ -464,7 +482,8 @@ class PreviewFragment : Fragment() {
     private suspend fun createCaptureSession(
             device: CameraDevice,
             targets: List<Surface>,
-            handler: Handler
+            handler: Handler,
+            recordingCompleteOnClose: Boolean
     ): CameraCaptureSession = suspendCoroutine { cont ->
         val stateCallback = object: CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) = cont.resume(session)
@@ -476,8 +495,8 @@ class PreviewFragment : Fragment() {
             }
 
             /** Called after all captures have completed - shut down the encoder */
-            override fun onReady(session: CameraCaptureSession) {
-                if (!isCurrentlyRecording()) {
+            override fun onClosed(session: CameraCaptureSession) {
+                if (!recordingCompleteOnClose or !isCurrentlyRecording()) {
                     return
                 }
 
@@ -501,6 +520,8 @@ class PreviewFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
+        pipeline.clearFrameListener()
+        pipeline.cleanup()
         cameraThread.quitSafely()
         encoderSurface.release()
     }

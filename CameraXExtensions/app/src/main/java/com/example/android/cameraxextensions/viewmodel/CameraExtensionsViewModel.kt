@@ -17,13 +17,21 @@
 package com.example.android.cameraxextensions.viewmodel
 
 import android.app.Application
-import androidx.camera.core.*
+import android.graphics.Bitmap
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraSelector.LensFacing
+import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.MeteringPoint
+import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.extensions.ExtensionsManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.ui.layout.ScaleFactor
 import androidx.core.net.toUri
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
@@ -58,7 +66,7 @@ class CameraExtensionsViewModel(
 
     private var camera: Camera? = null
 
-    private val imageCapture = ImageCapture.Builder()
+    private var imageCapture = ImageCapture.Builder()
         .setTargetAspectRatio(AspectRatio.RATIO_16_9)
         .build()
 
@@ -142,6 +150,19 @@ class CameraExtensionsViewModel(
                 currentCameraUiState.extensionMode
             )
         }
+
+        cameraProvider.unbindAll()
+        camera = cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector)
+
+        camera?.cameraInfo?.let {
+            val isPostviewSupported =
+                ImageCapture.getImageCaptureCapabilities(it).isPostviewSupported
+            imageCapture = ImageCapture.Builder()
+                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                .setPostviewEnabled(isPostviewSupported)
+                .build()
+        }
+
         val useCaseGroup = UseCaseGroup.Builder()
             .setViewPort(previewView.viewPort!!)
             .addUseCase(imageCapture)
@@ -223,6 +244,14 @@ class CameraExtensionsViewModel(
                 .setMetadata(metadata)
                 .build()
 
+        camera?.cameraInfo?.let {
+            if (ImageCapture.getImageCaptureCapabilities(it).isCaptureProcessProgressSupported) {
+                viewModelScope.launch {
+                    _captureUiState.emit(CaptureState.CaptureProcessProgress(0))
+                }
+            }
+        }
+
         imageCapture.takePicture(
             outputFileOptions,
             Dispatchers.Default.asExecutor(),
@@ -232,14 +261,37 @@ class CameraExtensionsViewModel(
                         application,
                         outputFileResults.savedUri ?: photoFile.toUri()
                     )
+                    val isProcessProgressSupported = camera?.cameraInfo?.let {
+                        ImageCapture.getImageCaptureCapabilities(it).isCaptureProcessProgressSupported
+                    } ?: false
                     viewModelScope.launch {
-                        _captureUiState.emit(CaptureState.CaptureFinished(outputFileResults))
+                        if (isProcessProgressSupported) {
+                            _captureUiState.emit(CaptureState.CaptureProcessProgress(100))
+                        }
+                        _captureUiState.emit(
+                            CaptureState.CaptureFinished(
+                                outputFileResults,
+                                isProcessProgressSupported
+                            )
+                        )
                     }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
                     viewModelScope.launch {
                         _captureUiState.emit(CaptureState.CaptureFailed(exception))
+                    }
+                }
+
+                override fun onCaptureProcessProgressed(progress: Int) {
+                    viewModelScope.launch {
+                        _captureUiState.emit(CaptureState.CaptureProcessProgress(progress))
+                    }
+                }
+
+                override fun onPostviewBitmapAvailable(bitmap: Bitmap) {
+                    viewModelScope.launch {
+                        _captureUiState.emit(CaptureState.CapturePostview(bitmap))
                     }
                 }
             })

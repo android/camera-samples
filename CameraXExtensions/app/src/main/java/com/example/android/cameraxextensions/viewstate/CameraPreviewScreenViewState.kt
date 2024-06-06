@@ -16,6 +16,7 @@
 
 package com.example.android.cameraxextensions.viewstate
 
+import android.graphics.Bitmap
 import com.example.android.cameraxextensions.adapter.CameraExtensionItem
 
 /**
@@ -25,7 +26,9 @@ import com.example.android.cameraxextensions.adapter.CameraExtensionItem
 data class CameraPreviewScreenViewState(
     val shutterButtonViewState: ShutterButtonViewState = ShutterButtonViewState(),
     val switchLensButtonViewState: SwitchLensButtonViewState = SwitchLensButtonViewState(),
-    val extensionsSelectorViewState: CameraExtensionSelectorViewState = CameraExtensionSelectorViewState()
+    val extensionsSelectorViewState: CameraExtensionSelectorViewState = CameraExtensionSelectorViewState(),
+    val processProgressViewState: ProcessProgressIndicatorViewState = ProcessProgressIndicatorViewState(),
+    val postviewViewState: PostviewViewState = PostviewViewState()
 ) {
     fun hideCameraControls(): CameraPreviewScreenViewState =
         copy(
@@ -49,6 +52,17 @@ data class CameraPreviewScreenViewState(
 
     fun setAvailableExtensions(extensions: List<CameraExtensionItem>): CameraPreviewScreenViewState =
         copy(extensionsSelectorViewState = extensionsSelectorViewState.copy(extensions = extensions))
+
+    fun showPostview(bitmap: Bitmap): CameraPreviewScreenViewState =
+        copy(postviewViewState = PostviewViewState(isVisible = true, bitmap = bitmap))
+
+    fun hidePostview(): CameraPreviewScreenViewState = copy(postviewViewState = PostviewViewState())
+
+    fun showProcessProgressViewState(progress: Int): CameraPreviewScreenViewState =
+        copy(processProgressViewState = ProcessProgressIndicatorViewState(isVisible = true, progress = progress))
+
+    fun hideProcessProgressViewState(): CameraPreviewScreenViewState =
+        copy(processProgressViewState = ProcessProgressIndicatorViewState())
 }
 
 data class CameraExtensionSelectorViewState(
@@ -64,4 +78,14 @@ data class ShutterButtonViewState(
 data class SwitchLensButtonViewState(
     val isVisible: Boolean = false,
     val isEnabled: Boolean = false
+)
+
+data class ProcessProgressIndicatorViewState(
+    val isVisible: Boolean = false,
+    val progress: Int = 0
+)
+
+data class PostviewViewState(
+    val isVisible: Boolean = false,
+    val bitmap: Bitmap? = null
 )
