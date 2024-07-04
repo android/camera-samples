@@ -18,8 +18,10 @@ package com.example.android.camera2.extensions.fragments
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -61,7 +63,7 @@ class SelectorFragment : Fragment() {
                 view.setOnClickListener {
                     Navigation.findNavController(requireActivity(), R.id.fragment_container)
                             .navigate(SelectorFragmentDirections.actionSelectorToCamera(
-                                    item.cameraId))
+                                    item.cameraId, item.jpegR))
                 }
             }
         }
@@ -71,7 +73,8 @@ class SelectorFragment : Fragment() {
 
         private data class CameraInfo(
                 val name: String,
-                val cameraId: String)
+                val cameraId: String,
+                val jpegR: Boolean = false)
 
         /** Converts a lens orientation enum into a human-readable string */
         private fun lensOrientationString(value: Int) = when (value) {
@@ -99,9 +102,21 @@ class SelectorFragment : Fragment() {
                                           .REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE) &&
                 extensionCharacteristics.supportedExtensions.isNotEmpty()) {
                 availableCameras.add(CameraInfo("$orientation ($id)", id))
+
+                if (Build.VERSION.SDK_INT >= 35) {
+                    for (extension in extensionCharacteristics.supportedExtensions) {
+                        val jpegRSizes = extensionCharacteristics.getExtensionSupportedSizes(
+                            extension, ImageFormat.JPEG_R
+                        )
+
+                        if (jpegRSizes.isNotEmpty()) {
+                            availableCameras.add(CameraInfo("$orientation ($id) JPEG_R", id, true))
+                            break // Exit the loop since we found a suitable extension
+                        }
+                    }
+                }
               }
             }
-
             return availableCameras
         }
     }
