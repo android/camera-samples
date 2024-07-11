@@ -43,6 +43,11 @@
             app:argType="string"
             app:nullable="false"/>
 
+        <argument
+            android:name="jpegR"
+            app:argType="boolean"
+            app:nullable="false"/>
+
     </fragment>
 
 </navigation>

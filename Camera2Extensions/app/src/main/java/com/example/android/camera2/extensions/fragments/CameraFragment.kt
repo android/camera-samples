@@ -469,7 +469,21 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     extensionCharacteristics = cameraManager.getCameraExtensionCharacteristics(args.cameraId)
     characteristics = cameraManager.getCameraCharacteristics(args.cameraId)
     lensFacing = characteristics[CameraCharacteristics.LENS_FACING]!!
-    supportedExtensions.addAll(extensionCharacteristics.supportedExtensions)
+
+    if (args.jpegR) {
+      for (extension in extensionCharacteristics.supportedExtensions) {
+        val jpegRSizes = extensionCharacteristics.getExtensionSupportedSizes(
+          extension, ImageFormat.JPEG_R
+        )
+
+        if (jpegRSizes.isNotEmpty()) {
+          supportedExtensions.add(extension)
+        }
+      }
+    } else {
+      supportedExtensions.addAll(extensionCharacteristics.supportedExtensions)
+    }
+
     if (currentExtension == -1) {
       currentExtension = supportedExtensions[0]
       currentExtensionIdx = 0
@@ -651,6 +665,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     previewSurface = createPreviewSurface(previewSize)
     stillImageReader = createStillImageReader()
     postviewImageReader = createPostviewImageReader()
+    isPostviewAvailable = postviewImageReader != null
 
     val outputConfig = ArrayList<OutputConfiguration>()
     outputConfig.add(OutputConfiguration(stillImageReader.surface))
@@ -722,14 +737,27 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
    * Creates the still image reader and sets up OnImageAvailableListener
    */
   private fun createStillImageReader(): ImageReader {
+    var stillFormat: Int
+    var stillCaptureSize: Size
+
     val yuvColorEncodingSystemSizes = extensionCharacteristics.getExtensionSupportedSizes(
       currentExtension, ImageFormat.YUV_420_888
     )
     val jpegSizes = extensionCharacteristics.getExtensionSupportedSizes(
       currentExtension, ImageFormat.JPEG
     )
-    val stillFormat = if (jpegSizes.isEmpty()) ImageFormat.YUV_420_888 else ImageFormat.JPEG
-    val stillCaptureSize = if (jpegSizes.isEmpty()) yuvColorEncodingSystemSizes[0] else jpegSizes[0]
+    stillFormat = if (jpegSizes.isEmpty()) ImageFormat.YUV_420_888 else ImageFormat.JPEG
+    stillCaptureSize = if (jpegSizes.isEmpty()) yuvColorEncodingSystemSizes[0] else jpegSizes[0]
+
+    if (Build.VERSION.SDK_INT >= 35) {
+      val jpegRSizes = extensionCharacteristics.getExtensionSupportedSizes(
+        currentExtension, ImageFormat.JPEG_R
+      )
+      if (args.jpegR && jpegRSizes.isNotEmpty()) {
+        stillFormat = ImageFormat.JPEG_R
+        stillCaptureSize = jpegRSizes[0]
+      }
+    }
     val stillImageReader = ImageReader.newInstance(
       stillCaptureSize.width,
       stillCaptureSize.height, stillFormat, 1
@@ -742,7 +770,8 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
             hideCaptureProgressUI()
             val file = File(
               requireActivity().getExternalFilesDir(null),
-              if (image.format == ImageFormat.JPEG) "frame.jpg" else "frame.yuv"
+              if (image.format == ImageFormat.JPEG
+                || image.format == ImageFormat.JPEG_R) "frame.jpg" else "frame.yuv"
             )
             output = FileOutputStream(file)
             output.write(getDataFromImage(image))
@@ -787,12 +816,14 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
     )
     val postviewSize: Size
     val postviewFormat: Int
-    if (!jpegSupportedSizes.isEmpty()) {
+    if (jpegSupportedSizes.isNotEmpty()) {
       postviewSize = jpegSupportedSizes[0]
       postviewFormat = ImageFormat.JPEG
-    } else {
+    } else if (yuvSupportedSizes.isNotEmpty()){
       postviewSize = yuvSupportedSizes[0]
       postviewFormat = ImageFormat.YUV_420_888
+    } else {
+      return null
     }
     val postviewImageReader =
       ImageReader.newInstance(postviewSize.width, postviewSize.height, postviewFormat, 1)
@@ -1235,7 +1266,7 @@ class CameraFragment : Fragment(), TextureView.SurfaceTextureListener {
       val planes = image.planes
       var buffer: ByteBuffer
       var offset = 0
-      if (format == ImageFormat.JPEG) {
+      if (format == ImageFormat.JPEG || format == ImageFormat.JPEG_R) {
         buffer = planes[0].buffer
         data = ByteArray(buffer.limit())
         buffer.rewind()
