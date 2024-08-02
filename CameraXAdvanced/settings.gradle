@@ -1,1 +1,20 @@
-include 'tflite'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+        maven { // repo for TFLite snapshot
+            name 'ossrh-snapshot'
+            url 'https://s01.oss.sonatype.org/content/repositories/snapshots'
+        }
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "Camera Object Detector"
+include ':tflite'
