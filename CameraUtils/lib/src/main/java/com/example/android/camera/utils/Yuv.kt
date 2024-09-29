@@ -54,8 +54,7 @@ class YuvByteBuffer(image: Image, dstBuffer: ByteBuffer? = null) {
 
         type = if (wrappedImage.u.pixelStride == 1) {
             ImageFormat.YUV_420_888
-        } else {
-            ImageFormat.NV21
+        } 
         }
         val size = image.width * image.height * 3 / 2
         buffer = if (
