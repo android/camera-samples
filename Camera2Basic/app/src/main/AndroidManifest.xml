@@ -35,6 +35,7 @@
         <activity
             android:name="com.example.android.camera2.basic.CameraActivity"
             android:clearTaskOnLaunch="true"
+            android:exported="true"
             android:theme="@style/AppTheme">
 
             <!-- Main app intent filter -->

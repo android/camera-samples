@@ -20,12 +20,13 @@ apply plugin: 'kotlin-kapt'
 apply plugin: "androidx.navigation.safeargs"
 
 android {
-    compileSdkVersion 29
+    namespace = "com.example.android.camera2.basic"
+    compileSdkVersion 34
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         applicationId "com.android.example.camera2.basic"
         minSdkVersion 21
-        targetSdkVersion 29
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0.0"
     }
@@ -76,17 +77,4 @@ dependencies {
     // Glide
     implementation 'com.github.bumptech.glide:glide:4.11.0'
     kapt 'com.github.bumptech.glide:compiler:4.11.0'
-
-    // Unit testing
-    testImplementation 'androidx.test.ext:junit:1.1.1'
-    testImplementation 'androidx.test:rules:1.2.0'
-    testImplementation 'androidx.test:runner:1.2.0'
-    testImplementation 'androidx.test.espresso:espresso-core:3.2.0'
-    testImplementation 'org.robolectric:robolectric:4.3.1'
-
-    // Instrumented testing
-    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
-    androidTestImplementation 'androidx.test:rules:1.2.0'
-    androidTestImplementation 'androidx.test:runner:1.2.0'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 }
