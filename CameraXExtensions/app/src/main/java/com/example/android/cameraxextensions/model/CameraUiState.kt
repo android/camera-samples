@@ -20,6 +20,7 @@ import android.graphics.Bitmap
 import androidx.camera.core.CameraSelector.LENS_FACING_BACK
 import androidx.camera.core.CameraSelector.LensFacing
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureLatencyEstimate
 import androidx.camera.extensions.ExtensionMode
 
 /**
@@ -33,6 +34,8 @@ data class CameraUiState(
     val availableCameraLens: List<Int> = listOf(LENS_FACING_BACK),
     @LensFacing val cameraLens: Int = LENS_FACING_BACK,
     @ExtensionMode.Mode val extensionMode: Int = ExtensionMode.NONE,
+    val realtimeCaptureLatencyEstimate: ImageCaptureLatencyEstimate =
+        ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY
 )
 
 /**
@@ -48,6 +51,12 @@ enum class CameraState {
      * Camera is open and presenting a preview stream.
      */
     READY,
+
+    /**
+     * Camera is open and preview stream is currently running.
+     * Updates during this period are from camera state operations.
+     */
+    PREVIEW_ACTIVE,
 
     /**
      * Camera is initialized but the preview has been stopped.

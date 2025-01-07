@@ -24,6 +24,7 @@ import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.ImageCaptureLatencyEstimate
 import androidx.camera.extensions.ExtensionMode
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
@@ -53,6 +54,11 @@ import kotlinx.coroutines.launch
  * button will capture a photo and display the photo.
  */
 class MainActivity : AppCompatActivity() {
+    private companion object {
+        const val TAG = "MainActivity"
+        const val CAPTURE_LATENCY_INDICATOR_THRESHOLD_MS = 500
+    }
+
     private val extensionName = mapOf(
         ExtensionMode.AUTO to R.string.camera_mode_auto,
         ExtensionMode.NIGHT to R.string.camera_mode_night,
@@ -308,6 +314,7 @@ class MainActivity : AppCompatActivity() {
                             cameraExtensionsViewModel.initializeCamera()
                         }
                         CameraState.READY -> {
+                            Log.d(TAG, "Camera is ready")
                             cameraExtensionsScreen.previewView.doOnLaidOut {
                                 cameraExtensionsViewModel.startPreview(
                                     this@MainActivity as LifecycleOwner,
@@ -329,6 +336,22 @@ class MainActivity : AppCompatActivity() {
                                             )
                                     }
                             )
+                        }
+                        CameraState.PREVIEW_ACTIVE -> {
+                            Log.d(TAG, "Camera preview is active")
+                            captureScreenViewState.emit(captureScreenViewState.value.updateCameraScreen { s ->
+                                val latencyEstimate = cameraUiState.realtimeCaptureLatencyEstimate
+                                    if (latencyEstimate == ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY) {
+                                        Log.d(TAG, "Camera preview is active: hide latency estimate indicator")
+                                        s.hideLatencyEstimateIndicator()
+                                    } else if (latencyEstimate.captureLatencyMillis <= CAPTURE_LATENCY_INDICATOR_THRESHOLD_MS) {
+                                        Log.d(TAG, "Camera preview is active: hide latency estimate indicator (under ${CAPTURE_LATENCY_INDICATOR_THRESHOLD_MS}ms)")
+                                        s.hideLatencyEstimateIndicator()
+                                    } else {
+                                        Log.d(TAG, "Camera preview is active: show latency estimate indicator (${latencyEstimate.captureLatencyMillis}ms")
+                                        s.showLatencyEstimateIndicator(latencyEstimate.captureLatencyMillis)
+                                    }
+                                })
                         }
                         CameraState.PREVIEW_STOPPED -> Unit
                     }
