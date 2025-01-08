@@ -18,6 +18,7 @@ package com.example.android.cameraxextensions.viewmodel
 
 import android.app.Application
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -25,6 +26,7 @@ import androidx.camera.core.CameraSelector.LensFacing
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageCaptureLatencyEstimate
 import androidx.camera.core.MeteringPoint
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
@@ -41,11 +43,16 @@ import com.example.android.cameraxextensions.model.CameraUiState
 import com.example.android.cameraxextensions.model.CaptureState
 import com.example.android.cameraxextensions.repository.ImageCaptureRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import androidx.lifecycle.asFlow
+import kotlinx.coroutines.CoroutineScope
 
 /**
  * View model for camera extensions. This manages all the operations on the camera.
@@ -61,6 +68,11 @@ class CameraExtensionsViewModel(
     private val application: Application,
     private val imageCaptureRepository: ImageCaptureRepository
 ) : ViewModel() {
+    private companion object {
+        const val TAG = "CameraExtensionsViewModel"
+        const val REALTIME_LATENCY_UPDATE_INTERVAL_MILLIS = 1000L
+    }
+
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var extensionsManager: ExtensionsManager
 
@@ -69,6 +81,7 @@ class CameraExtensionsViewModel(
     private var imageCapture = ImageCapture.Builder()
         .setTargetAspectRatio(AspectRatio.RATIO_16_9)
         .build()
+    private var realtimeLatencyEstimateJob: Job? = null
 
     private val preview = Preview.Builder()
         .setTargetAspectRatio(AspectRatio.RATIO_16_9)
@@ -127,6 +140,7 @@ class CameraExtensionsViewModel(
                 availableExtensions = listOf(ExtensionMode.NONE) + availableExtensions,
                 availableCameraLens = availableCameraLens,
                 extensionMode = if (availableExtensions.isEmpty()) ExtensionMode.NONE else currentCameraUiState.extensionMode,
+                realtimeCaptureLatencyEstimate = ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY,
             )
             _cameraUiState.emit(newCameraUiState)
         }
@@ -141,6 +155,8 @@ class CameraExtensionsViewModel(
         lifecycleOwner: LifecycleOwner,
         previewView: PreviewView
     ) {
+        realtimeLatencyEstimateJob?.cancel()
+
         val currentCameraUiState = _cameraUiState.value
         val cameraSelector = if (currentCameraUiState.extensionMode == ExtensionMode.NONE) {
             cameraLensToSelector(currentCameraUiState.cameraLens)
@@ -175,11 +191,51 @@ class CameraExtensionsViewModel(
             useCaseGroup
         )
 
-        preview.setSurfaceProvider(previewView.surfaceProvider)
+        preview.surfaceProvider = previewView.surfaceProvider
 
         viewModelScope.launch {
             _cameraUiState.emit(_cameraUiState.value.copy(cameraState = CameraState.READY))
             _captureUiState.emit(CaptureState.CaptureReady)
+            previewView.previewStreamState.asFlow().collect { previewStreamState ->
+                when (previewStreamState) {
+                    PreviewView.StreamState.IDLE -> {
+                        realtimeLatencyEstimateJob?.cancel()
+                        realtimeLatencyEstimateJob = null
+                    }
+                    PreviewView.StreamState.STREAMING -> {
+                        if (realtimeLatencyEstimateJob == null) {
+                            realtimeLatencyEstimateJob = launch {
+                                observeRealtimeLatencyEstimate()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun CoroutineScope.observeRealtimeLatencyEstimate() {
+        Log.d(TAG, "Starting realtime latency estimate job")
+
+        val currentCameraUiState = _cameraUiState.value
+        val isSupported =
+            currentCameraUiState.extensionMode != ExtensionMode.NONE
+                    && imageCapture.realtimeCaptureLatencyEstimate != ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY
+
+        if (!isSupported) {
+            Log.d(TAG, "Starting realtime latency estimate job: no extension mode or not supported")
+            _cameraUiState.emit(
+                _cameraUiState.value.copy(
+                    cameraState = CameraState.PREVIEW_ACTIVE,
+                    realtimeCaptureLatencyEstimate = ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY
+                )
+            )
+            return
+        }
+
+        while (isActive) {
+            updateRealtimeCaptureLatencyEstimate()
+            delay(REALTIME_LATENCY_UPDATE_INTERVAL_MILLIS)
         }
     }
 
@@ -187,9 +243,13 @@ class CameraExtensionsViewModel(
      * Stops the preview stream. This should be invoked when the captured image is displayed.
      */
     fun stopPreview() {
-        preview.setSurfaceProvider(null)
+        realtimeLatencyEstimateJob?.cancel()
+        preview.surfaceProvider = null
         viewModelScope.launch {
-            _cameraUiState.emit(_cameraUiState.value.copy(cameraState = CameraState.PREVIEW_STOPPED))
+            _cameraUiState.emit(_cameraUiState.value.copy(
+                cameraState = CameraState.PREVIEW_STOPPED,
+                realtimeCaptureLatencyEstimate = ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY
+            ))
         }
     }
 
@@ -197,8 +257,9 @@ class CameraExtensionsViewModel(
      * Toggle the camera lens face. This has no effect if there is only one available camera lens.
      */
     fun switchCamera() {
+        realtimeLatencyEstimateJob?.cancel()
         val currentCameraUiState = _cameraUiState.value
-        if (currentCameraUiState.cameraState == CameraState.READY) {
+        if (currentCameraUiState.cameraState == CameraState.READY || currentCameraUiState.cameraState == CameraState.PREVIEW_ACTIVE) {
             // To switch the camera lens, there has to be at least 2 camera lenses
             if (currentCameraUiState.availableCameraLens.size == 1) return
 
@@ -230,6 +291,7 @@ class CameraExtensionsViewModel(
      * exception containing more details on the reason for failure.
      */
     fun capturePhoto() {
+        realtimeLatencyEstimateJob?.cancel()
         viewModelScope.launch {
             _captureUiState.emit(CaptureState.CaptureStarted)
         }
@@ -306,6 +368,7 @@ class CameraExtensionsViewModel(
                 _cameraUiState.value.copy(
                     cameraState = CameraState.NOT_READY,
                     extensionMode = extensionMode,
+                    realtimeCaptureLatencyEstimate = ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY,
                 )
             )
             _captureUiState.emit(CaptureState.CaptureNotReady)
@@ -331,4 +394,18 @@ class CameraExtensionsViewModel(
             CameraSelector.LENS_FACING_BACK -> CameraSelector.DEFAULT_BACK_CAMERA
             else -> throw IllegalArgumentException("Invalid lens facing type: $lensFacing")
         }
+
+    private suspend fun updateRealtimeCaptureLatencyEstimate() {
+        val estimate = imageCapture.realtimeCaptureLatencyEstimate
+        Log.d(TAG, "Realtime capture latency estimate: $estimate")
+        if (estimate == ImageCaptureLatencyEstimate.UNDEFINED_IMAGE_CAPTURE_LATENCY) {
+            return
+        }
+        _cameraUiState.emit(
+            _cameraUiState.value.copy(
+                cameraState = CameraState.PREVIEW_ACTIVE,
+                realtimeCaptureLatencyEstimate = estimate
+            )
+        )
+    }
 }

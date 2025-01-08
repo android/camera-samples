@@ -20,13 +20,13 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:background="#2196F3"
     tools:context=".MainActivity">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        tools:background="#2196F3"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -144,6 +144,22 @@
             app:trackCornerRadius="3dp" />
     </LinearLayout>
 
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/latencyEstimateIndicator"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:paddingBottom="2dp"
+        android:gravity="center"
+        android:textColor="#FFBE0B"
+        android:textSize="12sp"
+        android:background="@drawable/circle_background"
+        android:layout_margin="32dp"
+        app:layout_constraintBottom_toBottomOf="@id/cameraShutter"
+        app:layout_constraintStart_toEndOf="@id/cameraShutter"
+        app:layout_constraintTop_toTopOf="@id/cameraShutter"
+        tools:text="9s"
+        />
+
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/permissionsRationaleContainer"
         android:layout_width="0dp"
@@ -155,7 +171,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="gone" >
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/permissionsRationale"

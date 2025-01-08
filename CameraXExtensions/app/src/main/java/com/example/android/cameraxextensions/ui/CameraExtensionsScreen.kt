@@ -53,7 +53,9 @@ import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
  * Displays the camera preview and captured photo.
@@ -90,6 +92,8 @@ class CameraExtensionsScreen(private val root: View) {
         root.findViewById(R.id.processProgressContainer)
     private val processProgressIndicator: CircularProgressIndicator =
         root.findViewById(R.id.processProgressIndicator)
+    private val latencyEstimateIndicator: TextView =
+        root.findViewById(R.id.latencyEstimateIndicator)
 
     val previewView: PreviewView = root.findViewById(R.id.previewView)
 
@@ -264,6 +268,77 @@ class CameraExtensionsScreen(private val root: View) {
         processProgressIndicator.progress = 0
     }
 
+    private fun showLatencyEstimate(latencyEstimateMillis: Long) {
+        val estimateSeconds = (latencyEstimateMillis.toFloat() / 1000).roundToInt()
+
+        if (!latencyEstimateIndicator.isVisible) {
+            val alphaAnimation =
+                SpringAnimation(latencyEstimateIndicator, DynamicAnimation.ALPHA, 1f).apply {
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+                }
+
+            val scaleAnimationX =
+                SpringAnimation(latencyEstimateIndicator, DynamicAnimation.SCALE_X, 1f).apply {
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                }
+
+            val scaleAnimationY =
+                SpringAnimation(latencyEstimateIndicator, DynamicAnimation.SCALE_Y, 1f).apply {
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                }
+
+            latencyEstimateIndicator.apply {
+                isVisible = true
+                alpha = 0f
+                scaleX = 0.2f
+                scaleY = 0.2f
+            }
+
+            alphaAnimation.start()
+            scaleAnimationX.start()
+            scaleAnimationY.start()
+        }
+
+        latencyEstimateIndicator.text =
+            context.getString(R.string.latency_estimate, estimateSeconds)
+    }
+
+    private fun hideLatencyEstimate() {
+        if (latencyEstimateIndicator.isVisible) {
+            val alphaAnimation =
+                SpringAnimation(latencyEstimateIndicator, DynamicAnimation.ALPHA, 0f).apply {
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+
+                    addEndListener { _, canceled, _, _ ->
+                        if (!canceled) {
+                            latencyEstimateIndicator.isVisible = false
+                            latencyEstimateIndicator.text = ""
+                        }
+                    }
+                }
+
+            val scaleAnimationX =
+                SpringAnimation(latencyEstimateIndicator, DynamicAnimation.SCALE_X, 0f).apply {
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                }
+
+            val scaleAnimationY =
+                SpringAnimation(latencyEstimateIndicator, DynamicAnimation.SCALE_Y, 0f).apply {
+                    spring.stiffness = SpringForce.STIFFNESS_LOW
+                    spring.dampingRatio = SpringForce.DAMPING_RATIO_LOW_BOUNCY
+                }
+
+            alphaAnimation.start()
+            scaleAnimationX.start()
+            scaleAnimationY.start()
+        }
+    }
+
     private fun showPhoto(uri: Uri?) {
         if (uri == null) return
         photoPreview.isVisible = true
@@ -299,6 +374,12 @@ class CameraExtensionsScreen(private val root: View) {
             showProcessProgressIndicator(state.processProgressViewState.progress)
         } else {
             hideProcessProgressIndicator()
+        }
+
+        if (state.latencyEstimateIndicatorViewState.isVisible) {
+            showLatencyEstimate(state.latencyEstimateIndicatorViewState.latencyEstimateMillis)
+        } else {
+            hideLatencyEstimate()
         }
     }
 

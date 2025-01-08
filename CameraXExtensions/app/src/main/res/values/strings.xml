@@ -29,4 +29,5 @@
     <string name="camera_permissions_action">Turn On</string>
 
     <string name="hold_still">Hold Still</string>
+    <string name="latency_estimate">%ds</string>
 </resources>
