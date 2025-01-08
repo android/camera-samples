@@ -20,7 +20,7 @@ buildscript {
     ext.kotlin_version = '1.9.22'
     ext.java_version = JavaVersion.VERSION_11
 
-    ext.camerax_version = '1.4.0-beta01'
+    ext.camerax_version = '1.4.1'
     ext.coroutines_version = '1.8.1'
     ext.lifecycle_version = '2.8.0'
 
