@@ -28,7 +28,8 @@ data class CameraPreviewScreenViewState(
     val switchLensButtonViewState: SwitchLensButtonViewState = SwitchLensButtonViewState(),
     val extensionsSelectorViewState: CameraExtensionSelectorViewState = CameraExtensionSelectorViewState(),
     val processProgressViewState: ProcessProgressIndicatorViewState = ProcessProgressIndicatorViewState(),
-    val postviewViewState: PostviewViewState = PostviewViewState()
+    val postviewViewState: PostviewViewState = PostviewViewState(),
+    val latencyEstimateIndicatorViewState: LatencyEstimateIndicatorViewState = LatencyEstimateIndicatorViewState()
 ) {
     fun hideCameraControls(): CameraPreviewScreenViewState =
         copy(
@@ -63,6 +64,22 @@ data class CameraPreviewScreenViewState(
 
     fun hideProcessProgressViewState(): CameraPreviewScreenViewState =
         copy(processProgressViewState = ProcessProgressIndicatorViewState())
+
+    fun showLatencyEstimateIndicator(latencyEstimateMillis: Long): CameraPreviewScreenViewState =
+        copy(
+            latencyEstimateIndicatorViewState = LatencyEstimateIndicatorViewState(
+                isVisible = true,
+                latencyEstimateMillis = latencyEstimateMillis
+            )
+        )
+
+    fun hideLatencyEstimateIndicator(): CameraPreviewScreenViewState =
+        copy(
+            latencyEstimateIndicatorViewState = LatencyEstimateIndicatorViewState(
+                isVisible = false,
+                latencyEstimateMillis = 0
+            )
+        )
 }
 
 data class CameraExtensionSelectorViewState(
@@ -88,4 +105,9 @@ data class ProcessProgressIndicatorViewState(
 data class PostviewViewState(
     val isVisible: Boolean = false,
     val bitmap: Bitmap? = null
+)
+
+data class LatencyEstimateIndicatorViewState(
+    val isVisible: Boolean = false,
+    val latencyEstimateMillis: Long = 0
 )
