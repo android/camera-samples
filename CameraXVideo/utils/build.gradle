@@ -18,11 +18,12 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 29
+    namespace "com.example.android.camera.utils"
+    compileSdk 34
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 29
+        targetSdk 34
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
