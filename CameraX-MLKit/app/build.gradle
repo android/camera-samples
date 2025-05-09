@@ -64,10 +64,17 @@ android {
 }
 
 dependencies {
+
+
+    implementation "androidx.camera.viewfinder:viewfinder-view:1.5.0-beta01"
+    implementation "androidx.camera.viewfinder:viewfinder-compose:1.5.0-beta01"
+    implementation "androidx.camera.viewfinder:viewfinder-core:1.5.0-beta01"
+
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.0'
     implementation 'androidx.activity:activity-compose:1.10.1'
     implementation platform('androidx.compose:compose-bom:2025.05.00')
     implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.camera.viewfinder:viewfinder-core:1.5.0-beta01'
     androidTestImplementation platform('androidx.compose:compose-bom:2025.05.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     def compose_version = "1.8.1"
