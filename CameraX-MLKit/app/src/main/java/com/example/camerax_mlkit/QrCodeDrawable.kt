@@ -27,7 +27,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 /**
  * A Drawable that handles displaying a QR Code's data and a bounding box around the QR code.
  */
-class QrCodeDrawable(qrCodeViewModel: QrCodeViewModel) : Drawable() {
+class QrCodeDrawable(private val qrCodeViewModel: QrCodeViewModel) : Drawable() {
     private val boundingRectPaint = Paint().apply {
         style = Paint.Style.STROKE
         color = Color.YELLOW
@@ -47,7 +47,6 @@ class QrCodeDrawable(qrCodeViewModel: QrCodeViewModel) : Drawable() {
         textSize = 36F
     }
 
-    private val qrCodeViewModel = qrCodeViewModel
     private val contentPadding = 25
     private var textWidth = contentTextPaint.measureText(qrCodeViewModel.qrContent).toInt()
 

@@ -22,6 +22,7 @@ import android.net.Uri
 import android.view.MotionEvent
 import android.view.View
 import com.google.mlkit.vision.barcode.common.Barcode
+import androidx.core.net.toUri
 
 /**
  * A ViewModel for encapsulating the data for a QR Code, including the encoded data, the bounding
@@ -42,7 +43,7 @@ class QrCodeViewModel(barcode: Barcode) {
                 qrCodeTouchCallback = { v: View, e: MotionEvent ->
                     if (e.action == MotionEvent.ACTION_DOWN && boundingRect.contains(e.getX().toInt(), e.getY().toInt())) {
                         val openBrowserIntent = Intent(Intent.ACTION_VIEW)
-                        openBrowserIntent.data = Uri.parse(qrContent)
+                        openBrowserIntent.data = qrContent.toUri()
                         v.context.startActivity(openBrowserIntent)
                     }
                     true // return true from the callback to signify the event was handled
