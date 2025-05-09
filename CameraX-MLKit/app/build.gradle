@@ -64,8 +64,6 @@ android {
 }
 
 dependencies {
-
-
     implementation "androidx.camera.viewfinder:viewfinder-view:1.5.0-beta01"
     implementation "androidx.camera.viewfinder:viewfinder-compose:1.5.0-beta01"
     implementation "androidx.camera.viewfinder:viewfinder-core:1.5.0-beta01"

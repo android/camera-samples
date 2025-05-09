@@ -18,22 +18,19 @@ package com.example.camerax_mlkit
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.widget.LinearLayout
-import android.widget.LinearLayout.LayoutParams.MATCH_PARENT
+import android.util.Size
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.CameraSelector.LENS_FACING_BACK
+import androidx.camera.core.ImageAnalysis.COORDINATE_SYSTEM_VIEW_REFERENCED
 import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.mlkit.vision.MlKitAnalyzer
-import androidx.camera.view.CameraController
+import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,15 +47,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.ContextCompat.getMainExecutor
-import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.camerax_mlkit.ui.theme.CameraxMLKitTheme
-import com.google.common.util.concurrent.ListenableFuture
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -69,16 +63,15 @@ import java.util.concurrent.Executors
 class MainActivity : ComponentActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
-    private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var barcodeScanner: BarcodeScanner
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cameraExecutor = Executors.newSingleThreadExecutor()
-        cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        barcodeScanner = BarcodeScanning.getClient(
-            BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
-        )
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            .build()
+        barcodeScanner = BarcodeScanning.getClient(options)
         setContent {
             CameraxMLKitTheme {
                 // A surface container using the 'background' color from the theme
@@ -86,7 +79,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(cameraProviderFuture, barcodeScanner)
+                    MainScreen(barcodeScanner)
                 }
             }
         }
@@ -95,7 +88,9 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        barcodeScanner.close()
+        if (this::barcodeScanner.isInitialized) {
+            barcodeScanner.close()
+        }
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
@@ -119,109 +114,16 @@ class MainActivity : ComponentActivity() {
         const val TAG = "CameraX-MLKit"
         const val REQUEST_CODE_PERMISSIONS = 10
         val REQUIRED_PERMISSIONS = mutableListOf(Manifest.permission.CAMERA).toTypedArray()
-        private const val RATIO_16_9 = 1.7777778f
-    }
-}
-
-fun bindPreview(
-    cameraProvider: ProcessCameraProvider,
-    lifecycleOwner: LifecycleOwner,
-    previewView: PreviewView,
-    barcodeScanner: BarcodeScanner,
-    qrCodeDetected: (Boolean) -> Unit
-) {
-    val preview: Preview = Preview.Builder()
-        .setResolutionSelector(
-            ResolutionSelector.Builder()
-                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
-                .build()
-        )
-        .build()
-
-    val cameraSelector: CameraSelector = CameraSelector.Builder()
-        .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-        .build()
-
-    if (!cameraProvider.hasCamera(cameraSelector)) {
-        Log.e(MainActivity.TAG, "The device does not have a rear camera")
-        return
-    }
-    preview.setSurfaceProvider(previewView.surfaceProvider)
-
-    val imageAnalysis = ImageAnalysis.Builder().build()
-    imageAnalysis.setAnalyzer(
-        Executors.newSingleThreadExecutor(),
-        MlKitAnalyzer(
-            listOf(barcodeScanner),
-            CameraController.COORDINATE_SYSTEM_VIEW_REFERENCED,
-            getMainExecutor(previewView.context)
-        ) { result: MlKitAnalyzer.Result? ->
-            val barcodeResults = result?.getValue(barcodeScanner)
-
-            if ((barcodeResults == null) ||
-                (barcodeResults.size == 0) ||
-                (barcodeResults.first() == null)
-            ) {
-                qrCodeDetected(false)
-                return@MlKitAnalyzer
-            }
-            qrCodeDetected(true)
-        }
-    )
-
-    try {
-        cameraProvider.unbindAll()
-        cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis)
-    } catch (e: Exception) {
-        Log.e(MainActivity.TAG, "Use case binding failed", e)
-    }
-
-}
-
-@Composable
-fun CameraPreview(
-    cameraProviderFuture: ListenableFuture<ProcessCameraProvider>,
-    barcodeScanner: BarcodeScanner
-) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var qrCodeDetected by remember { mutableStateOf(false) }
-    AndroidView(
-        factory = { context ->
-            PreviewView(context).apply {
-                setBackgroundColor(Color.TRANSPARENT)
-                layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-                post {
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        bindPreview(
-                            cameraProvider,
-                            lifecycleOwner,
-                            this,
-                            barcodeScanner,
-                            { detected -> qrCodeDetected = detected })
-                    }, getMainExecutor(context))
-                }
-            }
-        },
-        modifier = Modifier.fillMaxSize()
-    )
-    if (qrCodeDetected) {
-        Text(
-            text = "QR Code Detected!",
-            modifier = Modifier
-                .padding(16.dp)
-        )
+        val PADDING = 16.dp
     }
 }
 
 @Composable
-fun MainScreen(
-    cameraProviderFuture: ListenableFuture<ProcessCameraProvider>,
-    barcodeScanner: BarcodeScanner
-) {
+fun MainScreen(barcodeScanner: BarcodeScanner) {
     val context = LocalContext.current
     var hasCameraPermission by remember { mutableStateOf(false) }
+    var qrCodeDetected by remember { mutableStateOf(false) }
+    var qrCodeContent by remember { mutableStateOf("") }
     LaunchedEffect(key1 = Unit) {
         if (ContextCompat.checkSelfPermission(
                 context,
@@ -243,7 +145,117 @@ fun MainScreen(
         contentAlignment = Alignment.Center
     ) {
         if (hasCameraPermission) {
-            CameraPreview(cameraProviderFuture, barcodeScanner)
+            CameraPreview(
+                barcodeScanner,
+                { detected -> qrCodeDetected = detected },
+                { content -> qrCodeContent = content })
+        } else {
+            //show a message that no camera is available
+            Text(
+                text = "No camera available",
+                modifier = Modifier
+                    .padding(MainActivity.PADDING)
+                    .align(Alignment.TopCenter)
+            )
+        }
+        QrCodeText(qrCodeDetected, qrCodeContent)
+    }
+}
+
+@Composable
+fun QrCodeText(qrCodeDetected: Boolean, qrCodeContent: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Text(
+            text = if (qrCodeDetected) "QR Code Detected: $qrCodeContent" else "No QR Code Detected",
+            modifier = Modifier.padding(MainActivity.PADDING)
+        )
+    }
+}
+
+@Composable
+fun CameraPreview(
+    barcodeScanner: BarcodeScanner,
+    setQrCodeDetected: (Boolean) -> Unit,
+    setQrCodeContent: (String) -> Unit
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+    var cameraError by remember { mutableStateOf(false) }
+    val cameraController = remember { LifecycleCameraController(context) }
+    val previewView = remember { PreviewView(context) }
+    cameraController.cameraSelector = CameraSelector.Builder().requireLensFacing(LENS_FACING_BACK).build()
+
+    //Throttle the analysis to avoid constant checks.
+    val resolutionStrategy = ResolutionStrategy(
+        Size(500, 500),
+        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+    )
+    val resolutionSelector = ResolutionSelector.Builder().setResolutionStrategy(resolutionStrategy).build()
+    cameraController.setImageAnalysisResolutionSelector(resolutionSelector)
+
+    cameraController.setImageAnalysisAnalyzer(
+        ContextCompat.getMainExecutor(context),
+        MlKitAnalyzer(
+            listOf(barcodeScanner),
+            COORDINATE_SYSTEM_VIEW_REFERENCED,
+            ContextCompat.getMainExecutor(context)
+        ) { result: MlKitAnalyzer.Result? ->
+            val barcodeResults = result?.getValue(barcodeScanner)
+            if ((barcodeResults == null) ||
+                (barcodeResults.size == 0) ||
+                (barcodeResults.first() == null)
+            ) {
+                setQrCodeDetected(false)
+                setQrCodeContent("") // Clear the text.
+                previewView.overlay.clear()
+                previewView.setOnTouchListener { _, _ -> false }
+                return@MlKitAnalyzer
+            }
+            val qrCode = barcodeResults[0]
+            val qrCodeViewModel = QrCodeViewModel(qrCode)
+            val qrCodeDrawable = QrCodeDrawable(qrCodeViewModel)
+            setQrCodeContent(qrCode.rawValue ?: "") // Display the content.
+            setQrCodeDetected(true)
+            previewView.setOnTouchListener(qrCodeViewModel.qrCodeTouchCallback)
+            previewView.overlay.clear()
+            previewView.overlay.add(qrCodeDrawable)
+
+        }
+    )
+
+    cameraController.bindToLifecycle(lifecycleOwner).also {
+        //Check if the camera was able to start or if there is a problem.
+        try {
+            cameraController.cameraInfo
+        } catch (e: Exception) {
+            Log.e(MainActivity.TAG, "Camera error: $e")
+            cameraError = true
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        if (cameraError) {
+            Text(
+                text = "Error: could not initialize camera",
+                modifier = Modifier
+                    .padding(MainActivity.PADDING)
+            )
+        } else {
+            AndroidView(
+                factory = {
+                    previewView.apply {
+                        this.controller = cameraController
+                        scaleType = PreviewView.ScaleType.FILL_CENTER
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
