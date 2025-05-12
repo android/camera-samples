@@ -30,6 +30,7 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -39,7 +40,6 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.navigation.Navigation
-import androidx.window.WindowManager
 import com.android.example.cameraxbasic.KEY_EVENT_ACTION
 import com.android.example.cameraxbasic.KEY_EVENT_EXTRA
 import com.android.example.cameraxbasic.R
@@ -192,7 +192,7 @@ class CameraFragment : Fragment() {
         displayManager.registerDisplayListener(displayListener, null)
 
         // Initialize WindowManager to retrieve display metrics
-        windowManager = WindowManager(view.context)
+        windowManager = view.context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // Initialize MediaStoreUtils for fetching this app's images
         mediaStoreUtils = MediaStoreUtils(requireContext())
@@ -253,7 +253,17 @@ class CameraFragment : Fragment() {
     private fun bindCameraUseCases() {
 
         // Get screen metrics used to setup camera for full screen resolution
-        val metrics = windowManager.getCurrentWindowMetrics().bounds
+        val metrics = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.bounds
+        } else {
+            // Fallback for API levels below 30
+            @Suppress("DEPRECATION")
+            val display = displayManager.getDisplay(displayId)
+            val size = android.graphics.Point()
+            display?.getSize(size)
+            android.graphics.Rect(0, 0, size.x, size.y)
+        }
+
         Log.d(TAG, "Screen metrics: ${metrics.width()} x ${metrics.height()}")
 
         val screenAspectRatio = aspectRatio(metrics.width(), metrics.height())
@@ -263,47 +273,47 @@ class CameraFragment : Fragment() {
 
         // CameraProvider
         val cameraProvider = cameraProvider
-                ?: throw IllegalStateException("Camera initialization failed.")
+            ?: throw IllegalStateException("Camera initialization failed.")
 
         // CameraSelector
         val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
 
         // Preview
         preview = Preview.Builder()
-                // We request aspect ratio but no resolution
-                .setTargetAspectRatio(screenAspectRatio)
-                // Set initial target rotation
-                .setTargetRotation(rotation)
-                .build()
+            // We request aspect ratio but no resolution
+            .setTargetAspectRatio(screenAspectRatio)
+            // Set initial target rotation
+            .setTargetRotation(rotation)
+            .build()
 
         // ImageCapture
         imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                // We request aspect ratio but no resolution to match preview config, but letting
-                // CameraX optimize for whatever specific resolution best fits our use cases
-                .setTargetAspectRatio(screenAspectRatio)
-                // Set initial target rotation, we will have to call this again if rotation changes
-                // during the lifecycle of this use case
-                .setTargetRotation(rotation)
-                .build()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            // We request aspect ratio but no resolution to match preview config, but letting
+            // CameraX optimize for whatever specific resolution best fits our use cases
+            .setTargetAspectRatio(screenAspectRatio)
+            // Set initial target rotation, we will have to call this again if rotation changes
+            // during the lifecycle of this use case
+            .setTargetRotation(rotation)
+            .build()
 
         // ImageAnalysis
         imageAnalyzer = ImageAnalysis.Builder()
-                // We request aspect ratio but no resolution
-                .setTargetAspectRatio(screenAspectRatio)
-                // Set initial target rotation, we will have to call this again if rotation changes
-                // during the lifecycle of this use case
-                .setTargetRotation(rotation)
-                .build()
-                // The analyzer can then be assigned to the instance
-                .also {
-                    it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
-                        // Values returned from our analyzer are passed to the attached listener
-                        // We log image analysis results here - you should do something useful
-                        // instead!
-                        Log.d(TAG, "Average luminosity: $luma")
-                    })
-                }
+            // We request aspect ratio but no resolution
+            .setTargetAspectRatio(screenAspectRatio)
+            // Set initial target rotation, we will have to call this again if rotation changes
+            // during the lifecycle of this use case
+            .setTargetRotation(rotation)
+            .build()
+            // The analyzer can then be assigned to the instance
+            .also {
+                it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
+                    // Values returned from our analyzer are passed to the attached listener
+                    // We log image analysis results here - you should do something useful
+                    // instead!
+                    Log.d(TAG, "Average luminosity: $luma")
+                })
+            }
 
         // Must unbind the use-cases before rebinding them
         cameraProvider.unbindAll()
@@ -317,7 +327,7 @@ class CameraFragment : Fragment() {
             // A variable number of use-cases can be passed here -
             // camera provides access to CameraControl & CameraInfo
             camera = cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture, imageAnalyzer)
+                this, cameraSelector, preview, imageCapture, imageAnalyzer)
 
             // Attach the viewfinder's surface provider to preview use case
             preview?.setSurfaceProvider(fragmentCameraBinding.viewFinder.surfaceProvider)
