@@ -22,6 +22,21 @@ for GRADLEW in `find . -name "gradlew"` ; do
     SAMPLE=$(dirname "${GRADLEW}")
     if [[ -n "$CI" ]]; then
         echo "CI: $CI"
+
+        VERSION_FILE="$SAMPLE/.java-version"
+        ORIGINAL_PATH=${ORIGINAL_PATH:-$PATH}
+        DEFAULT_JAVA_HOME=$JAVA_HOME_17_X64
+        export JAVA_HOME=$DEFAULT_JAVA_HOME
+        export PATH=$ORIGINAL_PATH
+        if [[ -f "$VERSION_FILE" ]]; then
+            REQUIRED_VERSION=$(tr -d '[:space:]' < "$VERSION_FILE")
+            case "$REQUIRED_VERSION" in
+            "11") export JAVA_HOME=$JAVA_HOME_11_X64 ;;
+            "17") export JAVA_HOME=$JAVA_HOME_17_X64 ;;
+            *) echo "CI Warning: Unknown version '$REQUIRED_VERSION'. Using default." ;;
+            esac
+        fi
+        export PATH="$JAVA_HOME/bin:$PATH"
     fi
     if [[ -z "$CI" ]]; then
         echo "No CI"
