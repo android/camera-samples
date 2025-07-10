@@ -16,6 +16,9 @@
 
 set -xe
 
+echo "JAVA_HOME_11_X64: $JAVA_HOME_11_X64"
+echo "JAVA_HOME_17_X64: $JAVA_HOME_17_X64"
+
 # Crawl all gradlew files which indicate an Android project
 # You may edit this if your repo has a different project structure
 for GRADLEW in `find . -name "gradlew"` ; do
