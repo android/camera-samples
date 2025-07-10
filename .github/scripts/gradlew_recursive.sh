@@ -20,11 +20,17 @@ set -xe
 # You may edit this if your repo has a different project structure
 for GRADLEW in `find . -name "gradlew"` ; do
     SAMPLE=$(dirname "${GRADLEW}")
-    # Initialize jenv to manage Java versions
-    if command -v jenv &> /dev/null; then
-        pushd "$SAMPLE"
-        eval "$(jenv init -)"
-        popd
+    if [[ -n "$CI" ]]; then
+        echo "$CI"
+    fi
+
+    if [[ -z "$CI" && -n "$(command -v jenv)" ]]; then
+        # Initialize jenv to manage Java versions
+        if command -v jenv &> /dev/null; then
+            pushd "$SAMPLE"
+            eval "$(jenv init -)"
+            popd
+        fi
     fi
     # Tell Gradle that this is a CI environment and disable parallel compilation
     bash "$GRADLEW" -p "$SAMPLE" -Pci --no-parallel --stacktrace $@
