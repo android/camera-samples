@@ -20,6 +20,12 @@ apply plugin: 'kotlin-kapt'
 apply plugin: "androidx.navigation.safeargs"
 
 android {
+    defaultConfig {
+        vectorDrawables.useSupportLibrary = true
+    }
+    buildFeatures {
+        viewBinding true
+    }
     namespace "com.example.android.camera2.basic"
     compileSdk 34
     defaultConfig {
@@ -32,12 +38,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility rootProject.ext.java_version
-        targetCompatibility rootProject.ext.java_version
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "$rootProject.ext.java_version"
+        jvmTarget = "17"
     }
 
     buildTypes {
@@ -52,6 +58,8 @@ android {
         dataBinding true
     }
 }
+
+
 
 dependencies {
     implementation project(':utils')
