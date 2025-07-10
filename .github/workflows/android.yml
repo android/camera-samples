@@ -40,8 +40,7 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: |
-          .github/scripts/gradlew_recursive.sh assembleDebug
+        run: .github/scripts/gradlew_recursive.sh assembleDebug
       - name: Zip artifacts
         run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
