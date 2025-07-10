@@ -21,7 +21,10 @@ set -xe
 for GRADLEW in `find . -name "gradlew"` ; do
     SAMPLE=$(dirname "${GRADLEW}")
     if [[ -n "$CI" ]]; then
-        echo "$CI"
+        echo "CI: $CI"
+    fi
+    if [[ -z "$CI" ]]; then
+        echo "No CI"
     fi
 
     if [[ -z "$CI" && -n "$(command -v jenv)" ]]; then
