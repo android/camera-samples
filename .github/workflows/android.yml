@@ -42,7 +42,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camerax_basic_assemble
           path: CameraXBasic/assemble.zip
   camerax_extensions:
     name: CameraXExtensions
@@ -63,7 +63,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camerax_extensions_assemble
           path: CameraXExtensions/assemble.zip
   camerax_video:
     name: CameraXVideo
@@ -84,7 +84,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camerax_video_assemble
           path: CameraXVideo/assemble.zip
   camerax_advanced:
     name: CameraXAdvanced
@@ -105,7 +105,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camerax_advanced_assemble
           path: CameraXAdvanced/assemble.zip
   camerax_mlkit:
     name: CameraX-MLKit
@@ -126,7 +126,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camerax_mlkit_assemble
           path: CameraX-MLKit/assemble.zip
   camera2_basic:
     name: Camera2Basic
@@ -147,7 +147,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camera2_basic_assemble
           path: Camera2Basic/assemble.zip
   camera2_extensions:
     name: Camera2Extensions
@@ -168,7 +168,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camera2_extensions_assemble
           path: Camera2Extensions/assemble.zip
   camera2_video:
     name: Camera2Video
@@ -189,7 +189,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camera2_video_assemble
           path: Camera2Video/assemble.zip
   camera2_slowmotion:
     name: Camera2SlowMotion
@@ -210,7 +210,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camera2_slowmotion_assemble
           path: Camera2SlowMotion/assemble.zip
   camerautils:
     name: CameraUtils
@@ -231,7 +231,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: camerautils_assemble
           path: CameraUtils/assemble.zip
   hdrviewfinder:
     name: HdrViewfinder
@@ -252,5 +252,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: assemble
+          name: hdrviewfinder_assemble
           path: HdrViewfinder/assemble.zip
