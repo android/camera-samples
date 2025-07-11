@@ -53,6 +53,7 @@ for GRADLEW in `find . -name "gradlew"` ; do
             popd
         fi
     fi
+    java -version
     # Tell Gradle that this is a CI environment and disable parallel compilation
     bash "$GRADLEW" -p "$SAMPLE" -Pci --no-parallel --stacktrace $@
 done
