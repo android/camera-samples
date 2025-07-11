@@ -24,7 +24,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.os.ConditionVariable;
 import android.os.Handler;
 import android.os.HandlerThread;
-import androidx.annotation.NonNull;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.Surface;
 

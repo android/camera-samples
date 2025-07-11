@@ -36,7 +36,6 @@
 
         <activity
             android:name=".HdrViewfinderActivity"
-            android:exported="true"
             android:label="@string/app_name"
             android:screenOrientation="landscape"
                 android:theme="@style/Theme.AppCompat.Light">
