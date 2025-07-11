@@ -2,7 +2,8 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# You may
+# obtain a copy of the License at
 #
 #     https://www.apache.org/licenses/LICENSE-2.0
 #
@@ -22,29 +23,212 @@ on:
     branches: [ main ]
 
 jobs:
-
-  build:
-    name: Build
+  camerax_basic:
+    name: CameraXBasic
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-      - name: set up JDK 11
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'zulu'
-          java-version: '11'
       - name: set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: .github/scripts/gradlew_recursive.sh assembleDebug
+        run: cd CameraXBasic && ./gradlew assembleDebug
       - name: Zip artifacts
-        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        run: cd CameraXBasic && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: assemble
-          path: assemble.zip
+          path: CameraXBasic/assemble.zip
+  camerax_extensions:
+    name: CameraXExtensions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd CameraXExtensions && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd CameraXExtensions && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: CameraXExtensions/assemble.zip
+  camerax_video:
+    name: CameraXVideo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd CameraXVideo && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd CameraXVideo && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: CameraXVideo/assemble.zip
+  camerax_advanced:
+    name: CameraXAdvanced
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd CameraXAdvanced && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd CameraXAdvanced && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: CameraXAdvanced/assemble.zip
+  camerax_mlkit:
+    name: CameraX-MLKit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd CameraX-MLKit && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd CameraX-MLKit && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: CameraX-MLKit/assemble.zip
+  camera2_basic:
+    name: Camera2Basic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd Camera2Basic && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd Camera2Basic && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: Camera2Basic/assemble.zip
+  camera2_extensions:
+    name: Camera2Extensions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd Camera2Extensions && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd Camera2Extensions && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: Camera2Extensions/assemble.zip
+  camera2_video:
+    name: Camera2Video
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Build project
+        run: cd Camera2Video && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd Camera2Video && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: Camera2Video/assemble.zip
+  camera2_slowmotion:
+    name: Camera2SlowMotion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - name: Build project
+        run: cd Camera2SlowMotion && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd Camera2SlowMotion && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: Camera2SlowMotion/assemble.zip
+  camerautils:
+    name: CameraUtils
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - name: Build project
+        run: cd CameraUtils && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd CameraUtils && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: CameraUtils/assemble.zip
+  hdrviewfinder:
+    name: HdrViewfinder
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - name: Build project
+        run: cd HdrViewfinder && ./gradlew assembleDebug
+      - name: Zip artifacts
+        run: cd HdrViewfinder && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assemble
+          path: HdrViewfinder/assemble.zip
