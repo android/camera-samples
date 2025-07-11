@@ -232,24 +232,3 @@ jobs:
         with:
           name: camerautils_assemble
           path: CameraUtils/assemble.zip
-  hdrviewfinder:
-    name: HdrViewfinder
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: set up JDK 11
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '11'
-      - name: Build project
-        working-directory: HdrViewfinder
-        run: ./gradlew assembleDebug
-      - name: Zip artifacts
-        working-directory: HdrViewfinder
-        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: hdrviewfinder_assemble
-          path: HdrViewfinder/assemble.zip
