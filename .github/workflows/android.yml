@@ -34,9 +34,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd CameraXBasic && ./gradlew assembleDebug
+        working-directory: CameraXBasic
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd CameraXBasic && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: CameraXBasic
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -53,9 +55,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd CameraXExtensions && ./gradlew assembleDebug
+        working-directory: CameraXExtensions
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd CameraXExtensions && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: CameraXExtensions
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -72,9 +76,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd CameraXVideo && ./gradlew assembleDebug
+        working-directory: CameraXVideo
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd CameraXVideo && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: CameraXVideo
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -91,9 +97,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd CameraXAdvanced && ./gradlew assembleDebug
+        working-directory: CameraXAdvanced
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd CameraXAdvanced && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: CameraXAdvanced
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -110,9 +118,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd CameraX-MLKit && ./gradlew assembleDebug
+        working-directory: CameraX-MLKit
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd CameraX-MLKit && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: CameraX-MLKit
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -129,9 +139,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd Camera2Basic && ./gradlew assembleDebug
+        working-directory: Camera2Basic
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd Camera2Basic && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: Camera2Basic
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -148,9 +160,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd Camera2Extensions && ./gradlew assembleDebug
+        working-directory: Camera2Extensions
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd Camera2Extensions && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: Camera2Extensions
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -167,9 +181,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
       - name: Build project
-        run: cd Camera2Video && ./gradlew assembleDebug
+        working-directory: Camera2Video
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd Camera2Video && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: Camera2Video
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -186,9 +202,11 @@ jobs:
           distribution: 'zulu'
           java-version: '11'
       - name: Build project
-        run: cd Camera2SlowMotion && ./gradlew assembleDebug
+        working-directory: Camera2SlowMotion
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd Camera2SlowMotion && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: Camera2SlowMotion
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -205,9 +223,11 @@ jobs:
           distribution: 'zulu'
           java-version: '11'
       - name: Build project
-        run: cd CameraUtils && ./gradlew assembleDebug
+        working-directory: CameraUtils
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd CameraUtils && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: CameraUtils
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -224,9 +244,11 @@ jobs:
           distribution: 'zulu'
           java-version: '11'
       - name: Build project
-        run: cd HdrViewfinder && ./gradlew assembleDebug
+        working-directory: HdrViewfinder
+        run: ./gradlew assembleDebug
       - name: Zip artifacts
-        run: cd HdrViewfinder && zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
+        working-directory: HdrViewfinder
+        run: zip -r assemble.zip . -i '**/build/*.apk' '**/build/*.aab' '**/build/*.aar' '**/build/*.so'
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
