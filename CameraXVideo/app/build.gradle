@@ -20,12 +20,13 @@ apply plugin: 'kotlin-kapt'
 apply plugin: "androidx.navigation.safeargs"
 
 android {
-    compileSdkVersion 31
+    namespace 'com.example.android.camerax.video'
+    compileSdk 34
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         applicationId "com.android.example.camerax.video"
         minSdkVersion 21
-        targetSdkVersion 31
+        targetSdk 34
         versionCode 1
         versionName "1.0.0"
     }
@@ -48,7 +49,7 @@ android {
 
     // Set the source of tests to same for both Unit and Instrumented tests
     sourceSets {
-        String sharedTestDir = 'src/test/java'
+        def sharedTestDir = 'src/test/java'
         test {
             java.srcDir sharedTestDir
         }
