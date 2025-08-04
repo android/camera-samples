@@ -18,3 +18,5 @@ started with the [CameraX](https://developer.android.com/training/camerax) and
 | [Camera2Extensions](Camera2Extensions)    | Demonstrates Camera2 extension live preview and still capture.
 | [CameraXExtensions](CameraXExtensions)    | Demonstrates CameraX extension live preview and still capture.
 | [HdrViewfinder](HdrViewfinder)            | Demonstrates use of RenderScript to display a live HDR feed from camera frames using Camera2 API. |
+## This project is tested with BrowserStack
+This project is tested with BrowserStack
