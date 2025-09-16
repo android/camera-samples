@@ -19,8 +19,6 @@ package com.android.example.cameraxbasic.fragments
 import android.annotation.SuppressLint
 import android.content.*
 import android.content.res.Configuration
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Bundle
@@ -51,6 +49,7 @@ import com.android.example.cameraxbasic.utils.MediaStoreUtils
 import com.android.example.cameraxbasic.utils.simulateClick
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
@@ -517,15 +516,17 @@ class CameraFragment : Fragment() {
                     }
                 })
 
-                // We can only change the foreground Drawable using API level 23+ API
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-                    // Display flash animation to indicate that photo was captured
-                    fragmentCameraBinding.root.postDelayed({
-                        fragmentCameraBinding.root.foreground = ColorDrawable(Color.WHITE)
-                        fragmentCameraBinding.root.postDelayed(
-                                { fragmentCameraBinding.root.foreground = null }, ANIMATION_FAST_MILLIS)
-                    }, ANIMATION_SLOW_MILLIS)
+                // Display flash animation to indicate that photo was captured
+                viewLifecycleOwner.lifecycleScope.launch {
+                    delay(ANIMATION_SLOW_MILLIS)
+                    fragmentCameraBinding.whiteOverlay.apply {
+                        alpha = 1f
+                        visibility = View.VISIBLE
+                        animate()
+                            .alpha(0f)
+                            .setDuration(ANIMATION_FAST_MILLIS)
+                            .withEndAction { visibility = View.GONE }
+                    }
                 }
             }
         }
