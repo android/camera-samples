@@ -1,0 +1,30 @@
+// GLSL Fragment Shader Pseudocode
+
+uniform sampler2D u_image; // The captured camera texture
+varying vec2 v_texCoord;   // Current texture coordinate (0.0 to 1.0)
+
+void main() {
+    // Define the peripheral zone (bottom 50% of the image)
+    float peripheral_y_boundary = 0.5; 
+
+    // Define the maximum shift amount (0.88 pixels converted to texture coordinate units)
+    float max_shift_coord = 0.88 / texture_width_pixels; 
+
+    // Check if the current pixel is in the peripheral zone (bottom)
+    if (v_texCoord.y > peripheral_y_boundary) {
+        
+        // Calculate a shift amount that smoothly ramps down to 0 at the boundary
+        // and is maximum at the bottom edge (y=1.0)
+        float ramp_factor = (v_texCoord.y - peripheral_y_boundary) * 2.0; 
+        float current_shift_x = max_shift_coord * ramp_factor;
+
+        // Apply the shift to the horizontal coordinate (x)
+        vec2 shifted_coord = vec2(v_texCoord.x + current_shift_x, v_texCoord.y);
+
+        // Fetch the color from the shifted coordinate
+        gl_FragColor = texture2D(u_image, shifted_coord);
+    } else {
+        // Top 50% (Clear Top) remains unshifted
+        gl_FragColor = texture2D(u_image, v_texCoord);
+    }
+}
