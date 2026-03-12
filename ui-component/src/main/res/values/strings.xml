@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playpause_button_play">Play</string>
+    <string name="playpause_button_pause">Pause</string>
+    <string name="seek_forward_button">Skip 10 seconds</string>
+    <string name="seek_back_button">Rewind 10 seconds</string>
+    <string name="select_video_dropdown">Select video</string>
+    <string name="undo">undo</string>
+    <string name="select_placeholder">Select an option</string>
+    <string name="dropdown_content_description">Option selection</string>
+    <string name="add_image">Add image</string>
+</resources>

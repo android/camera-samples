@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="geminimultimodal_title">Gemini Multimodal</string>
+    <string name="geminimultimodal_subtitle">A very simple example of multimodal generation using the Gemini Flash model</string>
+    <string name="geminimultimodal_prompt_placeholder">Describe this picture</string>
+    <string name="geminimultimodal_generation_placeholder">(Take a picture and enter a prompt to start generating.)</string>
+    <string name="geminimultimodal_take_a_picture">Add image</string>
+    <string name="geminimultimodal_generating">Generating&#8230;</string>
+    <string name="see_code">See code</string>
+    <string name="unknown_error">Unknown error</string>
+</resources>

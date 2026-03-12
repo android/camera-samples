@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Camera Samples Catalog</string>
+    <string name="gemini_multimodal_sample_list_title">Gemini Multimodal Generation</string>
+    <string name="gemini_multimodal_sample_list_description">A very simple example of multimodal generation using the Gemini Flash model.</string>
+    <string name="gemini_chatbot_sample_title">Gemini Chatbot</string>
+    <string name="gemini_chatbot_sample_description">A simple implementation of chatbot using Gemini Flash model.</string>
+    <string name="genai_summarization_sample_list_title">Summarization with Gemini Nano</string>
+    <string name="genai_summarization_sample_list_description">Summarize articles and conversations on-device with GenAI API powered by Gemini Nano</string>
+    <string name="genai_image_description_sample_list_title">Image Description with Gemini Nano</string>
+    <string name="genai_image_description_sample_list_description">Generate short descriptions of images on-device with GenAI API powered by Gemini Nano</string>
+    <string name="genai_writing_assistance_sample_list_title">Polish text with Gemini Nano</string>
+    <string name="genai_writing_assistance_sample_list_description">Proofread and rewrite short content on-device with GenAI API powered by Gemini Nano</string>
+    <string name="top_bar_title">Android Camera Samples</string>
+    <string name="top_bar_title_expanded">Android\nCamera Samples</string>
+    <string name="open_sample_button">Open sample</string>
+    <string name="imagen_sample_list_title">Image generation with Imagen</string>
+    <string name="imagen_sample_list_description">Generate images with Imagen, Google image generation model</string>
+    <string name="imagen_editing_sample_list_title">Image Editing with Imagen</string>
+    <string name="imagen_editing_sample_list_description">Generate images and edit only specific areas of a generated image with inpainting</string>
+    <string name="magic_selfie_sample_list_title">Magic Selfie with Imagen and ML Kit</string>
+    <string name="magic_selfie_sample_list_description">Change the background of your selfies with Imagen and the ML Kit Segmentation API</string>
+    <string name="gemini_video_summarization_sample_list_title">Video Summarization with Gemini and Firebase</string>
+    <string name="gemini_video_summarization_sample_list_description">"Generate a summary of a video (from a cloud URL or Youtube) with Gemini API powered by Firebase"</string>
+    <string name="gemini_video_metadata_creation_sample_list_title">Video Metadata Creation with Gemini and Firebase</string>
+    <string name="gemini_video_metadata_creation_sample_list_description">"Generate metadata of a video (from a cloud URL or Youtube) with Gemini API powered by Firebase"</string>
+    <string name="gemini_live_todo_list_title">Gemini Live API to-do</string>
+    <string name="gemini_live_todo_list_description">"Simple to-do app using the Gemini Live API to interact with the items in the list"</string>
+    <string name="gemini_image_chat_list_title">Chat with Nano Banana Pro</string>
+    <string name="gemini_image_chat_list_description">Conversational Image generation with Gemini 3 Pro Image</string>
+    <string name="gemini_hybrid_sample_list_title">Gemini Hybrid</string>
+    <string name="gemini_hybrid_sample_list_description">Inference with Firebase Hybrid SDK using either Gemini Nano on-device or Gemini Flash in the Cloud.</string>
+    <string name="firebase_required">Firebase Required</string>
+    <string name="firebase_required_description">This feature requires Firebase to be initialized.</string>
+    <string name="close">Close</string>
+    <string name="firebase_doc_button">Show me how</string>
+</resources>

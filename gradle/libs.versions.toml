@@ -1,0 +1,99 @@
+[versions]
+agp = "9.1.0"
+coilCompose = "3.1.0"
+firebaseAiOndevice = "16.0.0-beta01"
+firebaseBom = "34.10.0"
+lifecycleRuntimeCompose = "2.9.1"
+mlkitGenAi = "1.0.0-beta1"
+kotlin = "2.2.10"
+coreKtx = "1.15.0"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+kotlinxCoroutinesGuava = "1.10.2"
+kotlinxSerializationJson = "1.6.2"
+lifecycleRuntimeKtx = "2.8.7"
+activityCompose = "1.10.1"
+composeBom = "2025.06.01"
+navigationCompose = "2.9.0"
+navigationRuntimeKtx = "2.9.0"
+appcompat = "1.7.0"
+googleGmsGoogleServices = "4.4.2"
+hilt = "2.56.2"
+hiltNavigationCompose = "1.2.0"
+ksp = "2.3.2"
+mlkitSegmentation = "16.0.0-beta1"
+runtimeLivedata = "1.7.6"
+media3 = "1.8.0"
+firebaseCommonKtx = "21.0.0"
+uiToolingPreviewAndroid = "1.8.1"
+spotless = "7.0.4"
+uiToolingPreview = "1.8.3"
+uiTooling = "1.8.3"
+lifecycleViewmodelAndroid = "2.8.7"
+material3 = "1.5.0-alpha01"
+uiTextGoogleFonts = "1.8.1"
+exifinterface = "1.4.1"
+material3WindowSizeClass = "1.3.2"
+richtext = "1.0.0-alpha02"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
+firebase-ai-ondevice = { module = "com.google.firebase:firebase-ai-ondevice", version.ref = "firebaseAiOndevice" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-ai = { module = "com.google.firebase:firebase-ai"}
+firebase-common-ktx = { group = "com.google.firebase", name = "firebase-common-ktx", version.ref = "firebaseCommonKtx" }
+genai-image-description = { module = "com.google.mlkit:genai-image-description", version.ref = "mlkitGenAi" }
+genai-proofreading = { module = "com.google.mlkit:genai-proofreading", version.ref = "mlkitGenAi" }
+genai-rewrite = { module = "com.google.mlkit:genai-rewriting", version.ref = "mlkitGenAi" }
+genai-summarization = { module = "com.google.mlkit:genai-summarization", version.ref = "mlkitGenAi" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-ui-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "uiTextGoogleFonts" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-material3-window = { group = "androidx.compose.material3", name = "material3-window-size-class", version.ref = "material3WindowSizeClass" }
+richtext-material3 = { group = "com.halilibo.compose-richtext", name = "richtext-ui-material3", version.ref = "richtext" }
+richtext-commonmark = { group = "com.halilibo.compose-richtext", name = "richtext-commonmark", version.ref = "richtext" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
+kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuava" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt"}
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt"}
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }
+androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
+androidx-media3-ui-compose = { module = "androidx.media3:media3-ui-compose", version.ref = "media3"}
+androidx-media3-transformer = { module = "androidx.media3:media3-transformer", version.ref = "media3" }
+androidx-ui-tooling-preview-android = { group = "androidx.compose.ui", name = "ui-tooling-preview-android", version.ref = "uiToolingPreviewAndroid" }
+mlkit-segmentation = { module = "com.google.android.gms:play-services-mlkit-subject-segmentation", version.ref = "mlkitSegmentation" }
+ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "uiToolingPreview" }
+ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "uiTooling" }
+androidx-lifecycle-viewmodel-android = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-android", version.ref = "lifecycleViewmodelAndroid" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
+hilt-plugin = { id = "com.google.dagger.hilt.android", version.ref = "hilt"}
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
