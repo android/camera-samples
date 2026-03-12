@@ -17,18 +17,22 @@ package com.android.camera2.takeaphoto.ui
 
 import android.Manifest
 import android.media.Image
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -48,7 +52,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,6 +71,8 @@ fun Camera2TakeAPhotoScreen(
     ) {
         hasCameraPermission = it
     }
+    
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -102,7 +107,8 @@ fun Camera2TakeAPhotoScreen(
                         CapturingView(
                             isFrontCamera = isFrontCamera,
                             onPhotoCaptured = viewModel::processImage,
-                            onSwapCamera = viewModel::swapCamera
+                            onSwapCamera = viewModel::swapCamera,
+                            onBack = { backDispatcher?.onBackPressed() }
                         )
 
                         if (state is Camera2TakeAPhotoUiState.PhotoCaptured) {
@@ -168,7 +174,7 @@ private fun CapturedPhotoView(bitmap: android.graphics.Bitmap, onDismiss: () -> 
                 .padding(16.dp)
         ) {
             Icon(
-                painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
+                imageVector = Icons.Filled.Close,
                 contentDescription = "Close",
                 tint = Color.White,
                 modifier = Modifier.size(32.dp)
@@ -181,7 +187,8 @@ private fun CapturedPhotoView(bitmap: android.graphics.Bitmap, onDismiss: () -> 
 private fun CapturingView(
     isFrontCamera: Boolean,
     onPhotoCaptured: (Image, Int) -> Unit,
-    onSwapCamera: () -> Unit
+    onSwapCamera: () -> Unit,
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -210,10 +217,33 @@ private fun CapturingView(
 
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewContent(cameraController)
-        CameraControls(
-            onSwapCamera = onSwapCamera,
-            onCapture = { cameraController.takePicture() }
-        )
+        
+        // Back Button
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+        
+        // Bottom Controls
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            CameraControls(
+                onSwapCamera = onSwapCamera,
+                onCapture = { cameraController.takePicture() }
+            )
+        }
     }
 }
 
@@ -241,34 +271,38 @@ private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) 
 
 @Composable
 private fun CameraControls(onSwapCamera: () -> Unit, onCapture: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Row(
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp, start = 32.dp, end = 32.dp)
+    ) {
+        // Shutter Button (Centered)
+        IconButton(
+            onClick = onCapture,
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(bottom = 32.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+                .align(Alignment.Center)
+                .size(72.dp)
         ) {
-            IconButton(onClick = onSwapCamera) {
-                Icon(
-                    painter = painterResource(id = android.R.drawable.ic_menu_rotate),
-                    contentDescription = "Swap Camera",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White, shape = CircleShape)
+            )
+        }
 
-            IconButton(onClick = onCapture) {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(
-                            Color.White,
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                )
-            }
+        // Swap Camera Button (Right Side)
+        IconButton(
+            onClick = onSwapCamera,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Cameraswitch,
+                contentDescription = "Swap Camera",
+                tint = Color.White,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
