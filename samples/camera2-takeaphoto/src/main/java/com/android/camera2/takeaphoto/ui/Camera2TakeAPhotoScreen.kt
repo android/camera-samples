@@ -29,6 +29,7 @@ import android.util.Log
 import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.viewfinder.core.ScaleType
 import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
 import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.foundation.Image
@@ -271,7 +272,7 @@ fun CameraPreview(
 
                 if (facing == targetFacing) {
                     cameraId = id
-                    imageReader = ImageReader.newInstance(1920, 1080, ImageFormat.JPEG, 1).apply {
+                    imageReader = ImageReader.newInstance(1920, 1920, ImageFormat.JPEG, 1).apply {
                         setOnImageAvailableListener({ reader ->
                             val image = reader.acquireLatestImage()
                             image?.let {
@@ -287,8 +288,11 @@ fun CameraPreview(
                             cameraDevice = camera
                             coroutineScope.launch {
                                 try {
-                                    val request = ViewfinderSurfaceRequest(400, 800)
-                                    val session = currentViewfinder.requestSurfaceSessionAsync(request).await()
+                                    val request = ViewfinderSurfaceRequest(1920, 1920)
+                                    currentViewfinder.scaleType = ScaleType.FIT_CENTER
+                                    val session =
+                                        currentViewfinder.requestSurfaceSessionAsync(request)
+                                            .await()
                                     val surface = session.surface
 
                                     previewRequestBuilder =
