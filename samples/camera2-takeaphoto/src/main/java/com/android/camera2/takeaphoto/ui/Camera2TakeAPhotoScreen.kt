@@ -29,8 +29,11 @@ import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.MeteringRectangle
+import android.hardware.camera2.params.OutputConfiguration
+import android.hardware.camera2.params.SessionConfiguration
 import android.media.Image
 import android.media.ImageReader
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
@@ -82,6 +85,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executor
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "CameraPreview"
 
@@ -314,6 +319,11 @@ class Camera2State(
     private val onPhotoCaptured: (Image, Int) -> Unit,
     private val coroutineScope: CoroutineScope
 ) {
+    companion object {
+        const val PREVIEW_WIDTH = 1920
+        const val PREVIEW_HEIGHT = 1080
+    }
+
     var viewfinder: ViewfinderView? = null
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -378,7 +388,7 @@ class Camera2State(
     }
 
     private fun setupImageReader(characteristics: CameraCharacteristics) {
-        imageReader = ImageReader.newInstance(1920, 1080, ImageFormat.JPEG, 1).apply {
+        imageReader = ImageReader.newInstance(PREVIEW_WIDTH, PREVIEW_HEIGHT, ImageFormat.JPEG, 1).apply {
             setOnImageAvailableListener({ reader ->
                 val image = reader.acquireLatestImage()
                 image?.let {
@@ -392,17 +402,16 @@ class Camera2State(
 
     private fun startPreviewSession(
         camera: CameraDevice,
-        currentViewfinder: ViewfinderView,
+        viewfinder: ViewfinderView,
         characteristics: CameraCharacteristics
     ) {
         coroutineScope.launch {
             try {
-                val request = ViewfinderSurfaceRequest(1920, 1080)
-                currentViewfinder.transformationInfo =
-                    Camera2TransformationInfo.createFromCharacteristics(characteristics)
-                currentViewfinder.scaleType = ScaleType.FILL_CENTER
+                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
+                viewfinder.transformationInfo = Camera2TransformationInfo.createFromCharacteristics(characteristics)
+                viewfinder.scaleType = ScaleType.FILL_CENTER
 
-                val session = currentViewfinder.requestSurfaceSessionAsync(request).await()
+                val session = viewfinder.requestSurfaceSessionAsync(request).await()
                 val surface = session.surface
 
                 val activeImageReader = imageReader ?: return@launch
@@ -412,22 +421,41 @@ class Camera2State(
                         addTarget(surface)
                     }
 
-                camera.createCaptureSession(
-                    listOf(surface, activeImageReader.surface),
-                    object : CameraCaptureSession.StateCallback() {
-                        override fun onConfigured(session: CameraCaptureSession) {
-                            if (cameraDevice == null) return
-                            captureSession = session
-                            startRepeatingRequest()
-                        }
+                val stateCallback = object : CameraCaptureSession.StateCallback() {
+                    override fun onConfigured(session: CameraCaptureSession) {
+                        if (cameraDevice == null) return
+                        captureSession = session
+                        startRepeatingRequest()
+                    }
 
-                        override fun onConfigureFailed(session: CameraCaptureSession) {
-                            Log.e(TAG, "Failed to configure capture session")
-                        }
-                    },
-                    null
-                )
+                    override fun onConfigureFailed(session: CameraCaptureSession) {
+                        Log.e(TAG, "Failed to configure capture session")
+                    }
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val executor = Executor { command -> backgroundHandler.post(command) }
+                    val outputConfigurations = listOf(
+                        OutputConfiguration(surface),
+                        OutputConfiguration(activeImageReader.surface)
+                    )
+                    val sessionConfiguration = SessionConfiguration(
+                        SessionConfiguration.SESSION_REGULAR,
+                        outputConfigurations,
+                        executor,
+                        stateCallback
+                    )
+                    camera.createCaptureSession(sessionConfiguration)
+                } else {
+                    @Suppress("DEPRECATION")
+                    camera.createCaptureSession(
+                        listOf(surface, activeImageReader.surface),
+                        stateCallback,
+                        null
+                    )
+                }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Exception starting preview", e)
             }
         }
@@ -462,7 +490,11 @@ class Camera2State(
                 captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, it)
             }
 
-            session.stopRepeating()
+            try {
+                session.stopRepeating()
+            } catch (e: Exception) {
+                Log.w(TAG, "Exception while stopping repeating: ", e)
+            }
             session.capture(
                 captureBuilder.build(),
                 object : CameraCaptureSession.CaptureCallback() {
@@ -518,7 +550,11 @@ class Camera2State(
                 (y0 + halfTouchHeight).toInt().coerceAtMost(sensorArraySize.height())
             )
 
-            session.stopRepeating()
+            try {
+                session.stopRepeating()
+            } catch (e: Exception) {
+                Log.w(TAG, "Exception while stopping repeating: ", e)
+            }
 
             val rectangle = MeteringRectangle(focusArea, MeteringRectangle.METERING_WEIGHT_MAX)
             builder.set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(rectangle))
