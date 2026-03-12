@@ -34,10 +34,10 @@ import javax.inject.Inject
 @HiltViewModel
 class Camera2TakeAPhotoViewModel @Inject constructor() : ViewModel() {
 
-    private val _uiState = MutableStateFlow<Camera2TakeAPhotoUiState>(Camera2TakeAPhotoUiState.Initial)
+    private val _uiState =
+        MutableStateFlow<Camera2TakeAPhotoUiState>(Camera2TakeAPhotoUiState.Initial)
     val uiState: StateFlow<Camera2TakeAPhotoUiState> = _uiState.asStateFlow()
-    
-    // Maintain logical state for camera orientation
+
     private var isFrontCamera = false
 
     fun initialize() {
@@ -67,20 +67,31 @@ class Camera2TakeAPhotoViewModel @Inject constructor() : ViewModel() {
                     val originalBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
 
                     val matrix = Matrix()
+                    matrix.postRotate(sensorOrientation.toFloat())
+
                     if (isFrontCamera) {
-                        matrix.postRotate(((sensorOrientation + 180) % 360).toFloat()) 
-                        matrix.postScale(-1f, 1f) 
-                    } else {
-                        matrix.postRotate(sensorOrientation.toFloat())
+                        matrix.postScale(-1f, 1f)
                     }
 
-                    Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.width, originalBitmap.height, matrix, true)
+                    Bitmap.createBitmap(
+                        originalBitmap,
+                        0,
+                        0,
+                        originalBitmap.width,
+                        originalBitmap.height,
+                        matrix,
+                        true
+                    )
                 }
-                
+
                 _uiState.value = Camera2TakeAPhotoUiState.PhotoCaptured(bitmap, isFrontCamera)
             } catch (e: Exception) {
-                try { image.close() } catch (ignored: Exception) {}
-                _uiState.value = Camera2TakeAPhotoUiState.Error("Error processing image: ${e.message}")
+                try {
+                    image.close()
+                } catch (_: Exception) {
+                }
+                _uiState.value =
+                    Camera2TakeAPhotoUiState.Error("Error processing image: ${e.message}")
             }
         }
     }
