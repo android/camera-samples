@@ -72,7 +72,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.runtime.livedata)
     implementation(libs.androidx.material3.window)
-    implementation(libs.androidx.camera.viewfinder)
+    implementation(libs.androidx.camera.viewfinder.compose)
+    implementation(libs.androidx.camera.viewfinder.core)
+    implementation(libs.androidx.camera.viewfinder.view)
     implementation(libs.kotlinx.coroutines.guava)
     
     debugImplementation(libs.ui.tooling)

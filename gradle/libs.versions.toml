@@ -67,7 +67,10 @@ androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", versi
 androidx-media3-ui-compose = { module = "androidx.media3:media3-ui-compose", version.ref = "media3"}
 ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "uiToolingPreview" }
 ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "uiTooling" }
-androidx-camera-viewfinder = { module = "androidx.camera.viewfinder:viewfinder-view", version.ref = "cameraViewfinder" }
+androidx-camera-viewfinder-compose = { module = "androidx.camera.viewfinder:viewfinder-compose", version.ref = "cameraViewfinder" }
+androidx-camera-viewfinder-core = { module = "androidx.camera.viewfinder:viewfinder-core", version.ref = "cameraViewfinder" }
+androidx-camera-viewfinder-view = { module = "androidx.camera.viewfinder:viewfinder-view", version.ref = "cameraViewfinder" }
+
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuava" }
 
 [plugins]
