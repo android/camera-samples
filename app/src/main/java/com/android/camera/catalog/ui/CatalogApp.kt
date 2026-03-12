@@ -16,10 +16,19 @@
 package com.android.camera.catalog.ui
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +39,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -41,14 +51,20 @@ import androidx.compose.material3.TwoRowsTopAppBar
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -59,14 +75,26 @@ import kotlinx.serialization.Serializable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CatalogApp() {
+    val context = LocalContext.current
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ ->
-        // Could handle permission granted/denied states here if needed globally
+    ) { isGranted ->
+        hasCameraPermission = isGranted
     }
 
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(Manifest.permission.CAMERA)
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 
     val navController = rememberNavController()
@@ -120,19 +148,51 @@ fun CatalogApp() {
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillWidth,
                 )
-                LazyColumn(
-                    contentPadding = innerPadding,
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    items(sampleCatalog) {
-                        val onClick = {
-                            navController.navigate(it.route)
+                
+                AnimatedContent(
+                    targetState = hasCameraPermission,
+                    label = "PermissionAnimation",
+                    transitionSpec = {
+                        (fadeIn(animationSpec = tween(200)) + slideInVertically(
+                            animationSpec = tween(200),
+                            initialOffsetY = { it / 4 }
+                        )).togetherWith(fadeOut(animationSpec = tween(100)))
+                    }
+                ) { hasPermission ->
+                    if (hasPermission) {
+                        LazyColumn(
+                            contentPadding = innerPadding,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            items(sampleCatalog) {
+                                val onClick = {
+                                    navController.navigate(it.route)
+                                }
+                                if (it.isFeatured) {
+                                    CatalogWideCard(catalogItem = it, onClick = onClick)
+                                } else {
+                                    CatalogRowCard(catalogItem = it, onClick = onClick)
+                                }
+                            }
                         }
-                        if (it.isFeatured) {
-                            CatalogWideCard(catalogItem = it, onClick = onClick)
-                        } else {
-                            CatalogRowCard(catalogItem = it, onClick = onClick)
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "Camera permission is required to view samples.",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                            Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                                Text("Grant Permission")
+                            }
                         }
                     }
                 }
