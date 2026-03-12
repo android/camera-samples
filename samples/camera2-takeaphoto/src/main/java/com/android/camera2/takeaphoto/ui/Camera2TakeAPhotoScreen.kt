@@ -221,10 +221,11 @@ private fun CapturingView(
 private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) {
     AndroidView(
         factory = { ctx ->
-            ViewfinderView(ctx).apply {
-                cameraController.viewfinder = this
-                post { cameraController.openCamera() }
-            }
+            ViewfinderView(ctx)
+        },
+        update = { view ->
+            cameraController.viewfinder = view
+            view.post { cameraController.openCamera() }
         },
         modifier = Modifier
             .fillMaxSize()
