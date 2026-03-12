@@ -8,4 +8,11 @@
     <string name="open_sample_button">Open sample</string>
 
     <string name="close">Close</string>
+
+    <string name="background_image">Background Image</string>
+    <string name="camera_permission_title">Camera Permission</string>
+    <string name="camera_permission_rationale">This catalog requires access to your camera to demonstrate the various capabilities of the Android Camera APIs.</string>
+    <string name="camera_permission_denied">Camera access is permanently denied. You must enable it in your device\'s app settings to view the catalog.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="open_settings">Open Settings</string>
 </resources>

@@ -20,21 +20,48 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.ImageFormat
 import android.graphics.Rect
-import android.hardware.camera2.*
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.MeteringRectangle
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
-import android.view.TextureView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
+import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,6 +76,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 
 @Composable
 fun Camera2TakeAPhotoScreen(
@@ -93,7 +122,6 @@ fun Camera2TakeAPhotoScreen(
                                 viewModel.processImage(image, orientation)
                             },
                         ) { captureAction, swapAction ->
-                            // Camera Controls
                             Row(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
@@ -186,8 +214,9 @@ fun CameraPreview(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
 
-    var textureView: TextureView? by remember { mutableStateOf(null) }
+    var viewfinder: ViewfinderView? by remember { mutableStateOf(null) }
     var cameraDevice: CameraDevice? by remember { mutableStateOf(null) }
     var captureSession: CameraCaptureSession? by remember { mutableStateOf(null) }
     var imageReader: ImageReader? by remember { mutableStateOf(null) }
@@ -255,7 +284,7 @@ fun CameraPreview(
     }
 
     fun openCamera() {
-        if (textureView == null) return
+        val currentViewfinder = viewfinder ?: return
         try {
             for (id in cameraManager.cameraIdList) {
                 val characteristics = cameraManager.getCameraCharacteristics(id)
@@ -279,43 +308,47 @@ fun CameraPreview(
                     cameraManager.openCamera(id, object : CameraDevice.StateCallback() {
                         override fun onOpened(camera: CameraDevice) {
                             cameraDevice = camera
-                            try {
-                                val texture = textureView!!.surfaceTexture!!
-                                texture.setDefaultBufferSize(1920, 1080)
-                                val surface = android.view.Surface(texture)
+                            coroutineScope.launch {
+                                try {
+                                    val request = ViewfinderSurfaceRequest(1920, 1080)
+                                    val session =
+                                        currentViewfinder.requestSurfaceSessionAsync(request)
+                                            .await()
+                                    val surface = session.surface
 
-                                previewRequestBuilder =
-                                    cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                                previewRequestBuilder!!.addTarget(surface)
+                                    previewRequestBuilder =
+                                        camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                                    previewRequestBuilder!!.addTarget(surface)
 
-                                cameraDevice!!.createCaptureSession(
-                                    listOf(surface, imageReader!!.surface),
-                                    object : CameraCaptureSession.StateCallback() {
-                                        override fun onConfigured(session: CameraCaptureSession) {
-                                            if (cameraDevice == null) return
-                                            captureSession = session
-                                            try {
-                                                previewRequestBuilder!!.set(
-                                                    CaptureRequest.CONTROL_AF_MODE,
-                                                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
-                                                )
-                                                previewRequest = previewRequestBuilder!!.build()
-                                                captureSession!!.setRepeatingRequest(
-                                                    previewRequest!!,
-                                                    null,
-                                                    backgroundHandler
-                                                )
-                                            } catch (e: CameraAccessException) {
-                                                Log.e("CameraPreview", e.toString())
+                                    camera.createCaptureSession(
+                                        listOf(surface, imageReader!!.surface),
+                                        object : CameraCaptureSession.StateCallback() {
+                                            override fun onConfigured(session: CameraCaptureSession) {
+                                                if (cameraDevice == null) return
+                                                captureSession = session
+                                                try {
+                                                    previewRequestBuilder!!.set(
+                                                        CaptureRequest.CONTROL_AF_MODE,
+                                                        CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+                                                    )
+                                                    previewRequest = previewRequestBuilder!!.build()
+                                                    captureSession!!.setRepeatingRequest(
+                                                        previewRequest!!,
+                                                        null,
+                                                        backgroundHandler
+                                                    )
+                                                } catch (e: CameraAccessException) {
+                                                    Log.e("CameraPreview", e.toString())
+                                                }
                                             }
-                                        }
 
-                                        override fun onConfigureFailed(session: CameraCaptureSession) {}
-                                    },
-                                    null
-                                )
-                            } catch (e: CameraAccessException) {
-                                Log.e("CameraPreview", e.toString())
+                                            override fun onConfigureFailed(session: CameraCaptureSession) {}
+                                        },
+                                        null
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("CameraPreview", e.toString())
+                                }
                             }
                         }
 
@@ -356,29 +389,9 @@ fun CameraPreview(
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx ->
-                TextureView(ctx).apply {
-                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                        override fun onSurfaceTextureAvailable(
-                            texture: android.graphics.SurfaceTexture,
-                            width: Int,
-                            height: Int
-                        ) {
-                            textureView = this@apply
-                            openCamera()
-                        }
-
-                        override fun onSurfaceTextureSizeChanged(
-                            texture: android.graphics.SurfaceTexture,
-                            width: Int,
-                            height: Int
-                        ) {
-                        }
-
-                        override fun onSurfaceTextureDestroyed(texture: android.graphics.SurfaceTexture) =
-                            true
-
-                        override fun onSurfaceTextureUpdated(texture: android.graphics.SurfaceTexture) {}
-                    }
+                ViewfinderView(ctx).apply {
+                    viewfinder = this
+                    post { openCamera() }
                 }
             },
             modifier = Modifier
