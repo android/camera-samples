@@ -38,5 +38,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Camera Samples Catalog"
 include(":app")
-include(":samples:gemini-multimodal")
+include(":samples:camera2-takeaphoto")
 include(":ui-component")

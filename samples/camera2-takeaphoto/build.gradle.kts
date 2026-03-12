@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,31 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.jetbrains.kotlin.serialization)
-    alias(libs.plugins.google.gms.google.services)
-    alias(libs.plugins.hilt.plugin)
     alias(libs.plugins.ksp)
     alias(libs.plugins.compose.compiler)
 }
 
 android {
-    namespace = "com.android.camera.catalog"
+    namespace = "com.android.camera2.takeaphoto"
     compileSdk = 36
 
+    buildFeatures {
+        compose = true
+    }
+
     defaultConfig {
-        applicationId = "com.android.camera.catalog"
         minSdk = 23
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildTypes {
@@ -53,40 +49,35 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.15"
+    }
     kotlinOptions {
         jvmTarget = "17"
-    }
-    buildFeatures {
-        compose = true
     }
 }
 
 dependencies {
+
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.material3)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.navigation.runtime.ktx)
-    implementation(libs.hilt.android)
-    implementation(libs.hilt.navigation.compose)
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.material.icons.extended)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.ai)
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.coil.compose)
+    implementation(libs.androidx.runtime.livedata)
+    implementation(libs.androidx.runtime.livedata)
+    implementation(libs.androidx.material3.window)
+    debugImplementation(libs.ui.tooling)
     ksp(libs.hilt.compiler)
-
     implementation(project(":ui-component"))
-    implementation(project(":samples:camera2-takeaphoto"))
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
 }

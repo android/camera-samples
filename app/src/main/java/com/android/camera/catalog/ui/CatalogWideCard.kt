@@ -95,11 +95,11 @@ fun CatalogWideCard(catalogItem: SampleCatalogItem, onClick: () -> Unit) {
 fun CatalogWideCardPreview() {
     AISampleCatalogTheme {
         val sampleItem = SampleCatalogItem(
-            title = R.string.gemini_multimodal_sample_list_title,
-            description = R.string.gemini_multimodal_sample_list_description,
+            title = R.string.camera2_sample_takeaphoto_list_title,
+            description = R.string.camera2_sample_takeaphoto_list_description,
             route = "GeminiMultimodalScreen",
             sampleEntryScreen = { },
-            tags = listOf(SampleTags.GEMINI_FLASH, SampleTags.FIREBASE),
+            tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
         )
 
         CatalogWideCard(

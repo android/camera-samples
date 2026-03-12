@@ -22,20 +22,20 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.android.camera.catalog.R
-import com.android.ai.samples.geminimultimodal.ui.GeminiMultimodalScreen
 import com.android.ai.theme.extendedColorScheme
+import com.android.camera2.takeaphoto.ui.Camera2TakeAPhotoScreen
 import com.google.firebase.ai.type.PublicPreviewAPI
 
 @OptIn(PublicPreviewAPI::class)
 @RequiresPermission(Manifest.permission.RECORD_AUDIO)
 val sampleCatalog = listOf(
     SampleCatalogItem(
-        title = R.string.gemini_multimodal_sample_list_title,
-        description = R.string.gemini_multimodal_sample_list_description,
-        route = "GeminiMultimodalScreen",
-        sampleEntryScreen = { GeminiMultimodalScreen() },
-        tags = listOf(SampleTags.GEMINI_FLASH, SampleTags.FIREBASE),
-        isFeatured = false,
+        title = R.string.camera2_sample_takeaphoto_list_title,
+        description = R.string.camera2_sample_takeaphoto_list_description,
+        route = "Camera2TakeAPhotoScreen",
+        sampleEntryScreen = { Camera2TakeAPhotoScreen() },
+        tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
+        isFeatured = true,
         keyArt = R.drawable.img_keyart_multimodal,
     ),
 
@@ -43,23 +43,19 @@ val sampleCatalog = listOf(
 )
 
 data class SampleCatalogItem(
-  @param:StringRes val title: Int,
-  @param:StringRes val description: Int,
-  val route: String,
-  val sampleEntryScreen: @Composable () -> Unit,
-  val tags: List<SampleTags> = emptyList(),
-  val isFeatured: Boolean = false,
-  @param:DrawableRes val keyArt: Int? = null,
+    @param:StringRes val title: Int,
+    @param:StringRes val description: Int,
+    val route: String,
+    val sampleEntryScreen: @Composable () -> Unit,
+    val tags: List<SampleTags> = emptyList(),
+    val isFeatured: Boolean = false,
+    @param:DrawableRes val keyArt: Int? = null,
 )
 
 enum class SampleTags(
     val label: String,
     val backgroundColor: Color,
 ) {
-    FIREBASE("Firebase", extendedColorScheme.firebase),
-    GEMINI_FLASH("Gemini Flash", extendedColorScheme.geminiProFlash),
-    GEMINI_NANO("Gemini Nano", extendedColorScheme.geminiNano),
-    IMAGEN("Imagen", extendedColorScheme.imagen),
     MEDIA3("Media3", extendedColorScheme.media3),
     ML_KIT("ML Kit", extendedColorScheme.mLKit),
 }
