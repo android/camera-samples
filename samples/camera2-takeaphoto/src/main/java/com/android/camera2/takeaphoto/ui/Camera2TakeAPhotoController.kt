@@ -38,6 +38,7 @@ import android.os.HandlerThread
 import android.util.Log
 import androidx.camera.viewfinder.core.ScaleType
 import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
+import androidx.camera.viewfinder.core.ViewfinderSurfaceSession
 import androidx.camera.viewfinder.core.camera2.Camera2TransformationInfo
 import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.runtime.Composable
@@ -90,6 +91,7 @@ class Camera2TakeAPhotoController(
     private var previewRequest: CaptureRequest? = null
     private var cameraId: String = ""
     private var isCameraOpeningOrOpen: Boolean = false
+    private var surfaceSession: ViewfinderSurfaceSession? = null
 
     fun closeCamera() {
         isCameraOpeningOrOpen = false
@@ -99,6 +101,8 @@ class Camera2TakeAPhotoController(
         cameraDevice = null
         imageReader?.close()
         imageReader = null
+        surfaceSession?.close()
+        surfaceSession = null
     }
 
     @SuppressLint("MissingPermission")
@@ -174,7 +178,9 @@ class Camera2TakeAPhotoController(
                     Camera2TransformationInfo.createFromCharacteristics(characteristics)
                 viewfinder.scaleType = ScaleType.FILL_CENTER
 
+                surfaceSession?.close()
                 val session = viewfinder.requestSurfaceSessionAsync(request).await()
+                surfaceSession = session
                 val surface = session.surface
 
                 val activeImageReader = imageReader ?: return@launch
