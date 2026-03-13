@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -207,6 +207,12 @@ private fun CapturingView(
         onPhotoCaptured = onPhotoCaptured
     )
 
+    DisposableEffect(cameraController) {
+        onDispose {
+            cameraController.release()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewContent(cameraController)
         IconButton(
@@ -241,19 +247,6 @@ private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) 
     val configuration = LocalConfiguration.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    DisposableEffect(lifecycleOwner, cameraController) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) cameraController.openCamera()
-            if (event == Lifecycle.Event.ON_PAUSE) cameraController.closeCamera()
-        }
-
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            cameraController.closeCamera()
-        }
-    }
-
     val displayRotation = remember(configuration) {
         val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             context.display
@@ -270,11 +263,12 @@ private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) 
 
     AndroidView(
         factory = { ctx ->
-            ViewfinderView(ctx)
+            ViewfinderView(ctx).apply {
+                cameraController.viewfinder = this
+            }
         },
         update = { view ->
             cameraController.viewfinder = view
-            // view.post(cameraController::openCamera)
         },
         modifier = Modifier
             .fillMaxSize()
@@ -286,6 +280,25 @@ private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) 
                 )
             }
     )
+
+    DisposableEffect(lifecycleOwner, cameraController) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_CREATE || event == Lifecycle.Event.ON_RESUME) {
+                cameraController.viewfinder?.post {
+                    cameraController.openCamera()
+                }
+            }
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                cameraController.closeCamera()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            cameraController.closeCamera()
+        }
+    }
 }
 
 @Composable

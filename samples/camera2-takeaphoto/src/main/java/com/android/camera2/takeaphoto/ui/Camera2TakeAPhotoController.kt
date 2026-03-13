@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     https://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -103,7 +103,8 @@ class Camera2TakeAPhotoController(
         val currentViewfinder = viewfinder ?: return
 
         val sensorRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
-        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING) ?: CameraCharacteristics.LENS_FACING_BACK
+        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+            ?: CameraCharacteristics.LENS_FACING_BACK
         val sign = if (lensFacing == CameraCharacteristics.LENS_FACING_FRONT) 1 else -1
 
         val rotationDegrees = when (displayRotation) {
@@ -118,7 +119,7 @@ class Camera2TakeAPhotoController(
         val relativeRotation = (sensorRotation - rotationDegrees * sign + 360) % 360
 
         val baseInfo = Camera2TransformationInfo.createFromCharacteristics(characteristics)
-        
+
         currentViewfinder.transformationInfo = androidx.camera.viewfinder.core.TransformationInfo(
             sourceRotation = relativeRotation,
             isSourceMirroredHorizontally = baseInfo.isSourceMirroredHorizontally,
@@ -131,6 +132,7 @@ class Camera2TakeAPhotoController(
     }
 
     fun closeCamera() {
+        isCameraOpeningOrOpen = false
         captureSession?.close()
         captureSession = null
         cameraDevice?.close()
@@ -141,8 +143,19 @@ class Camera2TakeAPhotoController(
         surfaceSession = null
     }
 
+    fun release() {
+        closeCamera()
+        backgroundThread.quitSafely()
+        try {
+            backgroundThread.join(1000)
+        } catch (e: InterruptedException) {
+            Log.e(TAG, "Interrupted while waiting for background thread to finish")
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun openCamera() {
+        if (cameraDevice != null || isCameraOpeningOrOpen) return
         val currentViewfinder = viewfinder ?: return
 
         try {
@@ -159,21 +172,24 @@ class Camera2TakeAPhotoController(
                     cameraId = id
                     currentCharacteristics = characteristics
                     setupImageReader(characteristics)
+                    isCameraOpeningOrOpen = true
 
                     cameraManager.openCamera(id, object : CameraDevice.StateCallback() {
                         override fun onOpened(camera: CameraDevice) {
+                            isCameraOpeningOrOpen = false
                             cameraDevice = camera
-                            // Ensure the transformation info is set correctly right away for the new camera
                             updateTransformationInfo(currentDisplayRotation)
                             startPreviewSession(camera, currentViewfinder)
                         }
 
                         override fun onDisconnected(camera: CameraDevice) {
+                            isCameraOpeningOrOpen = false
                             camera.close()
                             cameraDevice = null
                         }
 
                         override fun onError(camera: CameraDevice, error: Int) {
+                            isCameraOpeningOrOpen = false
                             camera.close()
                             cameraDevice = null
                         }
@@ -207,7 +223,7 @@ class Camera2TakeAPhotoController(
         coroutineScope.launch {
             try {
                 val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                
+
                 // Set the initial transformation info factoring in the current display rotation
                 updateTransformationInfo(currentDisplayRotation)
 
