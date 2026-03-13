@@ -131,7 +131,6 @@ class Camera2TakeAPhotoController(
     }
 
     fun closeCamera() {
-        isCameraOpeningOrOpen = false
         captureSession?.close()
         captureSession = null
         cameraDevice?.close()
@@ -145,8 +144,6 @@ class Camera2TakeAPhotoController(
     @SuppressLint("MissingPermission")
     fun openCamera() {
         val currentViewfinder = viewfinder ?: return
-        if (isCameraOpeningOrOpen) return
-        isCameraOpeningOrOpen = true
 
         try {
             for (id in cameraManager.cameraIdList) {
@@ -166,19 +163,19 @@ class Camera2TakeAPhotoController(
                     cameraManager.openCamera(id, object : CameraDevice.StateCallback() {
                         override fun onOpened(camera: CameraDevice) {
                             cameraDevice = camera
+                            // Ensure the transformation info is set correctly right away for the new camera
+                            updateTransformationInfo(currentDisplayRotation)
                             startPreviewSession(camera, currentViewfinder)
                         }
 
                         override fun onDisconnected(camera: CameraDevice) {
                             camera.close()
                             cameraDevice = null
-                            isCameraOpeningOrOpen = false
                         }
 
                         override fun onError(camera: CameraDevice, error: Int) {
                             camera.close()
                             cameraDevice = null
-                            isCameraOpeningOrOpen = false
                         }
                     }, backgroundHandler)
                     return
@@ -186,7 +183,6 @@ class Camera2TakeAPhotoController(
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, "Failed to open camera", e)
-            isCameraOpeningOrOpen = false
         }
     }
 

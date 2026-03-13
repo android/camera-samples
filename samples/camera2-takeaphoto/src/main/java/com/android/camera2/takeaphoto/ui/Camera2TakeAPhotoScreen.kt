@@ -201,34 +201,14 @@ private fun CapturingView(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-
     val cameraController = rememberCamera2TakeAPhotoController(
         context = context,
         isFrontCamera = isFrontCamera,
         onPhotoCaptured = onPhotoCaptured
     )
 
-    DisposableEffect(lifecycleOwner, cameraController) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                cameraController.openCamera()
-            } else if (event == Lifecycle.Event.ON_PAUSE) {
-                cameraController.closeCamera()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        cameraController.openCamera()
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            cameraController.closeCamera()
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewContent(cameraController)
-
-        // Back Button
         IconButton(
             onClick = onBack,
             modifier = Modifier
@@ -242,8 +222,6 @@ private fun CapturingView(
                 modifier = Modifier.size(32.dp)
             )
         }
-
-        // Bottom Controls
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -261,6 +239,20 @@ private fun CapturingView(
 private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, cameraController) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) cameraController.openCamera()
+            if (event == Lifecycle.Event.ON_PAUSE) cameraController.closeCamera()
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            cameraController.closeCamera()
+        }
+    }
 
     val displayRotation = remember(configuration) {
         val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -282,7 +274,7 @@ private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) 
         },
         update = { view ->
             cameraController.viewfinder = view
-            view.post { cameraController.openCamera() }
+            // view.post(cameraController::openCamera)
         },
         modifier = Modifier
             .fillMaxSize()
