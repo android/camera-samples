@@ -52,6 +52,9 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TwoRowsTopAppBar
@@ -82,6 +85,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.android.camera.catalog.R
+import com.android.camera.catalog.domain.SampleType
 import com.android.camera.catalog.domain.sampleCatalog
 import kotlinx.serialization.Serializable
 
@@ -207,19 +211,57 @@ fun CatalogApp() {
                     }
                 ) { hasPermission ->
                     if (hasPermission) {
-                        LazyColumn(
-                            contentPadding = innerPadding,
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            items(sampleCatalog) {
-                                val onClick = {
-                                    navController.navigate(it.route)
+                        Column(modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)) {
+                            var selectedFilter by remember { mutableStateOf<SampleType?>(null) }
+
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                SegmentedButton(
+                                    selected = selectedFilter == null,
+                                    onClick = { selectedFilter = null },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
+                                ) {
+                                    Text("All")
                                 }
-                                if (it.isFeatured) {
-                                    CatalogWideCard(catalogItem = it, onClick = onClick)
-                                } else {
-                                    CatalogRowCard(catalogItem = it, onClick = onClick)
+                                SegmentedButton(
+                                    selected = selectedFilter == SampleType.CAMERAX,
+                                    onClick = { selectedFilter = SampleType.CAMERAX },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
+                                ) {
+                                    Text("CameraX")
+                                }
+                                SegmentedButton(
+                                    selected = selectedFilter == SampleType.CAMERA2,
+                                    onClick = { selectedFilter = SampleType.CAMERA2 },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
+                                ) {
+                                    Text("Camera 2")
+                                }
+                            }
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                val filteredSamples = sampleCatalog.filter {
+                                    selectedFilter == null || it.type == selectedFilter
+                                }
+                                items(items = filteredSamples, key = { it.route }) {
+                                    val onClick = {
+                                        navController.navigate(it.route)
+                                    }
+                                    Column(modifier = Modifier.animateItem()) {
+                                        if (it.isFeatured) {
+                                            CatalogWideCard(catalogItem = it, onClick = onClick)
+                                        } else {
+                                            CatalogRowCard(catalogItem = it, onClick = onClick)
+                                        }
+                                    }
                                 }
                             }
                         }

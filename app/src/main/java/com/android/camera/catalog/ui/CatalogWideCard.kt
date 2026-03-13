@@ -38,6 +38,7 @@ import com.android.camera.catalog.domain.SampleCatalogItem
 import com.android.camera.catalog.domain.SampleTags
 import com.android.ai.theme.AISampleCatalogTheme
 import com.android.ai.uicomponent.Tag
+import com.android.camera.catalog.domain.SampleType
 
 @Composable
 fun CatalogWideCard(catalogItem: SampleCatalogItem, onClick: () -> Unit) {
@@ -99,6 +100,7 @@ fun CatalogWideCardPreview() {
             description = R.string.camera2_sample_takeaphoto_list_description,
             route = "GeminiMultimodalScreen",
             sampleEntryScreen = { },
+            type = SampleType.CAMERAX,
             tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
         )
 

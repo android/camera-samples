@@ -42,6 +42,7 @@ import com.android.camera.catalog.domain.SampleCatalogItem
 import com.android.camera.catalog.domain.SampleTags
 import com.android.ai.theme.AISampleCatalogTheme
 import com.android.ai.uicomponent.Tag
+import com.android.camera.catalog.domain.SampleType
 
 @Composable
 fun CatalogRowCard(catalogItem: SampleCatalogItem, onClick: () -> Unit) {
@@ -105,6 +106,7 @@ fun CatalogRowCardPreview() {
             description = R.string.camera2_sample_takeaphoto_list_description,
             route = "GeminiMultimodalScreen",
             sampleEntryScreen = { },
+            type = SampleType.CAMERA2,
             tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
         )
 

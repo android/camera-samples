@@ -34,6 +34,7 @@ val sampleCatalog = listOf(
         description = R.string.camera2_sample_takeaphoto_list_description,
         route = "Camera2TakeAPhotoScreen",
         sampleEntryScreen = { Camera2TakeAPhotoScreen() },
+        type = SampleType.CAMERA2,
         tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
         isFeatured = true,
         keyArt = R.drawable.img_keyart_multimodal,
@@ -47,6 +48,7 @@ data class SampleCatalogItem(
     @param:StringRes val description: Int,
     val route: String,
     val sampleEntryScreen: @Composable () -> Unit,
+    val type: SampleType,
     val tags: List<SampleTags> = emptyList(),
     val isFeatured: Boolean = false,
     @param:DrawableRes val keyArt: Int? = null,
@@ -59,3 +61,9 @@ enum class SampleTags(
     MEDIA3("Media3", extendedColorScheme.media3),
     ML_KIT("ML Kit", extendedColorScheme.mLKit),
 }
+
+enum class SampleType {
+    CAMERAX,
+    CAMERA2,
+}
+

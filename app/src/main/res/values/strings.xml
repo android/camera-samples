@@ -4,7 +4,7 @@
     <string name="camera2_sample_takeaphoto_list_description">A very simple example of multimodal generation using the Gemini Flash model.</string>
 
     <string name="top_bar_title">Android Camera Samples</string>
-    <string name="top_bar_title_expanded">Android\nCamera Samples</string>
+    <string name="top_bar_title_expanded">Camera Samples</string>
     <string name="open_sample_button">Open sample</string>
 
     <string name="close">Close</string>
