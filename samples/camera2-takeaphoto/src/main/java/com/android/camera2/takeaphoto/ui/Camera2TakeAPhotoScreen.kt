@@ -16,7 +16,11 @@
 package com.android.camera2.takeaphoto.ui
 
 import android.Manifest
+import android.content.Context
 import android.media.Image
+import android.os.Build
+import android.view.Surface
+import android.view.WindowManager
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -254,6 +259,23 @@ private fun CapturingView(
 
 @Composable
 private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+
+    val displayRotation = remember(configuration) {
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display
+        } else {
+            @Suppress("DEPRECATION")
+            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
+        }
+        display?.rotation ?: Surface.ROTATION_0
+    }
+
+    LaunchedEffect(displayRotation) {
+        cameraController.updateTransformationInfo(displayRotation)
+    }
+
     AndroidView(
         factory = { ctx ->
             ViewfinderView(ctx)

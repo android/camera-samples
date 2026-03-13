@@ -36,6 +36,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.view.Surface
 import androidx.camera.viewfinder.core.ScaleType
 import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
 import androidx.camera.viewfinder.core.ViewfinderSurfaceSession
@@ -68,7 +69,7 @@ fun rememberCamera2TakeAPhotoController(
 
 @Stable
 class Camera2TakeAPhotoController(
-    private val context: Context,
+    context: Context,
     val isFrontCamera: Boolean,
     private val onPhotoCaptured: (Image, Int) -> Unit,
     private val coroutineScope: CoroutineScope
@@ -92,6 +93,42 @@ class Camera2TakeAPhotoController(
     private var cameraId: String = ""
     private var isCameraOpeningOrOpen: Boolean = false
     private var surfaceSession: ViewfinderSurfaceSession? = null
+
+    private var currentCharacteristics: CameraCharacteristics? = null
+    private var currentDisplayRotation: Int = Surface.ROTATION_0
+
+    fun updateTransformationInfo(displayRotation: Int) {
+        currentDisplayRotation = displayRotation
+        val characteristics = currentCharacteristics ?: return
+        val currentViewfinder = viewfinder ?: return
+
+        val sensorRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING) ?: CameraCharacteristics.LENS_FACING_BACK
+        val sign = if (lensFacing == CameraCharacteristics.LENS_FACING_FRONT) 1 else -1
+
+        val rotationDegrees = when (displayRotation) {
+            Surface.ROTATION_0 -> 0
+            Surface.ROTATION_90 -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+
+        // Calculate the relative rotation considering the framework's automatic display rotation for SurfaceView
+        val relativeRotation = (sensorRotation - rotationDegrees * sign + 360) % 360
+
+        val baseInfo = Camera2TransformationInfo.createFromCharacteristics(characteristics)
+        
+        currentViewfinder.transformationInfo = androidx.camera.viewfinder.core.TransformationInfo(
+            sourceRotation = relativeRotation,
+            isSourceMirroredHorizontally = baseInfo.isSourceMirroredHorizontally,
+            isSourceMirroredVertically = baseInfo.isSourceMirroredVertically,
+            cropRectLeft = baseInfo.cropRectLeft,
+            cropRectTop = baseInfo.cropRectTop,
+            cropRectRight = baseInfo.cropRectRight,
+            cropRectBottom = baseInfo.cropRectBottom
+        )
+    }
 
     fun closeCamera() {
         isCameraOpeningOrOpen = false
@@ -123,12 +160,13 @@ class Camera2TakeAPhotoController(
 
                 if (facing == targetFacing) {
                     cameraId = id
+                    currentCharacteristics = characteristics
                     setupImageReader(characteristics)
 
                     cameraManager.openCamera(id, object : CameraDevice.StateCallback() {
                         override fun onOpened(camera: CameraDevice) {
                             cameraDevice = camera
-                            startPreviewSession(camera, currentViewfinder, characteristics)
+                            startPreviewSession(camera, currentViewfinder)
                         }
 
                         override fun onDisconnected(camera: CameraDevice) {
@@ -168,14 +206,15 @@ class Camera2TakeAPhotoController(
 
     private fun startPreviewSession(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
-        characteristics: CameraCharacteristics
+        viewfinder: ViewfinderView
     ) {
         coroutineScope.launch {
             try {
                 val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                viewfinder.transformationInfo =
-                    Camera2TransformationInfo.createFromCharacteristics(characteristics)
+                
+                // Set the initial transformation info factoring in the current display rotation
+                updateTransformationInfo(currentDisplayRotation)
+
                 viewfinder.scaleType = ScaleType.FILL_CENTER
 
                 surfaceSession?.close()
