@@ -91,6 +91,7 @@ fun CatalogApp() {
     val context = LocalContext.current
     val activity = context as? Activity
     val lifecycleOwner = LocalLifecycleOwner.current
+    val navController = rememberNavController()
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -127,6 +128,10 @@ fun CatalogApp() {
                 if (currentlyGranted) {
                     isPermanentlyDenied = false
                 }
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                if (navController.currentDestination?.route != HomeScreen::class.qualifiedName) {
+                    navController.popBackStack(HomeScreen, inclusive = false)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -140,8 +145,6 @@ fun CatalogApp() {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
-
-    val navController = rememberNavController()
 
     NavHost(
         navController = navController,
