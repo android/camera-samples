@@ -13,12 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.camera2.takeaphoto
+package com.android.camera2.takeavideo
 
 import android.Manifest
 import android.content.Context
-import android.graphics.Bitmap
-import android.media.Image
 import android.os.Build
 import android.view.Surface
 import android.view.WindowManager
@@ -54,34 +52,41 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.camera2.takeavideo.Camera2TakeAVideoController
+import com.android.camera2.takeavideo.rememberCamera2TakeAVideoController
 
 @Composable
-fun Camera2TakeAPhotoScreen(
-    viewModel: Camera2TakeAPhotoViewModel = hiltViewModel()
+fun Camera2TakeAVideoScreen(
+    viewModel: Camera2TakeAVideoViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var hasCameraPermission by remember { mutableStateOf(false) }
+    var hasPermissions by remember { mutableStateOf(false) }
+    
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) {
-        hasCameraPermission = it
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val cameraGranted = permissions[Manifest.permission.CAMERA] ?: false
+        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
+        hasPermissions = cameraGranted && audioGranted
     }
 
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(Manifest.permission.CAMERA)
+        permissionLauncher.launch(
+            arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+        )
         viewModel.initialize()
     }
 
@@ -95,32 +100,56 @@ fun Camera2TakeAPhotoScreen(
                 .padding(paddingValues)
         ) {
             when (val state = uiState) {
-                is Camera2TakeAPhotoUiState.Initial -> LoadingView()
-                is Camera2TakeAPhotoUiState.Error -> {
+                is Camera2TakeAVideoUiState.Initial -> LoadingView()
+                is Camera2TakeAVideoUiState.Setup -> {
+                    if (hasPermissions) {
+                        Camera2TakeAVideoSetup(
+                            onConfigurationComplete = { config ->
+                                viewModel.submitConfig(config)
+                            }
+                        )
+                    } else {
+                        PermissionDeniedView()
+                    }
+                }
+                is Camera2TakeAVideoUiState.Error -> {
                     ErrorView(
                         errorMessage = state.errorMessage,
                         onRetry = viewModel::resetError
                     )
                 }
-
                 else -> {
-                    if (hasCameraPermission) {
+                    if (hasPermissions) {
                         val isFrontCamera = when (state) {
-                            is Camera2TakeAPhotoUiState.Capturing -> state.isFrontCamera
-                            is Camera2TakeAPhotoUiState.PhotoCaptured -> state.isFrontCamera
+                            is Camera2TakeAVideoUiState.Previewing -> state.isFrontCamera
+                            is Camera2TakeAVideoUiState.Recording -> state.isFrontCamera
+                            is Camera2TakeAVideoUiState.VideoCaptured -> state.isFrontCamera
                             else -> false
                         }
 
+                        val config = when (state) {
+                            is Camera2TakeAVideoUiState.Previewing -> state.config
+                            is Camera2TakeAVideoUiState.Recording -> state.config
+                            is Camera2TakeAVideoUiState.VideoCaptured -> state.config
+                            else -> return@Box
+                        }
+
+                        val isRecording = state is Camera2TakeAVideoUiState.Recording
+
                         CapturingView(
                             isFrontCamera = isFrontCamera,
-                            onPhotoCaptured = viewModel::processImage,
+                            config = config,
+                            isRecording = isRecording,
+                            onStartRecording = viewModel::startRecording,
+                            onVideoCaptured = { file -> viewModel.videoCaptured(file.toUri()) },
                             onSwapCamera = viewModel::swapCamera,
-                            onBack = { backDispatcher?.onBackPressed() }
+                            onBack = {
+                                viewModel.initialize() // Reset to setup step
+                            }
                         )
 
-                        if (state is Camera2TakeAPhotoUiState.PhotoCaptured) {
-                            CapturedPhotoView(
-                                bitmap = state.photoBitmap,
+                        if (state is Camera2TakeAVideoUiState.VideoCaptured) {
+                            CapturedVideoView(
                                 onDismiss = viewModel::resetToCamera
                             )
                         }
@@ -143,7 +172,7 @@ private fun LoadingView() {
 @Composable
 private fun PermissionDeniedView() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Camera permission is required", color = Color.White)
+        Text("Camera and Audio permissions are required", color = Color.White)
     }
 }
 
@@ -167,16 +196,16 @@ private fun ErrorView(errorMessage: String?, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun CapturedPhotoView(bitmap: Bitmap, onDismiss: () -> Unit) {
+private fun CapturedVideoView(onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        androidx.compose.foundation.Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = "Captured Photo",
-            modifier = Modifier.fillMaxSize()
+        Text(
+            text = "Video Saved!",
+            color = Color.White,
+            modifier = Modifier.align(Alignment.Center)
         )
         IconButton(
             onClick = onDismiss,
@@ -197,15 +226,19 @@ private fun CapturedPhotoView(bitmap: Bitmap, onDismiss: () -> Unit) {
 @Composable
 private fun CapturingView(
     isFrontCamera: Boolean,
-    onPhotoCaptured: (Image, Int) -> Unit,
+    config: CameraVideoConfig,
+    isRecording: Boolean,
+    onStartRecording: () -> Unit,
+    onVideoCaptured: (java.io.File) -> Unit,
     onSwapCamera: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val cameraController = rememberCamera2TakeAPhotoController(
+    val cameraController = rememberCamera2TakeAVideoController(
         context = context,
         isFrontCamera = isFrontCamera,
-        onPhotoCaptured = onPhotoCaptured
+        config = config,
+        onVideoCaptured = onVideoCaptured
     )
 
     DisposableEffect(cameraController) {
@@ -235,15 +268,23 @@ private fun CapturingView(
                 .fillMaxWidth()
         ) {
             CameraControls(
+                isRecording = isRecording,
                 onSwapCamera = onSwapCamera,
-                onCapture = { cameraController.takePicture() }
+                onToggleRecord = {
+                    if (isRecording) {
+                        cameraController.stopRecording()
+                    } else {
+                        onStartRecording()
+                        cameraController.startRecording()
+                    }
+                }
             )
         }
     }
 }
 
 @Composable
-private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) {
+private fun CameraPreviewContent(cameraController: Camera2TakeAVideoController) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -303,14 +344,14 @@ private fun CameraPreviewContent(cameraController: Camera2TakeAPhotoController) 
 }
 
 @Composable
-private fun CameraControls(onSwapCamera: () -> Unit, onCapture: () -> Unit) {
+private fun CameraControls(isRecording: Boolean, onSwapCamera: () -> Unit, onToggleRecord: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 48.dp, start = 32.dp, end = 48.dp)
     ) {
         IconButton(
-            onClick = onCapture,
+            onClick = onToggleRecord,
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(72.dp)
@@ -318,21 +359,24 @@ private fun CameraControls(onSwapCamera: () -> Unit, onCapture: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White, shape = CircleShape)
+                    .background(if (isRecording) Color.Red else Color.White, shape = CircleShape)
             )
         }
-        IconButton(
-            onClick = onSwapCamera,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Cameraswitch,
-                contentDescription = "Swap Camera",
-                tint = Color.White,
-                modifier = Modifier.fillMaxSize()
-            )
+        
+        if (!isRecording) {
+            IconButton(
+                onClick = onSwapCamera,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Cameraswitch,
+                    contentDescription = "Swap Camera",
+                    tint = Color.White,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }

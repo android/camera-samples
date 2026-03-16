@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * https://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.camera2.takeaphoto
+package com.android.camera2.takeaphoto.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -36,11 +36,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
-import android.view.Surface
 import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.TransformationInfo
 import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.core.ViewfinderSurfaceSession
 import androidx.camera.viewfinder.core.camera2.Camera2TransformationInfo
 import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.runtime.Composable
@@ -70,7 +67,7 @@ fun rememberCamera2TakeAPhotoController(
 
 @Stable
 class Camera2TakeAPhotoController(
-    context: Context,
+    private val context: Context,
     val isFrontCamera: Boolean,
     private val onPhotoCaptured: (Image, Int) -> Unit,
     private val coroutineScope: CoroutineScope
@@ -93,44 +90,6 @@ class Camera2TakeAPhotoController(
     private var previewRequest: CaptureRequest? = null
     private var cameraId: String = ""
     private var isCameraOpeningOrOpen: Boolean = false
-    private var surfaceSession: ViewfinderSurfaceSession? = null
-
-    private var currentCharacteristics: CameraCharacteristics? = null
-    private var currentDisplayRotation: Int = Surface.ROTATION_0
-
-    fun updateTransformationInfo(displayRotation: Int) {
-        currentDisplayRotation = displayRotation
-        val characteristics = currentCharacteristics ?: return
-        val currentViewfinder = viewfinder ?: return
-
-        val sensorRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
-        val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
-            ?: CameraCharacteristics.LENS_FACING_BACK
-        val sign = if (lensFacing == CameraCharacteristics.LENS_FACING_FRONT) 1 else -1
-
-        val rotationDegrees = when (displayRotation) {
-            Surface.ROTATION_0 -> 0
-            Surface.ROTATION_90 -> 90
-            Surface.ROTATION_180 -> 180
-            Surface.ROTATION_270 -> 270
-            else -> 0
-        }
-
-        // Calculate the relative rotation considering the framework's automatic display rotation for SurfaceView
-        val relativeRotation = (sensorRotation - rotationDegrees * sign + 360) % 360
-
-        val baseInfo = Camera2TransformationInfo.createFromCharacteristics(characteristics)
-
-        currentViewfinder.transformationInfo = TransformationInfo(
-            sourceRotation = relativeRotation,
-            isSourceMirroredHorizontally = baseInfo.isSourceMirroredHorizontally,
-            isSourceMirroredVertically = baseInfo.isSourceMirroredVertically,
-            cropRectLeft = baseInfo.cropRectLeft,
-            cropRectTop = baseInfo.cropRectTop,
-            cropRectRight = baseInfo.cropRectRight,
-            cropRectBottom = baseInfo.cropRectBottom
-        )
-    }
 
     fun closeCamera() {
         isCameraOpeningOrOpen = false
@@ -140,24 +99,13 @@ class Camera2TakeAPhotoController(
         cameraDevice = null
         imageReader?.close()
         imageReader = null
-        surfaceSession?.close()
-        surfaceSession = null
-    }
-
-    fun release() {
-        closeCamera()
-        backgroundThread.quitSafely()
-        try {
-            backgroundThread.join(1000)
-        } catch (e: InterruptedException) {
-            Log.e(TAG, "Interrupted while waiting for background thread to finish")
-        }
     }
 
     @SuppressLint("MissingPermission")
     fun openCamera() {
-        if (cameraDevice != null || isCameraOpeningOrOpen) return
         val currentViewfinder = viewfinder ?: return
+        if (isCameraOpeningOrOpen) return
+        isCameraOpeningOrOpen = true
 
         try {
             for (id in cameraManager.cameraIdList) {
@@ -171,28 +119,24 @@ class Camera2TakeAPhotoController(
 
                 if (facing == targetFacing) {
                     cameraId = id
-                    currentCharacteristics = characteristics
                     setupImageReader(characteristics)
-                    isCameraOpeningOrOpen = true
 
                     cameraManager.openCamera(id, object : CameraDevice.StateCallback() {
                         override fun onOpened(camera: CameraDevice) {
-                            isCameraOpeningOrOpen = false
                             cameraDevice = camera
-                            updateTransformationInfo(currentDisplayRotation)
-                            startPreviewSession(camera, currentViewfinder)
+                            startPreviewSession(camera, currentViewfinder, characteristics)
                         }
 
                         override fun onDisconnected(camera: CameraDevice) {
-                            isCameraOpeningOrOpen = false
                             camera.close()
                             cameraDevice = null
+                            isCameraOpeningOrOpen = false
                         }
 
                         override fun onError(camera: CameraDevice, error: Int) {
-                            isCameraOpeningOrOpen = false
                             camera.close()
                             cameraDevice = null
+                            isCameraOpeningOrOpen = false
                         }
                     }, backgroundHandler)
                     return
@@ -200,6 +144,7 @@ class Camera2TakeAPhotoController(
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, "Failed to open camera", e)
+            isCameraOpeningOrOpen = false
         }
     }
 
@@ -219,20 +164,17 @@ class Camera2TakeAPhotoController(
 
     private fun startPreviewSession(
         camera: CameraDevice,
-        viewfinder: ViewfinderView
+        viewfinder: ViewfinderView,
+        characteristics: CameraCharacteristics
     ) {
         coroutineScope.launch {
             try {
                 val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-
-                // Set the initial transformation info factoring in the current display rotation
-                updateTransformationInfo(currentDisplayRotation)
-
+                viewfinder.transformationInfo =
+                    Camera2TransformationInfo.createFromCharacteristics(characteristics)
                 viewfinder.scaleType = ScaleType.FILL_CENTER
 
-                surfaceSession?.close()
                 val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
                 val surface = session.surface
 
                 val activeImageReader = imageReader ?: return@launch
@@ -293,7 +235,7 @@ class Camera2TakeAPhotoController(
             )
             previewRequest = builder.build()
             session.setRepeatingRequest(previewRequest!!, null, backgroundHandler)
-        } catch (e: CameraAccessException) {
+        } catch (e:  CameraAccessException) {
             Log.e(TAG, "Failed to start repeating request", e)
         }
     }

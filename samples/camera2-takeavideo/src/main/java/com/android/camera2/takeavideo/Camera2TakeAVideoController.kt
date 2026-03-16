@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.camera.samples.camera2takeavideo
+package com.android.camera2.takeavideo
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -25,7 +25,6 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
-import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.MeteringRectangle
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
@@ -62,11 +61,12 @@ private const val TAG = "Camera2TakeAVideoCtrl"
 fun rememberCamera2TakeAVideoController(
     context: Context,
     isFrontCamera: Boolean,
+    config: CameraVideoConfig,
     onVideoCaptured: (File) -> Unit
 ): Camera2TakeAVideoController {
     val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera, onVideoCaptured) {
-        Camera2TakeAVideoController(context, isFrontCamera, onVideoCaptured, coroutineScope)
+    return remember(context, isFrontCamera, config, onVideoCaptured) {
+        Camera2TakeAVideoController(context, isFrontCamera, config, onVideoCaptured, coroutineScope)
     }
 }
 
@@ -74,14 +74,10 @@ fun rememberCamera2TakeAVideoController(
 class Camera2TakeAVideoController(
     private val context: Context,
     val isFrontCamera: Boolean,
+    val config: CameraVideoConfig,
     private val onVideoCaptured: (File) -> Unit,
     private val coroutineScope: CoroutineScope
 ) {
-    companion object {
-        const val PREVIEW_WIDTH = 1920
-        const val PREVIEW_HEIGHT = 1080
-    }
-
     var viewfinder: ViewfinderView? = null
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -153,7 +149,7 @@ class Camera2TakeAVideoController(
         try {
             backgroundThread.join(1000)
         } catch (e: InterruptedException) {
-            Log.e(TAG, "Interrupted while waiting for background thread to finish")
+            Log.e(TAG, "Interrupted while waiting for background thread to finish", e)
         }
     }
 
@@ -162,43 +158,51 @@ class Camera2TakeAVideoController(
         if (cameraDevice != null || isCameraOpeningOrOpen) return
         val currentViewfinder = viewfinder ?: return
 
+        // Prefer config camera ID if it matches facing direction, else fallback to searching.
         try {
-            for (id in cameraManager.cameraIdList) {
-                val characteristics = cameraManager.getCameraCharacteristics(id)
-                val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
-                val targetFacing = if (isFrontCamera) {
-                    CameraCharacteristics.LENS_FACING_FRONT
-                } else {
-                    CameraCharacteristics.LENS_FACING_BACK
+            var targetCameraId = config.cameraId
+            if (targetCameraId.isEmpty()) {
+                for (id in cameraManager.cameraIdList) {
+                    val characteristics = cameraManager.getCameraCharacteristics(id)
+                    val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
+                    val targetFacing = if (isFrontCamera) {
+                        CameraCharacteristics.LENS_FACING_FRONT
+                    } else {
+                        CameraCharacteristics.LENS_FACING_BACK
+                    }
+
+                    if (facing == targetFacing) {
+                        targetCameraId = id
+                        break
+                    }
                 }
+            }
 
-                if (facing == targetFacing) {
-                    cameraId = id
-                    currentCharacteristics = characteristics
-                    isCameraOpeningOrOpen = true
+            if (targetCameraId.isNotEmpty()) {
+                cameraId = targetCameraId
+                currentCharacteristics = cameraManager.getCameraCharacteristics(targetCameraId)
+                isCameraOpeningOrOpen = true
 
-                    cameraManager.openCamera(id, object : CameraDevice.StateCallback() {
-                        override fun onOpened(camera: CameraDevice) {
-                            isCameraOpeningOrOpen = false
-                            cameraDevice = camera
-                            updateTransformationInfo(currentDisplayRotation)
-                            startPreviewSession(camera, currentViewfinder)
-                        }
+                cameraManager.openCamera(targetCameraId, object : CameraDevice.StateCallback() {
+                    override fun onOpened(camera: CameraDevice) {
+                        isCameraOpeningOrOpen = false
+                        cameraDevice = camera
+                        updateTransformationInfo(currentDisplayRotation)
+                        startPreviewSession(camera, currentViewfinder)
+                    }
 
-                        override fun onDisconnected(camera: CameraDevice) {
-                            isCameraOpeningOrOpen = false
-                            camera.close()
-                            cameraDevice = null
-                        }
+                    override fun onDisconnected(camera: CameraDevice) {
+                        isCameraOpeningOrOpen = false
+                        camera.close()
+                        cameraDevice = null
+                    }
 
-                        override fun onError(camera: CameraDevice, error: Int) {
-                            isCameraOpeningOrOpen = false
-                            camera.close()
-                            cameraDevice = null
-                        }
-                    }, backgroundHandler)
-                    return
-                }
+                    override fun onError(camera: CameraDevice, error: Int) {
+                        isCameraOpeningOrOpen = false
+                        camera.close()
+                        cameraDevice = null
+                    }
+                }, backgroundHandler)
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, "Failed to open camera", e)
@@ -211,7 +215,7 @@ class Camera2TakeAVideoController(
     ) {
         coroutineScope.launch {
             try {
-                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
+                val request = ViewfinderSurfaceRequest(config.size.width, config.size.height)
                 updateTransformationInfo(currentDisplayRotation)
                 viewfinder.scaleType = ScaleType.FILL_CENTER
 
@@ -273,6 +277,7 @@ class Camera2TakeAVideoController(
         }
     }
 
+    @SuppressLint("InlinedApi")
     private fun setupMediaRecorder() {
         val sensorRotation = currentCharacteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
         val rotationDegrees = when (currentDisplayRotation) {
@@ -299,9 +304,16 @@ class Camera2TakeAVideoController(
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(currentVideoFile!!.absolutePath)
             setVideoEncodingBitRate(10_000_000)
-            setVideoFrameRate(30)
-            setVideoSize(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            setVideoFrameRate(config.fps)
+            setVideoSize(config.size.width, config.size.height)
+            
+            val videoEncoder = when(config.videoCodec) {
+                0 -> MediaRecorder.VideoEncoder.HEVC
+                1 -> MediaRecorder.VideoEncoder.H264
+                2 -> 8 // MediaRecorder.VideoEncoder.AV1 literal to avoid minimum API warning simply
+                else -> MediaRecorder.VideoEncoder.H264
+            }
+            setVideoEncoder(videoEncoder)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setAudioEncodingBitRate(16)
             setAudioSamplingRate(44100)

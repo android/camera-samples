@@ -13,36 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.camera.samples.camera2takeavideo
+package com.android.camera2.takeavideo
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.ColorSpace
+import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
-import android.hardware.camera2.params.ColorSpaceProfiles
-import android.hardware.camera2.params.DynamicRangeProfiles
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Size
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -59,23 +55,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 data class CameraVideoConfig(
     val cameraId: String = "",
     val size: Size = Size(1920, 1080),
     val fps: Int = 30,
-    val dynamicRange: Long = DynamicRangeProfiles.STANDARD,
-    val colorSpace: Int = ColorSpaceProfiles.UNSPECIFIED,
+    val dynamicRange: Long = 1L, // DynamicRangeProfiles.STANDARD
+    val colorSpace: Int = -1, // ColorSpaceProfiles.UNSPECIFIED
     val previewStabilization: Boolean = false,
     val useMediaRecorder: Boolean = true,
-    val videoCodec: Int = 1, // H264 by default
-    val useHardware: Boolean = true, // Record mode (Multi-stream vs Single-stream)
+    val videoCodec: Int = 1, // H264
+    val useHardware: Boolean = true,
     val filterOn: Boolean = false,
     val transfer: Int = 0
 )
 
+@SuppressLint("NewApi")
 @Composable
 fun Camera2TakeAVideoSetup(
     onConfigurationComplete: (CameraVideoConfig) -> Unit
@@ -100,7 +96,6 @@ fun Camera2TakeAVideoSetup(
                 SetupStep.SELECTOR -> {
                     SelectorComposable(context) { cameraId, size, fps ->
                         config = config.copy(cameraId = cameraId, size = size, fps = fps)
-                        // Transition logic mapping legacy flow
                         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
                         val characteristics = cameraManager.getCameraCharacteristics(cameraId)
 
@@ -108,7 +103,7 @@ fun Camera2TakeAVideoSetup(
                         var hasColorSpace = false
                         var hasPreviewStabilization = false
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT >= 33) {
                             val caps = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
                             if (caps?.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_DYNAMIC_RANGE_TEN_BIT) == true) {
                                 hasDynamicRange = true
@@ -119,7 +114,7 @@ fun Camera2TakeAVideoSetup(
                             }
                         }
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        if (Build.VERSION.SDK_INT >= 34) {
                             val colorSpaces = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_COLOR_SPACE_PROFILES)
                             if (colorSpaces != null) hasColorSpace = true
                         }
@@ -142,12 +137,12 @@ fun Camera2TakeAVideoSetup(
                         var hasColorSpace = false
                         var hasPreviewStabilization = false
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        if (Build.VERSION.SDK_INT >= 34) {
                             val colorSpaces = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_COLOR_SPACE_PROFILES)
                             if (colorSpaces != null) hasColorSpace = true
                         }
                         
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT >= 33) {
                             val stabModes = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)
                             if (stabModes?.contains(CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION) == true) {
                                 hasPreviewStabilization = true
@@ -169,7 +164,7 @@ fun Camera2TakeAVideoSetup(
                         val characteristics = cameraManager.getCameraCharacteristics(config.cameraId)
                         
                         var hasPreviewStabilization = false
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT >= 33) {
                             val stabModes = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES)
                             if (stabModes?.contains(CameraMetadata.CONTROL_VIDEO_STABILIZATION_MODE_PREVIEW_STABILIZATION) == true) {
                                 hasPreviewStabilization = true
@@ -201,7 +196,6 @@ fun Camera2TakeAVideoSetup(
                     RecordModeComposable { useHardware ->
                         config = config.copy(useHardware = useHardware)
                         currentStep = if (useHardware) {
-                            // If hardware pipeline, we skip filter and transfer
                             SetupStep.DONE
                         } else {
                             SetupStep.FILTER
@@ -211,7 +205,7 @@ fun Camera2TakeAVideoSetup(
                 SetupStep.FILTER -> {
                     FilterComposable { filterOn ->
                         config = config.copy(filterOn = filterOn)
-                        currentStep = if (config.dynamicRange == DynamicRangeProfiles.STANDARD) {
+                        currentStep = if (config.dynamicRange == 1L) {
                             SetupStep.DONE
                         } else {
                             SetupStep.TRANSFER
@@ -265,6 +259,7 @@ private fun SimpleListSelector(
     }
 }
 
+@SuppressLint("InlinedApi", "NewApi")
 @Composable
 fun SelectorComposable(context: Context, onSelect: (String, Size, Int) -> Unit) {
     var cameraItems by remember { mutableStateOf<List<Pair<String, () -> Unit>>>(emptyList()) }
@@ -301,6 +296,7 @@ fun SelectorComposable(context: Context, onSelect: (String, Size, Int) -> Unit) 
     SimpleListSelector("Select Camera & Resolution", cameraItems)
 }
 
+@SuppressLint("NewApi")
 @Composable
 fun DynamicRangeComposable(context: Context, cameraId: String, onSelect: (Long) -> Unit) {
     var dynamicRangeItems by remember { mutableStateOf<List<Pair<String, () -> Unit>>>(emptyList()) }
@@ -310,28 +306,31 @@ fun DynamicRangeComposable(context: Context, cameraId: String, onSelect: (Long) 
         val characteristics = cameraManager.getCameraCharacteristics(cameraId)
         val items = mutableListOf<Pair<String, () -> Unit>>()
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= 33) {
             val profiles = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES)
             profiles?.supportedProfiles?.forEach { profile ->
                 val name = when (profile) {
-                    DynamicRangeProfiles.STANDARD -> "SDR"
-                    DynamicRangeProfiles.HLG10 -> "HLG10"
-                    DynamicRangeProfiles.HDR10 -> "HDR10"
-                    DynamicRangeProfiles.HDR10_PLUS -> "HDR10+"
-                    DynamicRangeProfiles.DOLBY_VISION_10B_HDR_OEM -> "Dolby Vision OEM"
-                    DynamicRangeProfiles.DOLBY_VISION_10B_HDR_OEM_PO -> "Dolby Vision OEM PO"
-                    DynamicRangeProfiles.DOLBY_VISION_10B_HDR_REF -> "Dolby Vision Ref"
-                    DynamicRangeProfiles.DOLBY_VISION_10B_HDR_REF_PO -> "Dolby Vision Ref PO"
-                    DynamicRangeProfiles.DOLBY_VISION_8B_HDR_OEM -> "Dolby Vision 8B OEM"
-                    DynamicRangeProfiles.DOLBY_VISION_8B_HDR_OEM_PO -> "Dolby Vision 8B OEM PO"
-                    DynamicRangeProfiles.DOLBY_VISION_8B_HDR_REF -> "Dolby Vision 8B Ref"
-                    DynamicRangeProfiles.DOLBY_VISION_8B_HDR_REF_PO -> "Dolby Vision 8B Ref PO"
+                    1L -> "SDR"
+                    2L -> "HLG10"
+                    4L -> "HDR10"
+                    8L -> "HDR10+"
+                    16L -> "Dolby Vision OEM"
+                    32L -> "Dolby Vision OEM PO"
+                    64L -> "Dolby Vision Ref"
+                    128L -> "Dolby Vision Ref PO"
+                    256L -> "Dolby Vision 8B OEM"
+                    512L -> "Dolby Vision 8B OEM PO"
+                    1024L -> "Dolby Vision 8B Ref"
+                    2048L -> "Dolby Vision 8B Ref PO"
                     else -> "Unknown"
                 }
                 items.add(name to { onSelect(profile) })
             }
         } else {
-            items.add("SDR" to { onSelect(DynamicRangeProfiles.STANDARD) })
+            items.add("SDR" to { onSelect(1L) })
+        }
+        if (items.isEmpty()) {
+            items.add("SDR" to { onSelect(1L) })
         }
         dynamicRangeItems = items
     }
@@ -339,6 +338,7 @@ fun DynamicRangeComposable(context: Context, cameraId: String, onSelect: (Long) 
     SimpleListSelector("Select Dynamic Range", dynamicRangeItems)
 }
 
+@SuppressLint("NewApi")
 @Composable
 fun ColorSpaceComposable(context: Context, cameraId: String, dynamicRange: Long, onSelect: (Int) -> Unit) {
     var colorSpaceItems by remember { mutableStateOf<List<Pair<String, () -> Unit>>>(emptyList()) }
@@ -348,21 +348,17 @@ fun ColorSpaceComposable(context: Context, cameraId: String, dynamicRange: Long,
         val characteristics = cameraManager.getCameraCharacteristics(cameraId)
         val items = mutableListOf<Pair<String, () -> Unit>>()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        if (Build.VERSION.SDK_INT >= 34) {
             val profiles = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_COLOR_SPACE_PROFILES)
-            val supportedProfiles = profiles?.getSupportedColorSpacesForDynamicRange(dynamicRange)
+            val supportedProfiles = profiles?.getSupportedColorSpacesForDynamicRange(ImageFormat.UNKNOWN, dynamicRange)
             
-            supportedProfiles?.forEach { profile ->
-                val name = when (profile) {
-                    ColorSpaceProfiles.UNSPECIFIED -> "UNSPECIFIED"
-                    else -> android.graphics.ColorSpace.Named.values()[profile].name
-                }
-                items.add(name to { onSelect(profile) })
+            supportedProfiles?.forEach { colorSpaceNamed ->
+                items.add(colorSpaceNamed.name to { onSelect(colorSpaceNamed.ordinal) })
             }
         }
         
         if (items.isEmpty()) {
-            items.add("UNSPECIFIED" to { onSelect(ColorSpaceProfiles.UNSPECIFIED) })
+            items.add("UNSPECIFIED" to { onSelect(-1) })
         }
         colorSpaceItems = items
     }
@@ -383,7 +379,7 @@ fun EncodeApiComposable(dynamicRange: Long, onSelect: (Boolean) -> Unit) {
     val items = mutableListOf<Pair<String, () -> Unit>>()
     items.add("MediaCodec" to { onSelect(false) })
     
-    if (dynamicRange == DynamicRangeProfiles.STANDARD) {
+    if (dynamicRange == 1L) {
         items.add("MediaRecorder" to { onSelect(true) })
     }
     
@@ -396,8 +392,8 @@ fun VideoCodecComposable(dynamicRange: Long, onSelect: (Int) -> Unit) {
     
     LaunchedEffect(Unit) {
         val videoCodecIdList = when {
-            dynamicRange == DynamicRangeProfiles.STANDARD -> listOf(1) // H264
-            dynamicRange < DynamicRangeProfiles.PUBLIC_MAX -> listOf(0, 2) // HEVC, AV1
+            dynamicRange == 1L -> listOf(1) // H264
+            dynamicRange < 4096L -> listOf(0, 2) // HEVC, AV1 (PUBLIC_MAX is 4096)
             else -> listOf(1)
         }
 
@@ -411,7 +407,7 @@ fun VideoCodecComposable(dynamicRange: Long, onSelect: (Int) -> Unit) {
                     val mimeType = when (id) {
                         0 -> MediaFormat.MIMETYPE_VIDEO_HEVC
                         1 -> MediaFormat.MIMETYPE_VIDEO_AVC
-                        2 -> MediaFormat.MIMETYPE_VIDEO_AV1
+                        2 -> "video/av01" // MediaFormat.MIMETYPE_VIDEO_AV1 value
                         else -> ""
                     }
                     if (type.equals(mimeType, ignoreCase = true)) {
@@ -430,6 +426,9 @@ fun VideoCodecComposable(dynamicRange: Long, onSelect: (Int) -> Unit) {
                 else -> "Unknown"
             }
             finalItems.add(name to { onSelect(id) })
+        }
+        if (finalItems.isEmpty()) {
+             finalItems.add("H264" to { onSelect(1) })
         }
         items = finalItems
     }

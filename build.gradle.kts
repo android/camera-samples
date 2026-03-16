@@ -27,6 +27,8 @@ plugins {
     alias(libs.plugins.spotless) apply false
 }
 
+apply(from = "createSample.gradle.kts")
+
 subprojects {
     apply(plugin = "com.diffplug.spotless")
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {

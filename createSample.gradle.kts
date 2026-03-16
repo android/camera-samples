@@ -1,14 +1,39 @@
-tasks.register("createSample") {
-    description = "Generates a new sample for the Camera Samples Catalog"
-    group = "generation"
+import java.io.File
+import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.options.Option
 
-    doLast {
-        val sampleName = project.findProperty("sampleName") as? String
-        val screenName = project.findProperty("screenName") as? String
-        val title = project.findProperty("title") as? String
-        val desc = project.findProperty("desc") as? String
+abstract class CreateSampleTask : DefaultTask() {
+    @get:Input
+    @get:Optional
+    abstract val sampleName: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val screenName: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val title: Property<String>
+
+    @get:Input
+    @get:Optional
+    abstract val desc: Property<String>
+    
+    @get:Input
+    abstract val rootDirPath: Property<String>
+
+    @TaskAction
+    fun action() {
+        val sName = sampleName.orNull
+        val scName = screenName.orNull
+        val sTitle = title.orNull
+        val sDesc = desc.orNull
         
-        if (sampleName == null || screenName == null || title == null || desc == null) {
+        if (sName == null || scName == null || sTitle == null || sDesc == null) {
             println("""
                 Usage: ./gradlew createSample \
                     -PsampleName="camera2-video" \
@@ -16,16 +41,17 @@ tasks.register("createSample") {
                     -Ptitle="Camera2 • Video" \
                     -Pdesc="A simple video sample"
             """.trimIndent())
-            return@doLast
+            return
         }
 
-        val pkgName = "com.android.camera.samples.${sampleName.replace("-", "").replace("_", "")}"
+        val pkgName = "com.android.camera.samples.${sName.replace("-", "").replace("_", "")}"
         val pkgPath = pkgName.replace(".", "/")
-        val sampleDir = file("samples/$sampleName")
+        val rootDirFile = File(rootDirPath.get())
+        val sampleDir = File(rootDirFile, "samples/$sName")
         sampleDir.mkdirs()
 
         // 1. build.gradle.kts
-        val buildFile = file("samples/$sampleName/build.gradle.kts")
+        val buildFile = File(sampleDir, "build.gradle.kts")
         buildFile.writeText("""
 plugins {
     alias(libs.plugins.android.library)
@@ -80,9 +106,9 @@ dependencies {
 """.trimIndent() + "\n")
 
         // 2. Main Screen file
-        val srcDir = file("samples/$sampleName/src/main/java/$pkgPath")
+        val srcDir = File(sampleDir, "src/main/java/$pkgPath")
         srcDir.mkdirs()
-        val screenFile = file(srcDir.path + "/${screenName}.kt")
+        val screenFile = File(srcDir, "${scName}.kt")
         screenFile.writeText("""
 package $pkgName
 
@@ -94,52 +120,52 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @Composable
-fun $screenName() {
+fun $scName() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = "Hello from $screenName")
+        Text(text = "Hello from $scName")
     }
 }
 """.trimIndent() + "\n")
 
         // 3. Update settings.gradle.kts
-        val settingsFile = file("settings.gradle.kts")
+        val settingsFile = File(rootDirFile, "settings.gradle.kts")
         val settingsText = settingsFile.readText()
-        if (!settingsText.contains("include(\":samples:${sampleName}\")")) {
-            settingsFile.appendText("include(\":samples:${sampleName}\")\n")
+        if (!settingsText.contains("include(\":samples:$sName\")")) {
+            settingsFile.appendText("include(\":samples:$sName\")\n")
         }
 
         // 4. Update app/build.gradle.kts
-        val appBuildFile = file("app/build.gradle.kts")
+        val appBuildFile = File(rootDirFile, "app/build.gradle.kts")
         val appBuildText = appBuildFile.readText()
-        if (!appBuildText.contains("implementation(project(\":samples:${sampleName}\"))")) {
+        if (!appBuildText.contains("implementation(project(\":samples:$sName\"))")) {
             val updatedAppBuildText = appBuildText.replace(
                 "implementation(project(\":ui-component\"))",
-                "implementation(project(\":ui-component\"))\n    implementation(project(\":samples:${sampleName}\"))"
+                "implementation(project(\":ui-component\"))\n    implementation(project(\":samples:$sName\"))"
             )
             appBuildFile.writeText(updatedAppBuildText)
         }
 
         // 5. Update strings.xml
-        val stringsFile = file("app/src/main/res/values/strings.xml")
+        val stringsFile = File(rootDirFile, "app/src/main/res/values/strings.xml")
         val stringsText = stringsFile.readText()
-        val titleKey = "${sampleName.replace("-", "_")}_list_title"
-        val descKey = "${sampleName.replace("-", "_")}_list_description"
+        val titleKey = sName.replace("-", "_") + "_list_title"
+        val descKey = sName.replace("-", "_") + "_list_description"
         if (!stringsText.contains(titleKey)) {
-            val newStrings = "    <string name=\"$titleKey\">$title</string>\n    <string name=\"$descKey\">$desc</string>\n"
+            val newStrings = "    <string name=\"$titleKey\">$sTitle</string>\n    <string name=\"$descKey\">$sDesc</string>\n"
             val updatedStrings = stringsText.replace("</resources>", "$newStrings</resources>")
             stringsFile.writeText(updatedStrings)
         }
 
         // 6. Update SampleCatalog.kt
-        val catalogFile = file("app/src/main/java/com/android/camera/catalog/domain/SampleCatalog.kt")
+        val catalogFile = File(rootDirFile, "app/src/main/java/com/android/camera/catalog/domain/SampleCatalog.kt")
         val catalogText = catalogFile.readText()
-        if (!catalogText.contains("$screenName()")) {
+        if (!catalogText.contains("$scName()")) {
             val newItem = "" +
 "    SampleCatalogItem(\n" +
 "        title = R.string.$titleKey,\n" +
 "        description = R.string.$descKey,\n" +
-"        route = \"$screenName\",\n" +
-"        sampleEntryScreen = { $screenName() },\n" +
+"        route = \"$scName\",\n" +
+"        sampleEntryScreen = { $scName() },\n" +
 "        type = SampleType.CAMERA2,\n" +
 "        tags = listOf(),\n" +
 "        isFeatured = false,\n" +
@@ -150,14 +176,25 @@ fun $screenName() {
                 "$newItem\n\n    // To create a new sample entry, add a new SampleCatalogItem here."
             )
             
-            val importLine = "import $pkgName.$screenName\n"
+            val importLine = "import $pkgName.$scName\n"
             val finalCatalog = updatedCatalog.replaceFirst("import ", importLine + "import ")
             catalogFile.writeText(finalCatalog)
         }
         
         println("==========================================================")
-        println("✅ Sample '$sampleName' generated successfully!")
+        println("✅ Sample '$sName' generated successfully!")
         println("To see your new sample, please re-sync the Gradle project.")
         println("==========================================================")
     }
+}
+
+tasks.register<CreateSampleTask>("createSample") {
+    description = "Generates a new sample for the Camera Samples Catalog"
+    group = "generation"
+    
+    sampleName.set(providers.gradleProperty("sampleName"))
+    screenName.set(providers.gradleProperty("screenName"))
+    title.set(providers.gradleProperty("title"))
+    desc.set(providers.gradleProperty("desc"))
+    rootDirPath.set(rootDir.absolutePath)
 }

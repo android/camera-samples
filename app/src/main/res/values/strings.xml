@@ -15,4 +15,6 @@
     <string name="camera_permission_denied">Camera access is permanently denied. You must enable it in your device\'s app settings to view the catalog.</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="open_settings">Open Settings</string>
+    <string name="camera2_takeavideo_list_title">Camera2 • Take a Video</string>
+    <string name="camera2_takeavideo_list_description">A simple video sample</string>
 </resources>

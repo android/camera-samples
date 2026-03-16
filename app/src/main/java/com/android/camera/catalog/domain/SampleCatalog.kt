@@ -23,7 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.android.camera.catalog.R
 import com.android.ai.theme.extendedColorScheme
-import com.android.camera2.takeaphoto.ui.Camera2TakeAPhotoScreen
+import com.android.camera2.takeaphoto.Camera2TakeAPhotoScreen
+import com.android.camera2.takeavideo.Camera2TakeAVideoScreen
 import com.google.firebase.ai.type.PublicPreviewAPI
 
 @OptIn(PublicPreviewAPI::class)
@@ -38,6 +39,16 @@ val sampleCatalog = listOf(
         tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
         isFeatured = true,
         keyArt = R.drawable.img_keyart_multimodal,
+    ),
+
+    SampleCatalogItem(
+        title = R.string.camera2_takeavideo_list_title,
+        description = R.string.camera2_takeavideo_list_description,
+        route = "Camera2TakeAVideoScreen",
+        sampleEntryScreen = { Camera2TakeAVideoScreen() },
+        type = SampleType.CAMERA2,
+        tags = listOf(),
+        isFeatured = false,
     ),
 
     // To create a new sample entry, add a new SampleCatalogItem here.
@@ -66,4 +77,3 @@ enum class SampleType {
     CAMERAX,
     CAMERA2,
 }
-
