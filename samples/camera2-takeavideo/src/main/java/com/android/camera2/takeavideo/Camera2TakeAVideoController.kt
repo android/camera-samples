@@ -74,7 +74,7 @@ fun rememberCamera2TakeAVideoController(
 class Camera2TakeAVideoController(
     private val context: Context,
     val isFrontCamera: Boolean,
-    val config: CameraVideoConfig,
+    var config: CameraVideoConfig,
     private val onVideoCaptured: (File) -> Unit,
     private val coroutineScope: CoroutineScope
 ) {
@@ -141,6 +141,16 @@ class Camera2TakeAVideoController(
         surfaceSession?.close()
         surfaceSession = null
         releaseMediaRecorder()
+    }
+
+    fun updateConfig(newConfig: CameraVideoConfig) {
+        if (config == newConfig) return
+        config = newConfig
+        // If camera is open, restart it to apply the new config (e.g., resolution, fps)
+        if (cameraDevice != null) {
+            closeCamera()
+            openCamera()
+        }
     }
 
     fun release() {

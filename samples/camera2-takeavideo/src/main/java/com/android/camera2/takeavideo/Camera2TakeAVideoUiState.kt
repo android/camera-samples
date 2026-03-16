@@ -18,10 +18,18 @@ package com.android.camera2.takeavideo
 import android.net.Uri
 
 sealed interface Camera2TakeAVideoUiState {
-    data object Initial : Camera2TakeAVideoUiState
-    data object Setup : Camera2TakeAVideoUiState
-    data class Previewing(val isFrontCamera: Boolean, val config: CameraVideoConfig) : Camera2TakeAVideoUiState
-    data class Recording(val isFrontCamera: Boolean, val config: CameraVideoConfig, val elapsedTimeMs: Long = 0L) : Camera2TakeAVideoUiState
+    data class Initial(val config: CameraVideoConfig) : Camera2TakeAVideoUiState
+    data class Previewing(
+        val isFrontCamera: Boolean,
+        val config: CameraVideoConfig,
+        val isOverlayVisible: Boolean = false
+    ) : Camera2TakeAVideoUiState
+    data class Recording(
+        val isFrontCamera: Boolean,
+        val config: CameraVideoConfig,
+        val elapsedTimeMs: Long = 0L,
+        val isOverlayVisible: Boolean = false
+    ) : Camera2TakeAVideoUiState
     data class VideoCaptured(val videoUri: Uri, val isFrontCamera: Boolean, val config: CameraVideoConfig) : Camera2TakeAVideoUiState
     data class Error(val errorMessage: String?) : Camera2TakeAVideoUiState
 }

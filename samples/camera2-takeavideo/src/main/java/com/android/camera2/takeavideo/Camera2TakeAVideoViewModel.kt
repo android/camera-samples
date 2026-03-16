@@ -27,42 +27,59 @@ import javax.inject.Inject
 class Camera2TakeAVideoViewModel @Inject constructor() : ViewModel() {
 
     private val _uiState =
-        MutableStateFlow<Camera2TakeAVideoUiState>(Camera2TakeAVideoUiState.Initial)
+        MutableStateFlow<Camera2TakeAVideoUiState>(Camera2TakeAVideoUiState.Initial(CameraVideoConfig()))
     val uiState: StateFlow<Camera2TakeAVideoUiState> = _uiState.asStateFlow()
 
     private var isFrontCamera = false
-    private var currentConfig: CameraVideoConfig? = null
+    private var currentConfig: CameraVideoConfig = CameraVideoConfig()
+    private var isOverlayVisible = false
 
     fun initialize() {
         if (_uiState.value is Camera2TakeAVideoUiState.Initial) {
-            _uiState.value = Camera2TakeAVideoUiState.Setup
+            _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
         }
     }
 
     fun submitConfig(config: CameraVideoConfig) {
         currentConfig = config
-        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, config)
+        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
+    }
+
+    fun updateConfig(update: (CameraVideoConfig) -> CameraVideoConfig) {
+        currentConfig = update(currentConfig)
+        if (_uiState.value is Camera2TakeAVideoUiState.Previewing) {
+            _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
+        }
+    }
+
+    fun toggleOverlay() {
+        isOverlayVisible = !isOverlayVisible
+        when (val state = _uiState.value) {
+            is Camera2TakeAVideoUiState.Previewing -> {
+                _uiState.value = state.copy(isOverlayVisible = isOverlayVisible)
+            }
+            is Camera2TakeAVideoUiState.Recording -> {
+                _uiState.value = state.copy(isOverlayVisible = isOverlayVisible)
+            }
+            else -> {}
+        }
     }
 
     fun swapCamera() {
         isFrontCamera = !isFrontCamera
-        val config = currentConfig ?: return
-        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, config)
+        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
     }
 
     fun startRecording() {
-        val config = currentConfig ?: return
-        _uiState.value = Camera2TakeAVideoUiState.Recording(isFrontCamera, config)
+        _uiState.value = Camera2TakeAVideoUiState.Recording(isFrontCamera, currentConfig, 0L, isOverlayVisible)
     }
 
     fun videoCaptured(uri: Uri) {
-        val config = currentConfig ?: return
-        _uiState.value = Camera2TakeAVideoUiState.VideoCaptured(uri, isFrontCamera, config)
+        _uiState.value = Camera2TakeAVideoUiState.VideoCaptured(uri, isFrontCamera, currentConfig)
     }
 
     fun resetToCamera() {
-        val config = currentConfig ?: return
-        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, config)
+        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
     }
 
     fun showError(message: String) {
@@ -70,11 +87,6 @@ class Camera2TakeAVideoViewModel @Inject constructor() : ViewModel() {
     }
 
     fun resetError() {
-        val config = currentConfig
-        if (config != null) {
-            _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, config)
-        } else {
-            _uiState.value = Camera2TakeAVideoUiState.Setup
-        }
+        _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
     }
 }

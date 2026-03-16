@@ -30,12 +30,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -101,17 +105,6 @@ fun Camera2TakeAVideoScreen(
         ) {
             when (val state = uiState) {
                 is Camera2TakeAVideoUiState.Initial -> LoadingView()
-                is Camera2TakeAVideoUiState.Setup -> {
-                    if (hasPermissions) {
-                        Camera2TakeAVideoSetup(
-                            onConfigurationComplete = { config ->
-                                viewModel.submitConfig(config)
-                            }
-                        )
-                    } else {
-                        PermissionDeniedView()
-                    }
-                }
                 is Camera2TakeAVideoUiState.Error -> {
                     ErrorView(
                         errorMessage = state.errorMessage,
@@ -134,17 +127,26 @@ fun Camera2TakeAVideoScreen(
                             else -> return@Box
                         }
 
+                        val isOverlayVisible = when (state) {
+                            is Camera2TakeAVideoUiState.Previewing -> state.isOverlayVisible
+                            is Camera2TakeAVideoUiState.Recording -> state.isOverlayVisible
+                            else -> false
+                        }
+
                         val isRecording = state is Camera2TakeAVideoUiState.Recording
 
                         CapturingView(
                             isFrontCamera = isFrontCamera,
                             config = config,
                             isRecording = isRecording,
+                            isOverlayVisible = isOverlayVisible,
                             onStartRecording = viewModel::startRecording,
                             onVideoCaptured = { file -> viewModel.videoCaptured(file.toUri()) },
                             onSwapCamera = viewModel::swapCamera,
+                            onToggleOverlay = viewModel::toggleOverlay,
+                            onConfigUpdate = viewModel::updateConfig,
                             onBack = {
-                                viewModel.initialize() // Reset to setup step
+                                backDispatcher?.onBackPressed()
                             }
                         )
 
@@ -228,9 +230,12 @@ private fun CapturingView(
     isFrontCamera: Boolean,
     config: CameraVideoConfig,
     isRecording: Boolean,
+    isOverlayVisible: Boolean,
     onStartRecording: () -> Unit,
     onVideoCaptured: (java.io.File) -> Unit,
     onSwapCamera: () -> Unit,
+    onToggleOverlay: () -> Unit,
+    onConfigUpdate: ((CameraVideoConfig) -> CameraVideoConfig) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -241,6 +246,10 @@ private fun CapturingView(
         onVideoCaptured = onVideoCaptured
     )
 
+    LaunchedEffect(config) {
+        cameraController.updateConfig(config)
+    }
+
     DisposableEffect(cameraController) {
         onDispose {
             cameraController.release()
@@ -249,19 +258,49 @@ private fun CapturingView(
 
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewContent(cameraController)
-        IconButton(
-            onClick = onBack,
+
+        // Top Bar Controls
+        Row(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp)
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .padding(16.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = Color.White,
-                modifier = Modifier.size(32.dp)
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            if (!isRecording) {
+                IconButton(onClick = onToggleOverlay) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+        }
+
+        // Settings Overlay
+        if (isOverlayVisible && !isRecording) {
+            SettingsOverlay(
+                config = config,
+                onConfigUpdate = onConfigUpdate,
+                onClose = onToggleOverlay,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 64.dp, end = 16.dp, start = 16.dp)
             )
         }
+
+        // Bottom Controls
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -377,6 +416,142 @@ private fun CameraControls(isRecording: Boolean, onSwapCamera: () -> Unit, onTog
                     modifier = Modifier.fillMaxSize()
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun SettingsOverlay(
+    config: CameraVideoConfig,
+    onConfigUpdate: ((CameraVideoConfig) -> CameraVideoConfig) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        color = Color(0xCC000000), // Semi-transparent black
+        contentColor = Color.White
+    ) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Settings", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                IconButton(onClick = onClose) {
+                    Icon(imageVector = Icons.Filled.Close, contentDescription = "Close Settings", tint = Color.White)
+                }
+            }
+
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(16.dp))
+
+            // FPS Control
+            SettingsRow(
+                title = "FPS",
+                value = "${config.fps}",
+                options = listOf("24", "30", "60"),
+                onOptionSelected = { fpsStr ->
+                    onConfigUpdate { it.copy(fps = fpsStr.toInt()) }
+                }
+            )
+
+            // Video Codec Control
+            val codecOptions = listOf("HEVC", "H264", "AV1")
+            val currentCodecStr = when(config.videoCodec) {
+                0 -> "HEVC"
+                1 -> "H264"
+                2 -> "AV1"
+                else -> "H264"
+            }
+            SettingsRow(
+                title = "Codec",
+                value = currentCodecStr,
+                options = codecOptions,
+                onOptionSelected = { codecStr ->
+                    val codecInt = when(codecStr) {
+                        "HEVC" -> 0
+                        "H264" -> 1
+                        "AV1" -> 2
+                        else -> 1
+                    }
+                    onConfigUpdate { it.copy(videoCodec = codecInt) }
+                }
+            )
+            
+            // Resolution Control
+            SettingsRow(
+                title = "Resolution",
+                value = "${config.size.width}x${config.size.height}",
+                options = listOf("1280x720", "1920x1080", "3840x2160"),
+                onOptionSelected = { resStr ->
+                    val parts = resStr.split("x")
+                    if (parts.size == 2) {
+                        val size = android.util.Size(parts[0].toInt(), parts[1].toInt())
+                        onConfigUpdate { it.copy(size = size) }
+                    }
+                }
+            )
+            
+            // Encode API Control
+            SettingsRow(
+                title = "Encode API",
+                value = if (config.useMediaRecorder) "MediaRecorder" else "MediaCodec",
+                options = listOf("MediaCodec", "MediaRecorder"),
+                onOptionSelected = { apiStr ->
+                    onConfigUpdate { it.copy(useMediaRecorder = apiStr == "MediaRecorder") }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsRow(
+    title: String,
+    value: String,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true }
+            .padding(vertical = 12.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Icon(
+                imageVector = Icons.Filled.ArrowDropDown,
+                contentDescription = "Dropdown",
+                tint = Color.Gray
+            )
+        }
+    }
+
+    androidx.compose.material3.DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+        modifier = Modifier.background(Color.DarkGray)
+    ) {
+        options.forEach { option ->
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(option, color = Color.White) },
+                onClick = {
+                    onOptionSelected(option)
+                    expanded = false
+                }
+            )
         }
     }
 }
