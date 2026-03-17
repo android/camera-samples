@@ -82,15 +82,25 @@ fun Camera2TakeAVideoScreen(
     ) { permissions ->
         val cameraGranted = permissions[Manifest.permission.CAMERA] ?: false
         val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
-        hasPermissions = cameraGranted && audioGranted
+        val storageGranted = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            permissions[Manifest.permission.WRITE_EXTERNAL_STORAGE] ?: false
+        } else {
+            true
+        }
+        hasPermissions = cameraGranted && audioGranted && storageGranted
     }
 
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+        val permissionsToRequest = mutableListOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
         )
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            permissionsToRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        permissionLauncher.launch(permissionsToRequest.toTypedArray())
         viewModel.initialize()
     }
 

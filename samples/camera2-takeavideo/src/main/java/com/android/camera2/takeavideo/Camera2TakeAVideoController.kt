@@ -301,7 +301,12 @@ class Camera2TakeAVideoController(
         val orientationHint = (sensorRotation - rotationDegrees * sign + 360) % 360
 
         val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
-        currentVideoFile = File(context.filesDir, "VID_${sdf.format(Date())}.mp4")
+        val moviesDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MOVIES)
+        val sampleDir = File(moviesDir, "camera-samples")
+        if (!sampleDir.exists()) {
+            sampleDir.mkdirs()
+        }
+        currentVideoFile = File(sampleDir, "VID_${sdf.format(Date())}.mp4")
 
         mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             MediaRecorder(context)
