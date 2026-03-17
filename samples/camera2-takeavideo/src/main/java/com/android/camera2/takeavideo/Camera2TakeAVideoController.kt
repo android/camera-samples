@@ -301,8 +301,8 @@ class Camera2TakeAVideoController(
         val orientationHint = (sensorRotation - rotationDegrees * sign + 360) % 360
 
         val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
-        val moviesDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MOVIES)
-        val sampleDir = File(moviesDir, "camera-samples")
+        val dcimDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DCIM)
+        val sampleDir = File(dcimDir, "camera-samples")
         if (!sampleDir.exists()) {
             sampleDir.mkdirs()
         }
