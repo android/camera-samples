@@ -302,7 +302,8 @@ class Camera2TakeAVideoController(
 
         val sdf = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSS", Locale.US)
         val dcimDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DCIM)
-        val sampleDir = File(dcimDir, "camera-samples")
+        // Changed to use the standard Camera folder within DCIM so Google Photos sees it immediately
+        val sampleDir = File(dcimDir, "Camera")
         if (!sampleDir.exists()) {
             sampleDir.mkdirs()
         }
@@ -439,6 +440,12 @@ class Camera2TakeAVideoController(
 
         val savedFile = currentVideoFile
         if (savedFile != null && savedFile.exists()) {
+            android.media.MediaScannerConnection.scanFile(
+                context,
+                arrayOf(savedFile.absolutePath),
+                arrayOf("video/mp4"),
+                null
+            )
             onVideoCaptured(savedFile)
         }
 
