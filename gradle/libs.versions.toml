@@ -1,5 +1,6 @@
 [versions]
 agp = "9.1.0"
+cameraCore = "1.5.3"
 coilCompose = "3.4.0"
 firebaseBom = "34.11.0"
 lifecycleRuntimeCompose = "2.10.0"
@@ -32,6 +33,10 @@ cameraViewfinder = "1.5.3"
 kotlinxCoroutinesGuava = "1.10.2"
 
 [libraries]
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
+androidx-camera-compose = { module = "androidx.camera:camera-compose", version.ref = "cameraCore" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCore" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }

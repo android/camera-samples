@@ -59,29 +59,26 @@ kotlin {
 }
 
 dependencies {
-
+    // Kotlin & Core
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.activity.compose)
+    implementation(libs.kotlinx.coroutines.guava)
+
+    // Compose core components
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.ai)
-    implementation(libs.hilt.android)
-    implementation(libs.hilt.navigation.compose)
-    implementation(libs.coil.compose)
-    implementation(libs.androidx.runtime.livedata)
-    implementation(libs.androidx.material3.window)
+
+    // Camera Viewfinder dependencies
     implementation(libs.androidx.camera.viewfinder.compose)
     implementation(libs.androidx.camera.viewfinder.core)
     implementation(libs.androidx.camera.viewfinder.view)
-    implementation(libs.kotlinx.coroutines.guava)
-    
-    debugImplementation(libs.ui.tooling)
+
+    // Hilt / Architecture
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
+
+    // UI Component
     implementation(project(":ui-component"))
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
 }
