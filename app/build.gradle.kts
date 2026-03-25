@@ -53,12 +53,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
@@ -80,6 +81,11 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":ui-component"))
+
+    // CameraX Samples
+    implementation(project(":samples:camerax-takeaphoto"))
+
+    // Camera2 Samples
     implementation(project(":samples:camera2-takeavideo"))
     implementation(project(":samples:camera2-takeaphoto"))
 

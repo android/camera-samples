@@ -17,4 +17,6 @@
     <string name="open_settings">Open Settings</string>
     <string name="camera2_takeavideo_list_title">Camera2 • Take a Video</string>
     <string name="camera2_takeavideo_list_description">A simple video sample</string>
+    <string name="camerax_takeaphoto_list_title">CameraX • Take A Photo</string>
+    <string name="camerax_takeaphoto_list_description">Take a Photo With CameraX</string>
 </resources>

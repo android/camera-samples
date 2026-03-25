@@ -15,15 +15,15 @@
  */
 package com.android.camera.catalog.domain
 
+import com.android.camerax.takeaphoto.CameraXTakeAPhoto
 import android.Manifest
 import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresPermission
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import com.android.camera.catalog.R
 import com.android.ai.theme.extendedColorScheme
-import com.android.camera2.takeaphoto.Camera2TakeAPhotoScreen
+import com.android.camera.catalog.R
 import com.android.camera2.takeavideo.Camera2TakeAVideoScreen
 import com.google.firebase.ai.type.PublicPreviewAPI
 
@@ -31,16 +31,24 @@ import com.google.firebase.ai.type.PublicPreviewAPI
 @RequiresPermission(Manifest.permission.RECORD_AUDIO)
 val sampleCatalog = listOf(
     SampleCatalogItem(
+        title = R.string.camerax_takeaphoto_list_title,
+        description = R.string.camerax_takeaphoto_list_description,
+        route = "CameraXTakeAPhoto",
+        sampleEntryScreen = { CameraXTakeAPhoto() },
+        type = SampleType.CAMERAX,
+        tags = listOf(),
+        isFeatured = true,
+    ),
+    SampleCatalogItem(
         title = R.string.camera2_sample_takeaphoto_list_title,
         description = R.string.camera2_sample_takeaphoto_list_description,
         route = "Camera2TakeAPhotoScreen",
-        sampleEntryScreen = { Camera2TakeAPhotoScreen() },
+        sampleEntryScreen = { Camera2TakeAVideoScreen() },
         type = SampleType.CAMERA2,
         tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
-        isFeatured = true,
+        isFeatured = false,
         keyArt = R.drawable.img_keyart_multimodal,
     ),
-
     SampleCatalogItem(
         title = R.string.camera2_takeavideo_list_title,
         description = R.string.camera2_takeavideo_list_description,

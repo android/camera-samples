@@ -44,7 +44,15 @@ abstract class CreateSampleTask : DefaultTask() {
             return
         }
 
-        val pkgName = "com.android.camera.samples.${sName.replace("-", "").replace("_", "")}"
+        val safeName = sName as String
+        val dashIndex = safeName.indexOf("-")
+        val pkgName = if (dashIndex >= 0) {
+            val apiPrefix = safeName.substring(0, dashIndex).replace("_", "")
+            val sampleSuffix = safeName.substring(dashIndex + 1).replace("-", "").replace("_", "")
+            "com.android.$apiPrefix.$sampleSuffix"
+        } else {
+            "com.android.${safeName.replace("_", "")}"
+        }
         val pkgPath = pkgName.replace(".", "/")
         val rootDirFile = File(rootDirPath.get())
         val sampleDir = File(rootDirFile, "samples/$sName")
@@ -89,9 +97,10 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.15"
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {

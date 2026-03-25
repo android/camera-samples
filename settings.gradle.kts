@@ -38,6 +38,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "Camera Samples Catalog"
 include(":app")
+include(":samples:camerax-takeaphoto")
 include(":samples:camera2-takeaphoto")
 include(":samples:camera2-takeavideo")
 include(":ui-component")
