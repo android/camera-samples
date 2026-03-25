@@ -60,15 +60,22 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 
 @Composable
 fun Camera2TakeAPhotoScreen(
-    viewModel: Camera2TakeAPhotoViewModel = hiltViewModel()
+    viewModel: Camera2TakeAPhotoViewModel = hiltViewModel(
+        checkNotNull(
+            LocalViewModelStoreOwner.current
+        ) {
+            "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
+        }, null
+    )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var hasCameraPermission by remember { mutableStateOf(false) }
