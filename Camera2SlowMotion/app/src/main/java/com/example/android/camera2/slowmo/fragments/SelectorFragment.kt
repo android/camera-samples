@@ -30,7 +30,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.android.camera.utils.GenericListAdapter
-import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
 
 /**
  * In this [Fragment] we let users pick a camera, size and FPS to use for high
