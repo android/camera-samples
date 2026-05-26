@@ -17,14 +17,12 @@
 package com.example.android.camera2.slowmo
 
 import android.os.Bundle
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.android.camera2.slowmo.databinding.ActivityCameraBinding
 
 class CameraActivity : AppCompatActivity() {
-
     private lateinit var activityCameraBinding: ActivityCameraBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {

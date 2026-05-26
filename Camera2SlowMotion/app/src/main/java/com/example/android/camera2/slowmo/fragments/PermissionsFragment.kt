@@ -35,13 +35,10 @@ private val PERMISSIONS_REQUIRED = arrayOf(
  * This [Fragment] requests permissions and, once granted, it will navigate to the next fragment
  */
 class PermissionsFragment : Fragment() {
-
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val allGranted = permissions.values.all { it }
-
-        if (allGranted) {
+        if (permissions.values.all { it }) {
             navigateToSelectorFragment()
         } else {
             Toast.makeText(context, "Permission request denied", Toast.LENGTH_LONG).show()
@@ -65,7 +62,6 @@ class PermissionsFragment : Fragment() {
     }
 
     companion object {
-
         /** Convenience method used to check if all permissions required by this app are granted */
         fun hasPermissions(context: Context) = PERMISSIONS_REQUIRED.all {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
