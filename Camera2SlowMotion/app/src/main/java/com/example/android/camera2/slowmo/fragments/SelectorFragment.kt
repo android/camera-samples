@@ -27,23 +27,21 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.navigation.Navigation
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.android.camera.utils.GenericListAdapter
-import com.example.android.camera2.slowmo.R
+import androidx.navigation.fragment.findNavController
 
 /**
  * In this [Fragment] we let users pick a camera, size and FPS to use for high
  * speed video recording
  */
 class SelectorFragment : Fragment() {
-
     override fun onCreateView(
-            inflater: LayoutInflater,
-            container: ViewGroup?,
-            savedInstanceState: Bundle?
-    ): View? = RecyclerView(requireContext())
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View = RecyclerView(requireContext())
 
     @SuppressLint("MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -52,34 +50,40 @@ class SelectorFragment : Fragment() {
         view.apply {
             layoutManager = LinearLayoutManager(requireContext())
 
-            val cameraManager =
-                    requireContext().getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val cameraManager = requireContext()
+                .getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
             val cameraList = enumerateHighSpeedCameras(cameraManager)
 
-            val layoutId = android.R.layout.simple_list_item_1
-            adapter = GenericListAdapter(cameraList, itemLayoutId = layoutId) { view, item, _ ->
+            adapter = GenericListAdapter(
+                cameraList,
+                android.R.layout.simple_list_item_1
+            ) { view, item, _ ->
                 view.findViewById<TextView>(android.R.id.text1).text = item.title
                 view.setOnClickListener {
-                    Navigation.findNavController(requireActivity(), R.id.fragment_container)
-                            .navigate(SelectorFragmentDirections.actionSelectorToCamera(
-                                    item.cameraId, item.size.width, item.size.height, item.fps))
+                    findNavController().navigate(
+                        SelectorFragmentDirections.actionSelectorToCamera(
+                            item.cameraId,
+                            item.size.width,
+                            item.size.height,
+                            item.fps
+                        )
+                    )
                 }
             }
         }
-
     }
 
     companion object {
-
         private data class CameraInfo(
-                val title: String,
-                val cameraId: String,
-                val size: Size,
-                val fps: Int)
+            val title: String,
+            val cameraId: String,
+            val size: Size,
+            val fps: Int
+        )
 
         /** Converts a lens orientation enum into a human-readable string */
-        private fun lensOrientationString(value: Int) = when(value) {
+        private fun lensOrientationString(value: Int) = when (value) {
             CameraCharacteristics.LENS_FACING_BACK -> "Back"
             CameraCharacteristics.LENS_FACING_FRONT -> "Front"
             CameraCharacteristics.LENS_FACING_EXTERNAL -> "External"
@@ -94,28 +98,30 @@ class SelectorFragment : Fragment() {
             // Iterate over the list of cameras and add those with high speed video recording
             //  capability to our output. This function only returns those cameras that declare
             //  constrained high speed video recording, but some cameras may be capable of doing
-            //  unconstrained video recording with high enough FPS for some use cases and they will
+            //  unconstrained video recording with high enough FPS for some use cases, and they will
             //  not necessarily declare constrained high speed video capability.
             cameraManager.cameraIdList.forEach { id ->
                 val characteristics = cameraManager.getCameraCharacteristics(id)
                 val orientation = lensOrientationString(
-                        characteristics.get(CameraCharacteristics.LENS_FACING)!!)
+                    characteristics.get(CameraCharacteristics.LENS_FACING)!!
+                )
 
                 // Query the available capabilities and output formats
-                val capabilities = characteristics.get(
-                        CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)!!
-                val cameraConfig = characteristics.get(
-                        CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+                val capabilities = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)!!
+                val cameraConfig = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
 
                 // Return cameras that support constrained high video capability
-                if (capabilities.contains(CameraCharacteristics
-                                .REQUEST_AVAILABLE_CAPABILITIES_CONSTRAINED_HIGH_SPEED_VIDEO)) {
+                if (capabilities.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_CONSTRAINED_HIGH_SPEED_VIDEO)) {
                     // For each camera, list its compatible sizes and FPS ranges
                     cameraConfig.highSpeedVideoSizes.forEach { size ->
                         cameraConfig.getHighSpeedVideoFpsRangesFor(size).forEach { fpsRange ->
                             val fps = fpsRange.upper
                             val info = CameraInfo(
-                                    "$orientation ($id) $size $fps FPS", id, size, fps)
+                                "$orientation ($id) $size $fps FPS",
+                                id,
+                                size,
+                                fps
+                            )
 
                             // Only report the highest FPS in the range, avoid duplicates
                             if (!availableCameras.contains(info)) availableCameras.add(info)

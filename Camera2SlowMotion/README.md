@@ -22,8 +22,8 @@ in an MP4 video file.
 Pre-requisites
 --------------
 
-- Android SDK 29+
-- Android Studio 3.5+
+- Android SDK 33+
+- Android Studio Panda 4
 - Device with high-speed capture capability
 
 Screenshots

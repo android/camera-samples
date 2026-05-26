@@ -68,8 +68,8 @@
             app:argType="integer" />
 
         <action
-            android:id="@+id/action_camera_to_permissions"
-            app:destination="@id/permissions_fragment"
+            android:id="@+id/action_camera_to_selector"
+            app:destination="@id/selector_fragment"
             app:popUpTo="@id/camera_fragment"
             app:popUpToInclusive="true"/>
 
