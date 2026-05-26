@@ -27,6 +27,8 @@ import android.hardware.camera2.CameraConstrainedHighSpeedCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.params.OutputConfiguration
+import android.hardware.camera2.params.SessionConfiguration
 import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.MediaCodec
 import android.media.MediaRecorder
@@ -37,7 +39,13 @@ import android.os.HandlerThread
 import android.util.Log
 import android.util.Range
 import android.util.Size
-import android.view.*
+import android.view.Display
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.View
+import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toDrawable
@@ -45,7 +53,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
-import androidx.navigation.Navigation
+import androidx.navigation.findNavController
 import androidx.navigation.fragment.navArgs
 import com.example.android.camera.utils.OrientationLiveData
 import com.example.android.camera.utils.SIZE_1080P
@@ -56,6 +64,7 @@ import com.example.android.camera2.slowmo.CameraActivity
 import com.example.android.camera2.slowmo.R
 import com.example.android.camera2.slowmo.databinding.FragmentCameraBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -63,10 +72,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.RuntimeException
+import java.util.concurrent.Executor
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 class CameraFragment : Fragment() {
 
@@ -80,7 +88,7 @@ class CameraFragment : Fragment() {
 
     /** Host's navigation controller */
     private val navController: NavController by lazy {
-        Navigation.findNavController(requireActivity(), R.id.fragment_container)
+        requireActivity().findNavController(R.id.fragment_container)
     }
 
     /** Detects, characterizes, and connects to a CameraDevice (used for all camera operations) */
@@ -226,7 +234,7 @@ class CameraFragment : Fragment() {
     }
 
     /** Creates a [MediaRecorder] instance using the provided [Surface] as input */
-    private fun createRecorder(surface: Surface) = MediaRecorder().apply {
+    private fun createRecorder(surface: Surface) = MediaRecorder(requireContext()).apply {
         setAudioSource(MediaRecorder.AudioSource.MIC)
         setVideoSource(MediaRecorder.VideoSource.SURFACE)
         setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -288,6 +296,7 @@ class CameraFragment : Fragment() {
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun initializeCamera() = lifecycleScope.launch(Dispatchers.Main) {
+        val executor = Dispatchers.Default.asExecutor()
 
         // Open the selected camera
         camera = openCamera(cameraManager, args.cameraId, cameraHandler)
@@ -296,7 +305,7 @@ class CameraFragment : Fragment() {
         val targets = listOf(fragmentCameraBinding.viewFinder.holder.surface, recorderSurface)
 
         // Start a capture session using our open camera and list of Surfaces where frames will go
-        session = createCaptureSession(camera, targets, cameraHandler)
+        session = createCaptureSession(camera, targets, executor)
 
         // Ensures the requested size and FPS are compatible with this camera
         val fpsRange = Range(args.fps, args.fps)
@@ -358,14 +367,14 @@ class CameraFragment : Fragment() {
                             view.context, arrayOf(outputFile.absolutePath), null, null)
 
                     // Launch external activity via intent to play video recorded using our provider
-                    startActivity(Intent().apply {
-                        action = Intent.ACTION_VIEW
-                        type = MimeTypeMap.getSingleton()
-                                .getMimeTypeFromExtension(outputFile.extension)
+                    startActivity(Intent(Intent.ACTION_VIEW).apply {
                         val authority = "${BuildConfig.APPLICATION_ID}.provider"
-                        data = FileProvider.getUriForFile(view.context, authority, outputFile)
-                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        setDataAndType(
+                            FileProvider.getUriForFile(view.context, authority, outputFile),
+                            MimeTypeMap.getSingleton().getMimeTypeFromExtension(outputFile.extension)
+                        )
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     })
 
                     // Finishes our current camera screen
@@ -416,23 +425,28 @@ class CameraFragment : Fragment() {
     private suspend fun createCaptureSession(
             device: CameraDevice,
             targets: List<Surface>,
-            handler: Handler? = null
-    ): CameraConstrainedHighSpeedCaptureSession = suspendCoroutine { cont ->
+            executor: Executor
+    ): CameraConstrainedHighSpeedCaptureSession = suspendCancellableCoroutine { cont ->
 
         // Creates a capture session using the predefined targets, and defines a session state
         // callback which resumes the coroutine once the session is configured
-        device.createConstrainedHighSpeedCaptureSession(
-                targets, object: CameraCaptureSession.StateCallback() {
+        device.createCaptureSession(
+            SessionConfiguration(
+                SessionConfiguration.SESSION_HIGH_SPEED,
+                targets.map(::OutputConfiguration),
+                executor,
+                object : CameraCaptureSession.StateCallback() {
+                    override fun onConfigured(session: CameraCaptureSession) =
+                        cont.resume(session as CameraConstrainedHighSpeedCaptureSession)
 
-            override fun onConfigured(session: CameraCaptureSession) =
-                    cont.resume(session as CameraConstrainedHighSpeedCaptureSession)
-
-            override fun onConfigureFailed(session: CameraCaptureSession) {
-                val exc = RuntimeException("Camera ${device.id} session configuration failed")
-                Log.e(TAG, exc.message, exc)
-                cont.resumeWithException(exc)
-            }
-        }, handler)
+                    override fun onConfigureFailed(session: CameraCaptureSession) {
+                        val exc = RuntimeException("Camera ${device.id} session configuration failed")
+                        Log.e(TAG, exc.message, exc)
+                        cont.resumeWithException(exc)
+                    }
+                }
+            )
+        )
     }
 
     override fun onStop() {
