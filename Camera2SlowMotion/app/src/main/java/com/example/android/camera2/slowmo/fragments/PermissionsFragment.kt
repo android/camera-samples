@@ -57,7 +57,7 @@ class PermissionsFragment : Fragment() {
         }
     }
 
-    fun navigateToSelectorFragment() {
+    private fun navigateToSelectorFragment() {
         findNavController().navigate(PermissionsFragmentDirections.actionPermissionsToSelector())
     }
 
