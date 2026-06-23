@@ -61,7 +61,6 @@ kotlin {
 dependencies {
     // Kotlin & Core
     implementation(libs.androidx.core.ktx)
-    implementation(libs.kotlinx.coroutines.guava)
 
     // Compose core components
     implementation(platform(libs.androidx.compose.bom))
@@ -69,16 +68,12 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
-    // Camera Viewfinder dependencies
-    implementation(libs.androidx.camera.viewfinder.compose)
-    implementation(libs.androidx.camera.viewfinder.core)
-    implementation(libs.androidx.camera.viewfinder.view)
-
     // Hilt / Architecture
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
-    // UI Component
-    implementation(project(":ui-component"))
+    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    implementation(project(":core-camera"))
+    implementation(project(":core-ui"))
 }

@@ -19,7 +19,17 @@ import android.graphics.Bitmap
 
 sealed interface CameraXTakeAPhotoUiState {
     data object Initial : CameraXTakeAPhotoUiState
-    data class Capturing(val isFrontCamera: Boolean) : CameraXTakeAPhotoUiState
-    data class PhotoCaptured(val photoBitmap: Bitmap, val isFrontCamera: Boolean) : CameraXTakeAPhotoUiState
-    data class Error(val errorMessage: String?) : CameraXTakeAPhotoUiState
+
+    data class Capturing(
+        val isFrontCamera: Boolean,
+    ) : CameraXTakeAPhotoUiState
+
+    data class PhotoCaptured(
+        val photoBitmap: Bitmap,
+        val isFrontCamera: Boolean,
+    ) : CameraXTakeAPhotoUiState
+
+    data class Error(
+        val errorMessage: String?,
+    ) : CameraXTakeAPhotoUiState
 }

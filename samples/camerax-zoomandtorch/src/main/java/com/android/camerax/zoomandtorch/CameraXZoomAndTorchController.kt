@@ -1,0 +1,145 @@
+/*
+ * Copyright 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.android.camerax.zoomandtorch
+
+import android.content.Context
+import android.util.Log
+import androidx.camera.core.CameraControl
+import androidx.camera.core.CameraInfo
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.Preview
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory
+import androidx.camera.core.SurfaceRequest
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
+private const val TAG = "CameraXZoomController"
+
+@Composable
+fun rememberCameraXZoomAndTorchController(
+    context: Context,
+    lifecycleOwner: LifecycleOwner,
+    isFrontCamera: Boolean,
+    onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
+): CameraXZoomAndTorchController =
+    remember(context, lifecycleOwner, isFrontCamera, onCameraReady) {
+        CameraXZoomAndTorchController(context, lifecycleOwner, isFrontCamera, onCameraReady)
+    }
+
+@Stable
+class CameraXZoomAndTorchController(
+    private val context: Context,
+    private val lifecycleOwner: LifecycleOwner,
+    val isFrontCamera: Boolean,
+    private val onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
+) {
+    var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
+        private set
+
+    private var cameraControl: CameraControl? = null
+    private var cameraInfo: CameraInfo? = null
+    private var cameraProvider: ProcessCameraProvider? = null
+
+    private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+
+    private val preview =
+        Preview.Builder().build().apply {
+            setSurfaceProvider { request ->
+                surfaceRequest = request
+            }
+        }
+
+    fun openCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            val provider = cameraProviderFuture.get()
+            cameraProvider = provider
+
+            val lensFacing =
+                if (isFrontCamera) {
+                    CameraSelector.LENS_FACING_FRONT
+                } else {
+                    CameraSelector.LENS_FACING_BACK
+                }
+
+            val cameraSelector =
+                CameraSelector
+                    .Builder()
+                    .requireLensFacing(lensFacing)
+                    .build()
+
+            try {
+                provider.unbindAll()
+                val camera =
+                    provider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                    )
+                cameraControl = camera.cameraControl
+                cameraInfo = camera.cameraInfo
+
+                // Report the bound camera's zoom range and flash availability so the UI can
+                // configure the zoom slider and torch toggle.
+                val zoomState = camera.cameraInfo.zoomState.value
+                val minZoom = zoomState?.minZoomRatio ?: 1f
+                val maxZoom = zoomState?.maxZoomRatio ?: 1f
+                onCameraReady(minZoom, maxZoom, camera.cameraInfo.hasFlashUnit())
+            } catch (exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    fun setZoomRatio(ratio: Float) {
+        cameraControl?.setZoomRatio(ratio)
+    }
+
+    fun setTorch(enabled: Boolean) {
+        cameraControl?.enableTorch(enabled)
+    }
+
+    fun focus(
+        surfaceCoords: Offset,
+        width: Float,
+        height: Float,
+    ) {
+        val factory = SurfaceOrientedMeteringPointFactory(width, height)
+        val point = factory.createPoint(surfaceCoords.x, surfaceCoords.y)
+        val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF).build()
+        cameraControl?.startFocusAndMetering(action)
+    }
+
+    fun closeCamera() {
+        cameraProvider?.unbindAll()
+    }
+
+    fun release() {
+        closeCamera()
+        cameraExecutor.shutdown()
+    }
+}

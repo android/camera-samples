@@ -17,7 +17,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.jetbrains.kotlin.serialization)
-    alias(libs.plugins.google.gms.google.services)
     alias(libs.plugins.hilt.plugin)
     alias(libs.plugins.ksp)
     alias(libs.plugins.compose.compiler)
@@ -76,18 +75,27 @@ dependencies {
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.ai)
     ksp(libs.hilt.compiler)
 
     implementation(project(":ui-component"))
 
     // CameraX Samples
     implementation(project(":samples:camerax-takeaphoto"))
+    implementation(project(":samples:camerax-takeavideo"))
+    implementation(project(":samples:camerax-qrscanner"))
+    implementation(project(":samples:camerax-imagelabeling"))
+    implementation(project(":samples:camerax-extensions"))
+    implementation(project(":samples:camerax-zoomandtorch"))
+    implementation(project(":samples:camerax-exposure"))
 
     // Camera2 Samples
-    implementation(project(":samples:camera2-takeavideo"))
     implementation(project(":samples:camera2-takeaphoto"))
+    implementation(project(":samples:camera2-takeavideo"))
+    implementation(project(":samples:camera2-slowmotion"))
+    implementation(project(":samples:camera2-extensions"))
+    implementation(project(":samples:camera2-hdrviewfinder"))
+    implementation(project(":samples:camera2-zoomandtorch"))
+    implementation(project(":samples:camera2-manualcontrols"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

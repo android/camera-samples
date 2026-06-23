@@ -15,12 +15,10 @@
  */
 package com.android.camera2.takeaphoto
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.media.Image
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.camera.core.image.toBitmap
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,75 +26,53 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.nio.ByteBuffer
 import javax.inject.Inject
 
 @HiltViewModel
-class Camera2TakeAPhotoViewModel @Inject constructor() : ViewModel() {
+class Camera2TakeAPhotoViewModel
+    @Inject
+    constructor() : ViewModel() {
+        private val _uiState =
+            MutableStateFlow<Camera2TakeAPhotoUiState>(Camera2TakeAPhotoUiState.Initial)
+        val uiState: StateFlow<Camera2TakeAPhotoUiState> = _uiState.asStateFlow()
 
-    private val _uiState =
-        MutableStateFlow<Camera2TakeAPhotoUiState>(Camera2TakeAPhotoUiState.Initial)
-    val uiState: StateFlow<Camera2TakeAPhotoUiState> = _uiState.asStateFlow()
+        private var isFrontCamera = false
 
-    private var isFrontCamera = false
+        fun initialize() {
+            if (_uiState.value is Camera2TakeAPhotoUiState.Initial) {
+                _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
+            }
+        }
 
-    fun initialize() {
-        if (_uiState.value is Camera2TakeAPhotoUiState.Initial) {
+        fun swapCamera() {
+            isFrontCamera = !isFrontCamera
+            _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
+        }
+
+        fun resetToCamera() {
+            _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
+        }
+
+        fun processImage(
+            image: Image,
+            sensorOrientation: Int,
+        ) {
+            viewModelScope.launch {
+                try {
+                    val bitmap =
+                        withContext(Dispatchers.IO) {
+                            // toBitmap() rotates, optionally mirrors, and always closes the image.
+                            image.toBitmap(sensorOrientation, mirror = isFrontCamera)
+                        }
+                    _uiState.value = Camera2TakeAPhotoUiState.PhotoCaptured(bitmap, isFrontCamera)
+                } catch (e: Exception) {
+                    _uiState.value =
+                        Camera2TakeAPhotoUiState.Error("Error processing image: ${e.message}")
+                }
+            }
+        }
+
+        fun resetError() {
             _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
         }
     }
-
-    fun swapCamera() {
-        isFrontCamera = !isFrontCamera
-        _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
-    }
-
-    fun resetToCamera() {
-        _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
-    }
-
-    fun processImage(image: Image, sensorOrientation: Int) {
-        viewModelScope.launch {
-            try {
-                val bitmap = withContext(Dispatchers.IO) {
-                    val buffer: ByteBuffer = image.planes[0].buffer
-                    val bytes = ByteArray(buffer.remaining())
-                    buffer.get(bytes)
-                    image.close()
-
-                    val originalBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-
-                    val matrix = Matrix()
-                    matrix.postRotate(sensorOrientation.toFloat())
-
-                    if (isFrontCamera) {
-                        matrix.postScale(-1f, 1f)
-                    }
-
-                    Bitmap.createBitmap(
-                        originalBitmap,
-                        0,
-                        0,
-                        originalBitmap.width,
-                        originalBitmap.height,
-                        matrix,
-                        true
-                    )
-                }
-
-                _uiState.value = Camera2TakeAPhotoUiState.PhotoCaptured(bitmap, isFrontCamera)
-            } catch (e: Exception) {
-                try {
-                    image.close()
-                } catch (_: Exception) {
-                }
-                _uiState.value =
-                    Camera2TakeAPhotoUiState.Error("Error processing image: ${e.message}")
-            }
-        }
-    }
-
-    fun resetError() {
-        _uiState.value = Camera2TakeAPhotoUiState.Capturing(isFrontCamera)
-    }
-}

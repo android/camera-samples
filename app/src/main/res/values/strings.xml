@@ -1,7 +1,5 @@
 <resources>
     <string name="app_name">Camera Samples Catalog</string>
-    <string name="camera2_sample_takeaphoto_list_title">Camera2 • Take a Photo</string>
-    <string name="camera2_sample_takeaphoto_list_description">A very simple example of multimodal generation using the Gemini Flash model.</string>
 
     <string name="top_bar_title">Android Camera Samples</string>
     <string name="top_bar_title_expanded">Camera Samples</string>
@@ -15,8 +13,36 @@
     <string name="camera_permission_denied">Camera access is permanently denied. You must enable it in your device\'s app settings to view the catalog.</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="open_settings">Open Settings</string>
+
+    <!-- CameraX samples -->
+    <string name="camerax_takeaphoto_list_title">CameraX • Take a Photo</string>
+    <string name="camerax_takeaphoto_list_description">Capture a photo with CameraX.</string>
+    <string name="camerax_takeavideo_list_title">CameraX • Take a Video</string>
+    <string name="camerax_takeavideo_list_description">Record video with the CameraX Recorder API.</string>
+    <string name="camerax_qrscanner_list_title">CameraX • QR Scanner</string>
+    <string name="camerax_qrscanner_list_description">Scan QR codes &amp; barcodes with ML Kit and ImageAnalysis.</string>
+    <string name="camerax_imagelabeling_list_title">CameraX • Image Labeling</string>
+    <string name="camerax_imagelabeling_list_description">Real-time on-device image labeling with ML Kit.</string>
+    <string name="camerax_extensions_list_title">CameraX • Extensions</string>
+    <string name="camerax_extensions_list_description">Night, Bokeh, HDR and more via CameraX Extensions.</string>
+    <string name="camerax_zoomandtorch_list_title">CameraX • Zoom &amp; Torch</string>
+    <string name="camerax_zoomandtorch_list_description">Control zoom ratio and the torch with CameraX.</string>
+    <string name="camerax_exposure_list_title">CameraX • Exposure</string>
+    <string name="camerax_exposure_list_description">Adjust exposure compensation with CameraX.</string>
+
+    <!-- Camera2 samples -->
+    <string name="camera2_takeaphoto_list_title">Camera2 • Take a Photo</string>
+    <string name="camera2_takeaphoto_list_description">Capture a photo with Camera2.</string>
     <string name="camera2_takeavideo_list_title">Camera2 • Take a Video</string>
-    <string name="camera2_takeavideo_list_description">A simple video sample</string>
-    <string name="camerax_takeaphoto_list_title">CameraX • Take A Photo</string>
-    <string name="camerax_takeaphoto_list_description">Take a Photo With CameraX</string>
+    <string name="camera2_takeavideo_list_description">Record video with Camera2 and MediaRecorder.</string>
+    <string name="camera2_extensions_list_title">Camera2 • Extensions</string>
+    <string name="camera2_extensions_list_description">Vendor camera extensions via CameraExtensionSession.</string>
+    <string name="camera2_slowmotion_list_title">Camera2 • Slow Motion</string>
+    <string name="camera2_slowmotion_list_description">High-speed (slow-motion) video capture.</string>
+    <string name="camera2_hdrviewfinder_list_title">Camera2 • Viewfinder Effects</string>
+    <string name="camera2_hdrviewfinder_list_description">Real-time frame processing on the live preview.</string>
+    <string name="camera2_zoomandtorch_list_title">Camera2 • Zoom &amp; Torch</string>
+    <string name="camera2_zoomandtorch_list_description">Control zoom ratio and the torch with Camera2.</string>
+    <string name="camera2_manualcontrols_list_title">Camera2 • Manual Controls</string>
+    <string name="camera2_manualcontrols_list_description">Manual ISO, shutter speed and focus distance.</string>
 </resources>

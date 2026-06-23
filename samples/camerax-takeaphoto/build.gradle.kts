@@ -65,13 +65,9 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.androidx.camera.core)
-    implementation(libs.androidx.camera.camera2)
-    implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.androidx.camera.compose)
-    implementation(libs.kotlinx.coroutines.guava)
-
     ksp(libs.hilt.compiler)
 
-    implementation(project(":ui-component"))
+    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    implementation(project(":core-camera"))
+    implementation(project(":core-ui"))
 }

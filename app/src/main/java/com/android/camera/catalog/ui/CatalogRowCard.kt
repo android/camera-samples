@@ -37,56 +37,65 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.android.ai.theme.AISampleCatalogTheme
+import com.android.ai.uicomponent.Tag
 import com.android.camera.catalog.R
 import com.android.camera.catalog.domain.SampleCatalogItem
 import com.android.camera.catalog.domain.SampleTags
-import com.android.ai.theme.AISampleCatalogTheme
-import com.android.ai.uicomponent.Tag
 import com.android.camera.catalog.domain.SampleType
 
 @Composable
-fun CatalogRowCard(catalogItem: SampleCatalogItem, onClick: () -> Unit) {
+fun CatalogRowCard(
+    catalogItem: SampleCatalogItem,
+    onClick: () -> Unit,
+) {
     ElevatedCard(
-        modifier = Modifier.padding(
-            start = 16.dp,
-            end = 16.dp,
-            top = 16.dp,
-        ).widthIn(max = 646.dp),
+        modifier =
+            Modifier
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                ).widthIn(max = 646.dp),
         onClick = onClick,
     ) {
         Row {
             Image(
                 painter = painterResource(id = catalogItem.keyArt ?: R.drawable.img_keyart_multimodal),
                 contentDescription = null,
-                modifier = Modifier
-                    .height(92.dp)
-                    .width(92.dp)
-                    .padding(top = 12.dp, start = 12.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                modifier =
+                    Modifier
+                        .height(92.dp)
+                        .width(92.dp)
+                        .padding(top = 12.dp, start = 12.dp)
+                        .clip(RoundedCornerShape(4.dp)),
                 contentScale = ContentScale.Crop,
             )
             Column {
                 Text(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
                     style = MaterialTheme.typography.titleMedium,
                     text = stringResource(catalogItem.title),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, bottom = 4.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, bottom = 4.dp),
                 ) {
                     catalogItem.tags.forEach {
                         Tag(text = it.label, color = it.backgroundColor)
                     }
                 }
                 Text(
-                    modifier = Modifier
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    modifier =
+                        Modifier
+                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     text = stringResource(catalogItem.description),
                     maxLines = 3,
@@ -101,14 +110,15 @@ fun CatalogRowCard(catalogItem: SampleCatalogItem, onClick: () -> Unit) {
 @Composable
 fun CatalogRowCardPreview() {
     AISampleCatalogTheme {
-        val sampleItem = SampleCatalogItem(
-            title = R.string.camera2_sample_takeaphoto_list_title,
-            description = R.string.camera2_sample_takeaphoto_list_description,
-            route = "GeminiMultimodalScreen",
-            sampleEntryScreen = { },
-            type = SampleType.CAMERA2,
-            tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
-        )
+        val sampleItem =
+            SampleCatalogItem(
+                title = R.string.camera2_takeaphoto_list_title,
+                description = R.string.camera2_takeaphoto_list_description,
+                route = "Camera2TakeAPhotoScreen",
+                sampleEntryScreen = { },
+                type = SampleType.CAMERA2,
+                tags = listOf(SampleTags.MEDIA3, SampleTags.ML_KIT),
+            )
 
         CatalogRowCard(
             catalogItem = sampleItem,

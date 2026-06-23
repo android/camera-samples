@@ -101,43 +101,46 @@ fun CatalogApp() {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
                 context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED,
         )
     }
 
     var isPermanentlyDenied by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasCameraPermission = isGranted
-        if (!isGranted) {
-            isPermanentlyDenied = activity?.let {
-                !ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
-            } ?: false
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { isGranted ->
+            hasCameraPermission = isGranted
+            if (!isGranted) {
+                isPermanentlyDenied = activity?.let {
+                    !ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.CAMERA)
+                } ?: false
+            }
         }
-    }
 
     // Check permission status when returning to the app from settings
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                val currentlyGranted = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.CAMERA
-                ) == PackageManager.PERMISSION_GRANTED
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    val currentlyGranted =
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.CAMERA,
+                        ) == PackageManager.PERMISSION_GRANTED
 
-                hasCameraPermission = currentlyGranted
-                if (currentlyGranted) {
-                    isPermanentlyDenied = false
-                }
-            } else if (event == Lifecycle.Event.ON_PAUSE) {
-                if (navController.currentDestination?.route != HomeScreen::class.qualifiedName) {
-                    navController.popBackStack(HomeScreen, inclusive = false)
+                    hasCameraPermission = currentlyGranted
+                    if (currentlyGranted) {
+                        isPermanentlyDenied = false
+                    }
+                } else if (event == Lifecycle.Event.ON_PAUSE) {
+                    if (navController.currentDestination?.route != HomeScreen::class.qualifiedName) {
+                        navController.popBackStack(HomeScreen, inclusive = false)
+                    }
                 }
             }
-        }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
@@ -161,11 +164,12 @@ fun CatalogApp() {
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                 topBar = {
                     TwoRowsTopAppBar(
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent,
-                            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.primary,
-                        ),
+                        colors =
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.primary,
+                            ),
                         navigationIcon = { AppBarPill() },
                         title = { expanded ->
                             if (expanded) {
@@ -204,41 +208,48 @@ fun CatalogApp() {
                     targetState = hasCameraPermission,
                     label = "PermissionAnimation",
                     transitionSpec = {
-                        (fadeIn(animationSpec = tween(500)) + slideInVertically(
-                            animationSpec = tween(500),
-                            initialOffsetY = { it / 4 }
-                        )).togetherWith(fadeOut(animationSpec = tween(300)))
-                    }
+                        (
+                            fadeIn(animationSpec = tween(500)) +
+                                slideInVertically(
+                                    animationSpec = tween(500),
+                                    initialOffsetY = { it / 4 },
+                                )
+                        ).togetherWith(fadeOut(animationSpec = tween(300)))
+                    },
                 ) { hasPermission ->
                     if (hasPermission) {
-                        Column(modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)) {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding),
+                        ) {
                             var selectedFilter by remember { mutableStateOf<SampleType?>(null) }
 
                             SingleChoiceSegmentedButtonRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
                                 SegmentedButton(
                                     selected = selectedFilter == null,
                                     onClick = { selectedFilter = null },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                                 ) {
                                     Text("All")
                                 }
                                 SegmentedButton(
                                     selected = selectedFilter == SampleType.CAMERAX,
                                     onClick = { selectedFilter = SampleType.CAMERAX },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                                 ) {
                                     Text("CameraX")
                                 }
                                 SegmentedButton(
                                     selected = selectedFilter == SampleType.CAMERA2,
                                     onClick = { selectedFilter = SampleType.CAMERA2 },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
+                                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
                                 ) {
                                     Text("Camera 2")
                                 }
@@ -248,9 +259,10 @@ fun CatalogApp() {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                val filteredSamples = sampleCatalog.filter {
-                                    selectedFilter == null || it.type == selectedFilter
-                                }
+                                val filteredSamples =
+                                    sampleCatalog.filter {
+                                        selectedFilter == null || it.type == selectedFilter
+                                    }
                                 items(items = filteredSamples, key = { it.route }) {
                                     val onClick = {
                                         navController.navigate(it.route)
@@ -267,48 +279,52 @@ fun CatalogApp() {
                         }
                     } else {
                         Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                                .padding(horizontal = 24.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding)
+                                    .padding(horizontal = 24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                            verticalArrangement = Arrangement.Center,
                         ) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                )
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    ),
                             ) {
                                 Column(
                                     modifier = Modifier.padding(32.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.spark_android),
                                         contentDescription = stringResource(id = R.string.camera_permission_title),
-                                        modifier = Modifier
-                                            .height(64.dp)
-                                            .width(92.dp),
-                                        tint = MaterialTheme.colorScheme.primary
+                                        modifier =
+                                            Modifier
+                                                .height(64.dp)
+                                                .width(92.dp),
+                                        tint = MaterialTheme.colorScheme.primary,
                                     )
                                     Spacer(modifier = Modifier.height(24.dp))
                                     Text(
                                         text = stringResource(id = R.string.camera_permission_title),
                                         style = MaterialTheme.typography.headlineSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = if (isPermanentlyDenied) {
-                                            stringResource(id = R.string.camera_permission_denied)
-                                        } else {
-                                            stringResource(id = R.string.camera_permission_rationale)
-                                        },
+                                        text =
+                                            if (isPermanentlyDenied) {
+                                                stringResource(id = R.string.camera_permission_denied)
+                                            } else {
+                                                stringResource(id = R.string.camera_permission_rationale)
+                                            },
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
+                                        textAlign = TextAlign.Center,
                                     )
                                     Spacer(modifier = Modifier.height(32.dp))
                                     Button(
@@ -316,11 +332,12 @@ fun CatalogApp() {
                                             if (isPermanentlyDenied) {
                                                 val intent =
                                                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                        data = Uri.fromParts(
-                                                            "package",
-                                                            context.packageName,
-                                                            null
-                                                        )
+                                                        data =
+                                                            Uri.fromParts(
+                                                                "package",
+                                                                context.packageName,
+                                                                null,
+                                                            )
                                                     }
                                                 context.startActivity(intent)
                                             } else {
@@ -328,15 +345,16 @@ fun CatalogApp() {
                                             }
                                         },
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(12.dp),
                                     ) {
                                         Text(
-                                            text = if (isPermanentlyDenied) {
-                                                stringResource(id = R.string.open_settings)
-                                            } else {
-                                                stringResource(id = R.string.grant_permission)
-                                            },
-                                            modifier = Modifier.padding(vertical = 8.dp)
+                                            text =
+                                                if (isPermanentlyDenied) {
+                                                    stringResource(id = R.string.open_settings)
+                                                } else {
+                                                    stringResource(id = R.string.grant_permission)
+                                                },
+                                            modifier = Modifier.padding(vertical = 8.dp),
                                         )
                                     }
                                 }
@@ -364,14 +382,14 @@ fun AppBarPill() {
         Icon(
             painter = painterResource(R.drawable.spark_android),
             contentDescription = null,
-            modifier = Modifier
-                .height(40.dp)
-                .width(58.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(24.dp),
-                )
-                .padding(10.dp),
+            modifier =
+                Modifier
+                    .height(40.dp)
+                    .width(58.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(24.dp),
+                    ).padding(10.dp),
             tint = MaterialTheme.colorScheme.onPrimary,
         )
     }

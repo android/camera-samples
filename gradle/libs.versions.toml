@@ -31,6 +31,8 @@ material3WindowSizeClass = "1.4.0"
 richtext = "1.0.0-alpha03"
 cameraViewfinder = "1.5.3"
 kotlinxCoroutinesGuava = "1.10.2"
+mlkitBarcodeScanning = "17.3.0"
+mlkitImageLabeling = "17.0.9"
 
 [libraries]
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCore" }
@@ -75,6 +77,11 @@ ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref =
 androidx-camera-viewfinder-compose = { module = "androidx.camera.viewfinder:viewfinder-compose", version.ref = "cameraViewfinder" }
 androidx-camera-viewfinder-core = { module = "androidx.camera.viewfinder:viewfinder-core", version.ref = "cameraViewfinder" }
 androidx-camera-viewfinder-view = { module = "androidx.camera.viewfinder:viewfinder-view", version.ref = "cameraViewfinder" }
+androidx-camera-video = { module = "androidx.camera:camera-video", version.ref = "cameraCore" }
+androidx-camera-extensions = { module = "androidx.camera:camera-extensions", version.ref = "cameraCore" }
+androidx-camera-mlkit-vision = { module = "androidx.camera:camera-mlkit-vision", version.ref = "cameraCore" }
+mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkitBarcodeScanning" }
+mlkit-image-labeling = { module = "com.google.mlkit:image-labeling", version.ref = "mlkitImageLabeling" }
 
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuava" }
 

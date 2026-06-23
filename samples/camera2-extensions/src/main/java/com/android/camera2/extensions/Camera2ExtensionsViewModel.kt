@@ -1,0 +1,100 @@
+/*
+ * Copyright 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.android.camera2.extensions
+
+import android.media.Image
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.android.camera.core.image.toBitmap
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+
+@HiltViewModel
+class Camera2ExtensionsViewModel
+    @Inject
+    constructor() : ViewModel() {
+        private val _uiState =
+            MutableStateFlow<Camera2ExtensionsUiState>(Camera2ExtensionsUiState.Initial)
+        val uiState: StateFlow<Camera2ExtensionsUiState> = _uiState.asStateFlow()
+
+        private var currentExtension: Int = NO_EXTENSION
+        private var supportedExtensions: List<Int> = emptyList()
+
+        fun initialize() {
+            if (_uiState.value is Camera2ExtensionsUiState.Initial) {
+                _uiState.value =
+                    Camera2ExtensionsUiState.Previewing(currentExtension, supportedExtensions)
+            }
+        }
+
+        /** Called by the controller once it has queried the device's supported extensions. */
+        fun setSupported(list: List<Int>) {
+            supportedExtensions = list
+            currentExtension = list.firstOrNull() ?: NO_EXTENSION
+            _uiState.value =
+                Camera2ExtensionsUiState.Previewing(currentExtension, supportedExtensions)
+        }
+
+        fun setExtension(extension: Int) {
+            currentExtension = extension
+            _uiState.value =
+                Camera2ExtensionsUiState.Previewing(currentExtension, supportedExtensions)
+        }
+
+        fun processImage(
+            image: Image,
+            sensorOrientation: Int,
+        ) {
+            viewModelScope.launch {
+                try {
+                    val bitmap =
+                        withContext(Dispatchers.IO) {
+                            // toBitmap() rotates and always closes the image.
+                            image.toBitmap(sensorOrientation)
+                        }
+                    _uiState.value = Camera2ExtensionsUiState.PhotoCaptured(bitmap)
+                } catch (e: Exception) {
+                    _uiState.value =
+                        Camera2ExtensionsUiState.Error("Error processing image: ${e.message}")
+                }
+            }
+        }
+
+        fun markUnsupported() {
+            _uiState.value = Camera2ExtensionsUiState.Unsupported
+        }
+
+        fun resetToCamera() {
+            _uiState.value =
+                Camera2ExtensionsUiState.Previewing(currentExtension, supportedExtensions)
+        }
+
+        fun resetError() {
+            _uiState.value =
+                Camera2ExtensionsUiState.Previewing(currentExtension, supportedExtensions)
+        }
+
+        companion object {
+            /** Sentinel for "no extension selected"; never collides with a real extension id. */
+            const val NO_EXTENSION = -1
+        }
+    }

@@ -49,7 +49,7 @@ fun rememberCameraXTakeAPhotoController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     isFrontCamera: Boolean,
-    onPhotoCaptured: (ImageProxy) -> Unit
+    onPhotoCaptured: (ImageProxy) -> Unit,
 ): CameraXTakeAPhotoController {
     val coroutineScope = rememberCoroutineScope()
     return remember(context, isFrontCamera, onPhotoCaptured) {
@@ -63,7 +63,7 @@ class CameraXTakeAPhotoController(
     private val lifecycleOwner: LifecycleOwner,
     val isFrontCamera: Boolean,
     private val onPhotoCaptured: (ImageProxy) -> Unit,
-    private val coroutineScope: CoroutineScope
+    private val coroutineScope: CoroutineScope,
 ) {
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
@@ -73,15 +73,18 @@ class CameraXTakeAPhotoController(
 
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
-    private val imageCapture = ImageCapture.Builder()
-        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-        .build()
+    private val imageCapture =
+        ImageCapture
+            .Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
 
-    private val preview = Preview.Builder().build().apply {
-        setSurfaceProvider { request ->
-            surfaceRequest = request
+    private val preview =
+        Preview.Builder().build().apply {
+            setSurfaceProvider { request ->
+                surfaceRequest = request
+            }
         }
-    }
 
     fun openCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -89,21 +92,28 @@ class CameraXTakeAPhotoController(
             val provider = cameraProviderFuture.get()
             cameraProvider = provider
 
-            val lensFacing = if (isFrontCamera) {
-                CameraSelector.LENS_FACING_FRONT
-            } else {
-                CameraSelector.LENS_FACING_BACK
-            }
+            val lensFacing =
+                if (isFrontCamera) {
+                    CameraSelector.LENS_FACING_FRONT
+                } else {
+                    CameraSelector.LENS_FACING_BACK
+                }
 
-            val cameraSelector = CameraSelector.Builder()
-                .requireLensFacing(lensFacing)
-                .build()
+            val cameraSelector =
+                CameraSelector
+                    .Builder()
+                    .requireLensFacing(lensFacing)
+                    .build()
 
             try {
                 provider.unbindAll()
-                val camera = provider.bindToLifecycle(
-                    lifecycleOwner, cameraSelector, preview, imageCapture
-                )
+                val camera =
+                    provider.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                        imageCapture,
+                    )
                 cameraControl = camera.cameraControl
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
@@ -129,11 +139,15 @@ class CameraXTakeAPhotoController(
                 override fun onError(exception: ImageCaptureException) {
                     Log.e(TAG, "Photo capture failed: \${exception.message}", exception)
                 }
-            }
+            },
         )
     }
 
-    fun focus(surfaceCoords: Offset, width: Float, height: Float) {
+    fun focus(
+        surfaceCoords: Offset,
+        width: Float,
+        height: Float,
+    ) {
         val factory = SurfaceOrientedMeteringPointFactory(width, height)
         val point = factory.createPoint(surfaceCoords.x, surfaceCoords.y)
         val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF).build()
