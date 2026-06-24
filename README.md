@@ -14,7 +14,7 @@ grouped CameraX-first, Camera2 below.
 <p align="center">
   <img src="docs/screenshots/home.png" width="260" alt="Home catalog — all samples" />
   &nbsp;&nbsp;&nbsp;
-  <img src="docs/screenshots/home_filtered.png" width="260" alt="Home catalog — filtered to Camera2" />
+  <img src="docs/screenshots/home_filtered.png" width="260" alt="Home catalog — the ML category" />
 </p>
 
 ## How to run
@@ -38,6 +38,9 @@ home screen. Within each view, **CameraX** samples are listed first and **Camera
 | Take a Video | CameraX (Recorder) / Camera2 (MediaRecorder) | Record video to `DCIM/Camera` |
 | Pause/Resume | CameraX (Recorder) | Pause and resume a recording mid-capture |
 | Slow Motion | Camera2 | High-speed (constrained) recording |
+| HDR Video | CameraX / Camera2 | Record & play back 10-bit HDR video (`DynamicRange` / `DynamicRangeProfiles`) |
+| Video Stabilization | CameraX | Steadier footage via preview + video stabilization |
+| Flip While Recording | CameraX | Switch front/back cameras without interrupting the recording |
 | QR Scanner | CameraX / Camera2 + ML Kit | Real-time barcode/QR detection with overlay |
 | Image Labeling | CameraX + ML Kit | Real-time on-device labels via `ImageAnalysis` |
 | Luminosity | CameraX | Scene-brightness meter from the `ImageAnalysis` Y plane |
@@ -50,6 +53,8 @@ home screen. Within each view, **CameraX** samples are listed first and **Camera
 | RAW / DNG | Camera2 | `RAW_SENSOR` → DNG via `DngCreator`, then an in-app viewer/editor (re-expose, re-white-balance) |
 | Zoom & Torch | CameraX / Camera2 | Zoom ratio slider + torch toggle |
 | Exposure | CameraX | Exposure-compensation slider |
+| Low-Light Boost | CameraX | Brighten dark scenes with `CameraControl` low-light boost |
+| Feature Combination | CameraX | Query & apply CameraX feature-group combos (HDR, 60fps, stabilization, Ultra HDR) |
 | Manual Controls | Camera2 | Manual ISO / shutter / focus distance |
 
 Samples that depend on optional hardware (extensions, high-speed recording, manual sensor) detect
