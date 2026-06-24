@@ -61,4 +61,8 @@
     <string name="camera2_qrscanner_list_description">Scan QR codes &amp; barcodes with Camera2 and ML Kit.</string>
     <string name="camera2_rawcapture_list_title">Camera2 • RAW/DNG</string>
     <string name="camera2_rawcapture_list_description">Capture a RAW sensor frame as a DNG, then view and re-edit it (exposure, white balance).</string>
+    <string name="camerax_hdrvideo_list_title">CameraX • HDR Video</string>
+    <string name="camerax_hdrvideo_list_description">Record and play back 10-bit HDR video with CameraX DynamicRange.</string>
+    <string name="camera2_hdrvideo_list_title">Camera2 • HDR Video</string>
+    <string name="camera2_hdrvideo_list_description">Record and play back 10-bit HDR with Camera2 DynamicRangeProfiles.</string>
 </resources>

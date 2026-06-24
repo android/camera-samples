@@ -16,6 +16,7 @@
 package com.android.camerax.takeavideo
 
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.camera.video.Quality
 
 /**
@@ -24,13 +25,13 @@ import androidx.camera.video.Quality
  * cannot honor the requested one.
  */
 enum class VideoQuality(
-    val label: String,
+    @param:StringRes val label: Int,
     val quality: Quality,
 ) {
-    SD("SD (480p)", Quality.SD),
-    HD("HD (720p)", Quality.HD),
-    FHD("FHD (1080p)", Quality.FHD),
-    UHD("UHD (2160p)", Quality.UHD),
+    SD(R.string.takeavideo_quality_sd, Quality.SD),
+    HD(R.string.takeavideo_quality_hd, Quality.HD),
+    FHD(R.string.takeavideo_quality_fhd, Quality.FHD),
+    UHD(R.string.takeavideo_quality_uhd, Quality.UHD),
 }
 
 sealed interface CameraXTakeAVideoUiState {

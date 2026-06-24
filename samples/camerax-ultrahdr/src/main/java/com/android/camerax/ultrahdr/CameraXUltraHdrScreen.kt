@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -72,7 +73,7 @@ fun CameraXUltraHdrScreen(
             }
 
             CameraXUltraHdrUiState.Unsupported -> {
-                UnsupportedView(message = "Ultra HDR (gain-map JPEG) capture is not supported on this device.")
+                UnsupportedView(message = stringResource(R.string.ultrahdr_unsupported))
             }
 
             is CameraXUltraHdrUiState.Error -> {
@@ -149,7 +150,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.Filled.Close,
-        contentDescription = "Close",
+        contentDescription = stringResource(R.string.ultrahdr_close),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -160,7 +161,7 @@ private fun BoxScope.CapturingContent(
     )
 
     ViewfinderTitleChip(
-        text = "Ultra HDR",
+        text = stringResource(R.string.ultrahdr_title),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)

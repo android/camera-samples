@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="imagelabeling_back">Back</string>
+    <string name="imagelabeling_labels_header">LABELS</string>
+    <string name="imagelabeling_confidence_percent">%1$d%%</string>
+</resources>

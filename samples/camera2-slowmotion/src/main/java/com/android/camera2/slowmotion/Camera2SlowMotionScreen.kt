@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -68,7 +69,7 @@ fun Camera2SlowMotionScreen(
 
             is Camera2SlowMotionUiState.Unsupported -> {
                 UnsupportedView(
-                    message = "Slow-motion (high-speed) recording isn't supported on this device.",
+                    message = stringResource(R.string.slowmotion_unsupported),
                 )
             }
 
@@ -116,7 +117,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.slowmotion_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =

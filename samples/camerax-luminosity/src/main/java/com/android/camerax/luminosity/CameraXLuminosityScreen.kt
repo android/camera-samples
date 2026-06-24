@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -146,7 +147,7 @@ private fun BoxScope.AnalyzingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.luminosity_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -156,7 +157,7 @@ private fun BoxScope.AnalyzingContent(
     )
 
     ViewfinderTitleChip(
-        text = "Luminosity",
+        text = stringResource(R.string.luminosity_title),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
@@ -195,9 +196,9 @@ private fun LuminosityHud(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            HudText(text = "LUMINANCE", alpha = 0.6f)
+            HudText(text = stringResource(R.string.luminosity_hud_luminance), alpha = 0.6f)
             HudText(
-                text = "${(luma * 100).roundToInt()}%",
+                text = stringResource(R.string.luminosity_hud_percent, (luma * 100).roundToInt()),
                 color = MaterialTheme.colorScheme.primary,
                 size = 16.sp,
             )
@@ -225,8 +226,8 @@ private fun LuminosityHud(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            HudText(text = "${(luma * 255).roundToInt()} / 255", alpha = 0.45f)
-            HudText(text = "${fps.roundToInt()} fps", alpha = 0.45f)
+            HudText(text = stringResource(R.string.luminosity_hud_raw, (luma * 255).roundToInt()), alpha = 0.45f)
+            HudText(text = stringResource(R.string.luminosity_hud_fps, fps.roundToInt()), alpha = 0.45f)
         }
     }
 }

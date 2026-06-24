@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -118,7 +119,7 @@ fun BoxScope.RawEditorContent(
 
                 DecodeResult.Failed -> {
                     Text(
-                        text = "This device couldn't decode the DNG in-app. The .dng is still saved to Downloads/CameraSamples.",
+                        text = stringResource(R.string.rawcapture_decode_failed),
                         color = Color.White,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(32.dp),
@@ -128,7 +129,7 @@ fun BoxScope.RawEditorContent(
                 is DecodeResult.Success -> {
                     Image(
                         bitmap = result.image,
-                        contentDescription = "Captured RAW",
+                        contentDescription = stringResource(R.string.rawcapture_captured_description),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit,
                         colorFilter = colorFilter,
@@ -158,7 +159,7 @@ fun BoxScope.RawEditorContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back to camera",
+        contentDescription = stringResource(R.string.rawcapture_back_to_camera),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -169,7 +170,7 @@ fun BoxScope.RawEditorContent(
     )
 
     ViewfinderTitleChip(
-        text = "RAW Editor",
+        text = stringResource(R.string.rawcapture_editor_title),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
@@ -200,7 +201,7 @@ private fun EditPanel(
                 .verticalScroll(rememberScrollState()),
     ) {
         Text(
-            text = "RAW keeps the full sensor data — exposure and white balance stay editable after the shot, unlike a baked JPEG.",
+            text = stringResource(R.string.rawcapture_editor_caption),
             color = Color.White.copy(alpha = 0.7f),
             style =
                 TextStyle(
@@ -211,33 +212,33 @@ private fun EditPanel(
             modifier = Modifier.padding(bottom = 8.dp),
         )
         ValueSlider(
-            label = "Exposure",
+            label = stringResource(R.string.rawcapture_exposure),
             value = exposure,
             onValueChange = onExposure,
             valueRange = -2f..2f,
-            valueLabel = "${"%+.1f".format(exposure)} EV",
+            valueLabel = stringResource(R.string.rawcapture_exposure_value, "%+.1f".format(exposure)),
         )
         ValueSlider(
-            label = "White Balance",
+            label = stringResource(R.string.rawcapture_white_balance),
             value = temperature,
             onValueChange = onTemperature,
             valueRange = -1f..1f,
             valueLabel =
                 if (temperature >= 0f) {
-                    "Warm ${(temperature * 100).roundToInt()}"
+                    stringResource(R.string.rawcapture_warm_value, (temperature * 100).roundToInt())
                 } else {
-                    "Cool ${(-temperature * 100).roundToInt()}"
+                    stringResource(R.string.rawcapture_cool_value, (-temperature * 100).roundToInt())
                 },
         )
         ValueSlider(
-            label = "Contrast",
+            label = stringResource(R.string.rawcapture_contrast),
             value = contrast,
             onValueChange = onContrast,
             valueRange = 0.5f..1.5f,
             valueLabel = "${(contrast * 100).roundToInt()}%",
         )
         ValueSlider(
-            label = "Saturation",
+            label = stringResource(R.string.rawcapture_saturation),
             value = saturation,
             onValueChange = onSaturation,
             valueRange = 0f..2f,
@@ -251,7 +252,7 @@ private fun EditPanel(
             contentAlignment = Alignment.CenterEnd,
         ) {
             Text(
-                text = "RESET",
+                text = stringResource(R.string.rawcapture_reset),
                 color = Color.White,
                 style =
                     TextStyle(

@@ -15,6 +15,7 @@
  */
 package com.android.camerax.extensions
 
+import androidx.annotation.StringRes
 import androidx.camera.core.ImageProxy
 import androidx.camera.extensions.ExtensionMode
 import androidx.lifecycle.ViewModel
@@ -29,15 +30,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-/** Human-readable label for an [ExtensionMode] integer constant. */
-fun extensionModeLabel(mode: Int): String =
+/** Human-readable label resource for an [ExtensionMode] integer constant. */
+@StringRes
+fun extensionModeLabel(mode: Int): Int =
     when (mode) {
-        ExtensionMode.AUTO -> "Auto"
-        ExtensionMode.BOKEH -> "Bokeh"
-        ExtensionMode.HDR -> "HDR"
-        ExtensionMode.NIGHT -> "Night"
-        ExtensionMode.FACE_RETOUCH -> "Face Retouch"
-        else -> "None"
+        ExtensionMode.AUTO -> R.string.extensions_mode_auto
+        ExtensionMode.BOKEH -> R.string.extensions_mode_bokeh
+        ExtensionMode.HDR -> R.string.extensions_mode_hdr
+        ExtensionMode.NIGHT -> R.string.extensions_mode_night
+        ExtensionMode.FACE_RETOUCH -> R.string.extensions_mode_face_retouch
+        else -> R.string.extensions_mode_none
     }
 
 @HiltViewModel

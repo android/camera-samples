@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -75,7 +76,7 @@ fun CameraXConcurrentCameraScreen(
             }
 
             CameraXConcurrentCameraUiState.Unsupported -> {
-                UnsupportedView(message = "Running two cameras at once isn't supported on this device.")
+                UnsupportedView(message = stringResource(R.string.concurrentcamera_unsupported))
             }
 
             is CameraXConcurrentCameraUiState.Error -> {
@@ -153,7 +154,7 @@ private fun BoxScope.StreamingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.concurrentcamera_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -164,7 +165,7 @@ private fun BoxScope.StreamingContent(
     )
 
     ViewfinderTitleChip(
-        text = "Back + Front",
+        text = stringResource(R.string.concurrentcamera_title),
         modifier =
             Modifier
                 .align(Alignment.BottomCenter)

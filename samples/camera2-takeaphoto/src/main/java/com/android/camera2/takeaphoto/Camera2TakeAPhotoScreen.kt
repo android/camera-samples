@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,8 +52,6 @@ import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
-
-private const val SAMPLE_TITLE = "Take a Photo"
 
 @Composable
 fun Camera2TakeAPhotoScreen(
@@ -137,7 +136,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.Filled.Close,
-        contentDescription = "Close",
+        contentDescription = stringResource(R.string.takeaphoto_close),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -148,7 +147,7 @@ private fun BoxScope.CapturingContent(
     )
 
     ViewfinderTitleChip(
-        text = SAMPLE_TITLE,
+        text = stringResource(R.string.takeaphoto_title),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
@@ -162,7 +161,7 @@ private fun BoxScope.CapturingContent(
             ScrimIconButton(
                 onClick = onSwapCamera,
                 imageVector = Icons.Filled.Cameraswitch,
-                contentDescription = "Swap Camera",
+                contentDescription = stringResource(R.string.takeaphoto_swap_camera),
             )
         },
         center = { ShutterButton(onClick = controller::takePicture) },

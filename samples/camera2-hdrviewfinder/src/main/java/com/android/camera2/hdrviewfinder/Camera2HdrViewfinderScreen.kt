@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -129,7 +130,7 @@ private fun BoxScope.ViewfinderContent(
     if (frame != null) {
         Image(
             bitmap = frame.asImageBitmap(),
-            contentDescription = "Processed camera viewfinder",
+            contentDescription = stringResource(R.string.hdrviewfinder_viewfinder),
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
@@ -142,7 +143,7 @@ private fun BoxScope.ViewfinderContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.hdrviewfinder_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -154,7 +155,7 @@ private fun BoxScope.ViewfinderContent(
     ScrimIconButton(
         onClick = { isOverlayVisible = true },
         imageVector = Icons.Filled.Tune,
-        contentDescription = "Processing mode",
+        contentDescription = stringResource(R.string.hdrviewfinder_processing_mode),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -164,24 +165,16 @@ private fun BoxScope.ViewfinderContent(
     )
 
     SettingsOverlay(visible = isOverlayVisible, onDismiss = { isOverlayVisible = false }) {
-        SettingsHeader(text = "Processing mode")
+        SettingsHeader(text = stringResource(R.string.hdrviewfinder_processing_mode))
         SettingsDropdown(
-            label = "Mode",
+            label = stringResource(R.string.hdrviewfinder_mode_label),
             options = ProcessingMode.entries,
             selected = mode,
             onSelected = { selected ->
                 onModeSelected(selected)
                 controller.setMode(selected)
             },
-            optionLabel = { modeLabel(it) },
+            optionLabel = { context.getString(it.label) },
         )
     }
 }
-
-private fun modeLabel(mode: ProcessingMode): String =
-    when (mode) {
-        ProcessingMode.NORMAL -> "Normal"
-        ProcessingMode.INVERT -> "Invert"
-        ProcessingMode.THRESHOLD -> "Threshold"
-        ProcessingMode.POSTERIZE -> "Posterize"
-    }

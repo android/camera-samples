@@ -301,7 +301,10 @@ abstract class BaseCamera2Controller(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val executor = Executor { command -> backgroundHandler.post(command) }
-            val outputConfigurations = surfaces.map { OutputConfiguration(it) }
+            val outputConfigurations =
+                surfaces.map { surface ->
+                    OutputConfiguration(surface).also { configureOutput(it, surface) }
+                }
             val sessionConfiguration =
                 SessionConfiguration(
                     SessionConfiguration.SESSION_REGULAR,
@@ -315,6 +318,16 @@ abstract class BaseCamera2Controller(
             camera.createCaptureSession(surfaces, stateCallback, null)
         }
     }
+
+    /**
+     * Hook to customize each [OutputConfiguration] before a capture session is created (the API 28+
+     * path). Default is a no-op; HDR samples override it to tag the output with a 10-bit dynamic-range
+     * profile via [OutputConfiguration.setDynamicRangeProfile].
+     */
+    protected open fun configureOutput(
+        output: OutputConfiguration,
+        surface: Surface,
+    ) {}
 
     /** Tap-to-focus: meters and triggers AF/AE at the tapped point. */
     fun focus(

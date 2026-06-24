@@ -28,7 +28,18 @@ plugins {
 
 apply(from = "createSample.gradle.kts")
 
+// Dagger/Hilt 2.57+ unshades kotlin-metadata-jvm, so it can be overridden independently. Force it to
+// match the Kotlin compiler (2.4.0) — otherwise the Hilt aggregating processor (hiltJavaCompileDebug)
+// fails with "Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0".
+val kotlinVersion = libs.versions.kotlin.get()
+
 subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
+        }
+    }
+
     apply(plugin = "com.diffplug.spotless")
     configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         kotlin {

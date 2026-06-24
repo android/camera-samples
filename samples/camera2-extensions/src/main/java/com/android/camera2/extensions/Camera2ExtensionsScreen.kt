@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,7 +75,7 @@ fun Camera2ExtensionsScreen(
             }
 
             Camera2ExtensionsUiState.Unsupported -> {
-                UnsupportedView(message = "Camera extensions aren't supported on this device.")
+                UnsupportedView(message = stringResource(R.string.extensions_unsupported))
             }
 
             is Camera2ExtensionsUiState.Error -> {
@@ -136,7 +137,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.extensions_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -148,7 +149,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = { settingsVisible = true },
         imageVector = Icons.Filled.Settings,
-        contentDescription = "Extension settings",
+        contentDescription = stringResource(R.string.extensions_settings),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -166,16 +167,16 @@ private fun BoxScope.CapturingContent(
         visible = settingsVisible,
         onDismiss = { settingsVisible = false },
     ) {
-        SettingsHeader(text = "Extension")
+        SettingsHeader(text = stringResource(R.string.extensions_settings_header))
         SettingsDropdown(
-            label = "Extension",
+            label = stringResource(R.string.extensions_dropdown_label),
             options = supportedExtensions,
             selected = currentExtension,
             onSelected = { extension ->
                 viewModel.setExtension(extension)
                 controller.setExtension(extension)
             },
-            optionLabel = { extension -> extensionLabel(extension) },
+            optionLabel = { extension -> context.getString(extensionLabel(extension)) },
         )
     }
 }

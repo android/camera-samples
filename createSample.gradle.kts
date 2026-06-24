@@ -119,6 +119,16 @@ abstract class CreateSampleTask : DefaultTask() {
             if (isCameraX) cameraXScreen(pkgName, base, scName) else camera2Screen(pkgName, base, scName),
         )
 
+        // Per-sample string resources: keep user-facing text out of the Kotlin and in strings.xml.
+        val resValuesDir = File(sampleDir, "src/main/res/values")
+        resValuesDir.mkdirs()
+        File(resValuesDir, "strings.xml").writeText(
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+                "<resources>\n" +
+                "    <!-- Add this sample's user-facing strings here; read them with stringResource(R.string.…). -->\n" +
+                "</resources>\n",
+        )
+
         // settings.gradle.kts
         val settingsFile = File(rootDirFile, "settings.gradle.kts")
         val settingsText = settingsFile.readText()
@@ -132,8 +142,8 @@ abstract class CreateSampleTask : DefaultTask() {
         if (!appBuildText.contains("implementation(project(\":samples:$sName\"))")) {
             appBuildFile.writeText(
                 appBuildText.replace(
-                    "    implementation(project(\":core-ui\"))",
-                    "    implementation(project(\":core-ui\"))\n" +
+                    "    implementation(project(\":core-theme\"))",
+                    "    implementation(project(\":core-theme\"))\n" +
                         "    implementation(project(\":samples:$sName\"))",
                 ),
             )

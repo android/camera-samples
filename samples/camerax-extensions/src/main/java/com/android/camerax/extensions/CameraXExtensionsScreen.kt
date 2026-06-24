@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -185,7 +186,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.extensions_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -197,7 +198,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = { settingsVisible = true },
         imageVector = Icons.Filled.AutoAwesome,
-        contentDescription = "Extension mode",
+        contentDescription = stringResource(R.string.extensions_mode_button),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -215,16 +216,16 @@ private fun BoxScope.CapturingContent(
         visible = settingsVisible,
         onDismiss = { settingsVisible = false },
     ) {
-        SettingsHeader(text = "Extension")
+        SettingsHeader(text = stringResource(R.string.extensions_settings_header))
         SettingsDropdown(
-            label = "Extension",
+            label = stringResource(R.string.extensions_dropdown_label),
             options = availableModes,
             selected = currentMode,
             onSelected = { mode ->
                 onExtensionSelected(mode)
                 controller.setExtension(mode)
             },
-            optionLabel = ::extensionModeLabel,
+            optionLabel = { context.getString(extensionModeLabel(it)) },
         )
     }
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="effects_back">Back</string>
+    <string name="effects_frame_description">Filtered camera frame</string>
+    <string name="effects_cycle">Cycle effect</string>
+    <string name="effects_title">Effect · %1$s</string>
+    <string name="effects_mode_none">None</string>
+    <string name="effects_mode_grayscale">Grayscale</string>
+    <string name="effects_mode_invert">Invert</string>
+    <string name="effects_mode_sepia">Sepia</string>
+    <string name="effects_mode_cool">Cool</string>
+    <string name="effects_mode_warm">Warm</string>
+    <string name="effects_mode_vivid">Vivid</string>
+</resources>

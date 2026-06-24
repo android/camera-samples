@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -132,7 +133,7 @@ private fun BoxScope.PreviewingContent(
     if (frame != null) {
         Image(
             bitmap = frame,
-            contentDescription = "Filtered camera frame",
+            contentDescription = stringResource(R.string.effects_frame_description),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
         )
@@ -143,7 +144,7 @@ private fun BoxScope.PreviewingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.effects_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -154,7 +155,7 @@ private fun BoxScope.PreviewingContent(
     )
 
     ViewfinderTitleChip(
-        text = "Effect · ${state.effect.label}",
+        text = stringResource(R.string.effects_title, stringResource(state.effect.label)),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
@@ -168,7 +169,7 @@ private fun BoxScope.PreviewingContent(
             ScrimIconButton(
                 onClick = onCycleEffect,
                 imageVector = Icons.Filled.AutoFixHigh,
-                contentDescription = "Cycle effect",
+                contentDescription = stringResource(R.string.effects_cycle),
                 size = 64.dp,
                 iconSize = 28.dp,
             )

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="videopauseresume_back">Back</string>
+    <string name="videopauseresume_pause">Pause</string>
+    <string name="videopauseresume_resume">Resume</string>
+    <string name="videopauseresume_recording">Rec %1$s</string>
+    <string name="videopauseresume_paused">Paused %1$s</string>
+</resources>

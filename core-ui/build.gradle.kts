@@ -67,8 +67,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Compose tooling previews (e.g. VideoPlayer).
-    implementation(libs.ui.tooling.preview)
-    debugImplementation(libs.ui.tooling)
+    implementation(libs.androidx.ui.tooling.preview)
+    debugImplementation(libs.androidx.ui.tooling)
 
     // Captured-video preview: ExoPlayer + the Compose PlayerSurface (no Android views).
     implementation(libs.androidx.media3.exoplayer)

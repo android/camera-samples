@@ -17,6 +17,7 @@ package com.android.camera2.takeavideo
 
 import android.util.Size
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -159,7 +161,7 @@ private fun BoxScope.CapturingContent(
         ScrimIconButton(
             onClick = onBack,
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
+            contentDescription = stringResource(R.string.takeavideo_back),
             size = 34.dp,
             iconSize = 18.dp,
         )
@@ -167,7 +169,7 @@ private fun BoxScope.CapturingContent(
             ScrimIconButton(
                 onClick = viewModel::toggleOverlay,
                 imageVector = Icons.Filled.Settings,
-                contentDescription = "Settings",
+                contentDescription = stringResource(R.string.takeavideo_settings),
                 size = 34.dp,
                 iconSize = 18.dp,
             )
@@ -202,24 +204,26 @@ private fun VideoSettings(
     config: CameraVideoConfig,
     onConfigUpdate: ((CameraVideoConfig) -> CameraVideoConfig) -> Unit,
 ) {
-    SettingsHeader(text = "Recording settings")
+    val context = LocalContext.current
+
+    SettingsHeader(text = stringResource(R.string.takeavideo_settings_header))
 
     SettingsDropdown(
-        label = "FPS",
+        label = stringResource(R.string.takeavideo_fps_label),
         options = listOf(24, 30, 60),
         selected = config.fps,
         onSelected = { fps -> onConfigUpdate { it.copy(fps = fps) } },
         optionLabel = { "$it" },
     )
     SettingsDropdown(
-        label = "Codec",
+        label = stringResource(R.string.takeavideo_codec_label),
         options = listOf(0, 1, 2),
         selected = config.videoCodec,
         onSelected = { codec -> onConfigUpdate { it.copy(videoCodec = codec) } },
-        optionLabel = { codecLabel(it) },
+        optionLabel = { context.getString(codecLabel(it)) },
     )
     SettingsDropdown(
-        label = "Resolution",
+        label = stringResource(R.string.takeavideo_resolution_label),
         options = listOf(Size(1280, 720), Size(1920, 1080), Size(3840, 2160)),
         selected = config.size,
         onSelected = { size -> onConfigUpdate { it.copy(size = size) } },
@@ -227,10 +231,11 @@ private fun VideoSettings(
     )
 }
 
-private fun codecLabel(codec: Int): String =
+@StringRes
+private fun codecLabel(codec: Int): Int =
     when (codec) {
-        0 -> "HEVC"
-        1 -> "H264"
-        2 -> "AV1"
-        else -> "H264"
+        0 -> R.string.takeavideo_codec_hevc
+        1 -> R.string.takeavideo_codec_h264
+        2 -> R.string.takeavideo_codec_av1
+        else -> R.string.takeavideo_codec_h264
     }

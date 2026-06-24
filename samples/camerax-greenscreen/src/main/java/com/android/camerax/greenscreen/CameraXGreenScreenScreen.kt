@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -80,7 +81,7 @@ fun CameraXGreenScreenScreen(
             }
 
             CameraXGreenScreenUiState.Unsupported -> {
-                UnsupportedView(message = "Running the front and back cameras at once isn't supported on this device.")
+                UnsupportedView(message = stringResource(R.string.greenscreen_unsupported))
             }
 
             is CameraXGreenScreenUiState.Error -> {
@@ -162,7 +163,7 @@ private fun BoxScope.CompositingContent(
         state.personOverlay?.let { overlay ->
             Image(
                 bitmap = overlay,
-                contentDescription = "Segmented front-camera subject",
+                contentDescription = stringResource(R.string.greenscreen_overlay_description),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
@@ -172,7 +173,7 @@ private fun BoxScope.CompositingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.greenscreen_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -183,7 +184,7 @@ private fun BoxScope.CompositingContent(
     )
 
     ViewfinderTitleChip(
-        text = "Green Screen · Front over Back",
+        text = stringResource(R.string.greenscreen_title),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)

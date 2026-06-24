@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -165,7 +166,7 @@ private fun BoxScope.CapturingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.videopauseresume_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -175,8 +176,15 @@ private fun BoxScope.CapturingContent(
     )
 
     if (recording != null) {
+        val clock = formatClock(recording.elapsedNanos)
+        val recordingText =
+            if (isPaused) {
+                stringResource(R.string.videopauseresume_paused, clock)
+            } else {
+                stringResource(R.string.videopauseresume_recording, clock)
+            }
         ViewfinderTitleChip(
-            text = recordingLabel(isPaused, recording.elapsedNanos),
+            text = recordingText,
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
@@ -199,7 +207,12 @@ private fun BoxScope.CapturingContent(
                         }
                     },
                     imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                    contentDescription = if (isPaused) "Resume" else "Pause",
+                    contentDescription =
+                        if (isPaused) {
+                            stringResource(R.string.videopauseresume_resume)
+                        } else {
+                            stringResource(R.string.videopauseresume_pause)
+                        },
                 )
             }
         },
@@ -220,14 +233,10 @@ private fun BoxScope.CapturingContent(
     )
 }
 
-/** Formats the recording indicator, e.g. `REC 01:07` or `PAUSED 01:07`. */
-private fun recordingLabel(
-    paused: Boolean,
-    elapsedNanos: Long,
-): String {
+/** Formats the elapsed recording duration as a `mm:ss` clock, e.g. `01:07`. */
+private fun formatClock(elapsedNanos: Long): String {
     val totalSeconds = (elapsedNanos / 1_000_000_000L).toInt()
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    val clock = "%02d:%02d".format(minutes, seconds)
-    return if (paused) "Paused $clock" else "Rec $clock"
+    return "%02d:%02d".format(minutes, seconds)
 }

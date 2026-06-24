@@ -15,19 +15,20 @@
  */
 package com.android.camerax.effects
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 
 /** The live color filters this sample applies to the camera, cycled in order. */
 enum class EffectMode(
-    val label: String,
+    @param:StringRes val label: Int,
 ) {
-    NONE("None"),
-    GRAYSCALE("Grayscale"),
-    INVERT("Invert"),
-    SEPIA("Sepia"),
-    COOL("Cool"),
-    WARM("Warm"),
-    VIVID("Vivid"),
+    NONE(R.string.effects_mode_none),
+    GRAYSCALE(R.string.effects_mode_grayscale),
+    INVERT(R.string.effects_mode_invert),
+    SEPIA(R.string.effects_mode_sepia),
+    COOL(R.string.effects_mode_cool),
+    WARM(R.string.effects_mode_warm),
+    VIVID(R.string.effects_mode_vivid),
 }
 
 sealed interface CameraXEffectsUiState {

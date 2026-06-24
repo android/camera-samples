@@ -15,6 +15,7 @@
  */
 package com.android.camera2.manualcontrols
 
+import android.content.Context
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,7 +74,7 @@ fun Camera2ManualControlsScreen(
     CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
             Camera2ManualControlsUiState.Unsupported -> {
-                UnsupportedView(message = "Manual sensor controls aren't supported on this device.")
+                UnsupportedView(message = stringResource(R.string.manualcontrols_unsupported))
             }
 
             is Camera2ManualControlsUiState.Error -> {
@@ -115,7 +117,7 @@ private fun BoxScope.CameraContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.manualcontrols_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -145,7 +147,7 @@ private fun BoxScope.CameraContent(
     ScrimIconButton(
         onClick = { settingsVisible = true },
         imageVector = Icons.Filled.Tune,
-        contentDescription = "Manual controls",
+        contentDescription = stringResource(R.string.manualcontrols_settings),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -155,8 +157,8 @@ private fun BoxScope.CameraContent(
     )
 
     SettingsOverlay(visible = settingsVisible, onDismiss = { settingsVisible = false }) {
-        SettingsHeader(text = "Manual controls")
-        SettingsRow(label = "Manual") {
+        SettingsHeader(text = stringResource(R.string.manualcontrols_settings_header))
+        SettingsRow(label = stringResource(R.string.manualcontrols_manual_label)) {
             Switch(
                 checked = state.manualEnabled,
                 onCheckedChange = viewModel::setManualEnabled,
@@ -167,7 +169,7 @@ private fun BoxScope.CameraContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         ValueSlider(
-            label = "ISO",
+            label = stringResource(R.string.manualcontrols_iso_label),
             value = state.iso.toFloat(),
             onValueChange = { viewModel.setIso(it.roundToInt()) },
             valueRange = state.isoRange.first.toFloat()..state.isoRange.second.toFloat(),
@@ -178,30 +180,37 @@ private fun BoxScope.CameraContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         ValueSlider(
-            label = "Shutter",
+            label = stringResource(R.string.manualcontrols_shutter_label),
             value = state.exposureNs.toFloat(),
             onValueChange = { viewModel.setExposure(it.toLong()) },
             valueRange = state.exposureRangeNs.first.toFloat()..state.exposureRangeNs.second.toFloat(),
             enabled = state.manualEnabled,
-            valueLabel = formatShutter(state.exposureNs),
+            valueLabel = formatShutter(context, state.exposureNs),
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         ValueSlider(
-            label = "Focus",
+            label = stringResource(R.string.manualcontrols_focus_label),
             value = state.focusDistance,
             onValueChange = viewModel::setFocusDistance,
             valueRange = 0f..state.minFocusDistance.coerceAtLeast(0.01f),
             enabled = state.manualEnabled && state.minFocusDistance > 0f,
-            valueLabel = "${"%.1f".format(state.focusDistance)} diopters",
+            valueLabel = stringResource(R.string.manualcontrols_focus_value, "%.1f".format(state.focusDistance)),
         )
     }
 }
 
 /** Formats an exposure time in nanoseconds as a "1/Ns" shutter-speed label. */
-private fun formatShutter(exposureNs: Long): String {
-    if (exposureNs <= 0L) return "--"
+private fun formatShutter(
+    context: Context,
+    exposureNs: Long,
+): String {
+    if (exposureNs <= 0L) return context.getString(R.string.manualcontrols_shutter_unavailable)
     val denominator = (1e9 / exposureNs).roundToInt()
-    return if (denominator >= 1) "1/${denominator}s" else "${exposureNs / 1_000_000_000.0}s"
+    return if (denominator >= 1) {
+        context.getString(R.string.manualcontrols_shutter_fraction, denominator)
+    } else {
+        context.getString(R.string.manualcontrols_shutter_seconds, (exposureNs / 1_000_000_000.0).toString())
+    }
 }

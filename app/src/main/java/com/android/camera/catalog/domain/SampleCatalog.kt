@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import com.android.camera.catalog.R
 import com.android.camera.coretheme.extendedColorScheme
 import com.android.camera2.extensions.Camera2ExtensionsScreen
+import com.android.camera2.hdrvideo.Camera2HdrVideo
 import com.android.camera2.hdrviewfinder.Camera2HdrViewfinderScreen
 import com.android.camera2.manualcontrols.Camera2ManualControlsScreen
 import com.android.camera2.qrscanner.Camera2QrScannerScreen
@@ -35,6 +36,7 @@ import com.android.camerax.effects.CameraXEffectsScreen
 import com.android.camerax.exposure.CameraXExposureScreen
 import com.android.camerax.extensions.CameraXExtensionsScreen
 import com.android.camerax.greenscreen.CameraXGreenScreenScreen
+import com.android.camerax.hdrvideo.CameraXHdrVideo
 import com.android.camerax.imagelabeling.CameraXImageLabelingScreen
 import com.android.camerax.luminosity.CameraXLuminosityScreen
 import com.android.camerax.qrscanner.CameraXQrScannerScreen
@@ -234,6 +236,24 @@ val sampleCatalog =
             type = SampleType.CAMERAX,
             category = SampleCategory.ML,
             tags = listOf(SampleTags.ML_KIT, SampleTags.ANALYSIS),
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_hdrvideo_list_title,
+            description = R.string.camerax_hdrvideo_list_description,
+            route = "CameraXHdrVideo",
+            sampleEntryScreen = { CameraXHdrVideo() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.VIDEO,
+            tags = listOf(SampleTags.VIDEO),
+        ),
+        SampleCatalogItem(
+            title = R.string.camera2_hdrvideo_list_title,
+            description = R.string.camera2_hdrvideo_list_description,
+            route = "Camera2HdrVideo",
+            sampleEntryScreen = { Camera2HdrVideo() },
+            type = SampleType.CAMERA2,
+            category = SampleCategory.VIDEO,
+            tags = listOf(SampleTags.VIDEO),
         ),
         // To create a new sample entry, add a new SampleCatalogItem here.
     )

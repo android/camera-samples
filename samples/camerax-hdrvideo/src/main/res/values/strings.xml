@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hdrvideo_back">Back</string>
+    <string name="hdrvideo_settings">Settings</string>
+    <string name="hdrvideo_unsupported">This device\'s camera doesn\'t support 10-bit HDR video recording.</string>
+    <string name="hdrvideo_hdr_badge">10-bit HDR</string>
+    <string name="hdrvideo_settings_header">Recording settings</string>
+    <string name="hdrvideo_range_label">Dynamic range</string>
+    <string name="hdrvideo_quality_label">Quality</string>
+    <string name="hdrvideo_range_sdr">SDR</string>
+    <string name="hdrvideo_range_hlg10">HLG 10-bit</string>
+    <string name="hdrvideo_range_hdr10">HDR10</string>
+    <string name="hdrvideo_range_hdr10plus">HDR10+</string>
+    <string name="hdrvideo_range_dolby">Dolby Vision</string>
+    <string name="hdrvideo_quality_sd">SD (480p)</string>
+    <string name="hdrvideo_quality_hd">HD (720p)</string>
+    <string name="hdrvideo_quality_fhd">FHD (1080p)</string>
+    <string name="hdrvideo_quality_uhd">UHD (2160p)</string>
+</resources>

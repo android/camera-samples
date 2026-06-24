@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="luminosity_back">Back</string>
+    <string name="luminosity_title">Luminosity</string>
+    <string name="luminosity_hud_luminance">LUMINANCE</string>
+    <string name="luminosity_hud_percent">%1$d%%</string>
+    <string name="luminosity_hud_raw">%1$d / 255</string>
+    <string name="luminosity_hud_fps">%1$d fps</string>
+</resources>

@@ -15,10 +15,7 @@
  */
 package com.android.camerax.ultrahdr
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -29,6 +26,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,7 +44,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -70,6 +68,7 @@ import com.android.camera.coretheme.monoFontFamily
 import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.overlay.ViewfinderTitleChip
 import com.android.camera.coreui.state.LoadingView
+import com.android.camera.coreui.widget.HdrWindowColorMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -77,11 +76,11 @@ private const val TAG = "UltraHdrViewer"
 
 /** The three ways to inspect a captured Ultra HDR image. */
 enum class UltraHdrMode(
-    val label: String,
+    @param:StringRes val label: Int,
 ) {
-    SDR("SDR"),
-    GAIN_MAP("Gain map"),
-    ULTRA_HDR("Ultra HDR"),
+    SDR(R.string.ultrahdr_mode_sdr),
+    GAIN_MAP(R.string.ultrahdr_mode_gain_map),
+    ULTRA_HDR(R.string.ultrahdr_mode_ultra_hdr),
 }
 
 /**
@@ -102,7 +101,6 @@ fun BoxScope.UltraHdrViewer(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() }
     val supportsHdr = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
 
     BackHandler(onBack = onBack)
@@ -118,24 +116,8 @@ fun BoxScope.UltraHdrViewer(
         if (hdrAvailable) mode = UltraHdrMode.ULTRA_HDR
     }
 
-    // Drive the window color mode from the selected view; always restore SDR when leaving.
-    LaunchedEffect(mode, activity, supportsHdr) {
-        if (activity != null && supportsHdr) {
-            activity.window.colorMode =
-                if (mode == UltraHdrMode.ULTRA_HDR) {
-                    ActivityInfo.COLOR_MODE_HDR
-                } else {
-                    ActivityInfo.COLOR_MODE_DEFAULT
-                }
-        }
-    }
-    DisposableEffect(activity) {
-        onDispose {
-            if (activity != null && supportsHdr) {
-                activity.window.colorMode = ActivityInfo.COLOR_MODE_DEFAULT
-            }
-        }
-    }
+    // Drive the window color mode from the selected view; restores SDR when leaving (core-ui helper).
+    HdrWindowColorMode(enabled = mode == UltraHdrMode.ULTRA_HDR)
 
     Box(
         modifier =
@@ -155,7 +137,7 @@ fun BoxScope.UltraHdrViewer(
                 }
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Captured Ultra HDR image",
+                contentDescription = stringResource(R.string.ultrahdr_image_description),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
             )
@@ -165,7 +147,7 @@ fun BoxScope.UltraHdrViewer(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back to camera",
+        contentDescription = stringResource(R.string.ultrahdr_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -176,7 +158,7 @@ fun BoxScope.UltraHdrViewer(
     )
 
     ViewfinderTitleChip(
-        text = "Ultra HDR · ${mode.label}",
+        text = stringResource(R.string.ultrahdr_title_with_mode, stringResource(mode.label)),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
@@ -186,7 +168,7 @@ fun BoxScope.UltraHdrViewer(
 
     if (assets != null && !hdrAvailable) {
         Text(
-            text = "HDR rendering needs an Ultra HDR image on an Android 14+ HDR display. Showing SDR only.",
+            text = stringResource(R.string.ultrahdr_sdr_only),
             color = Color.White.copy(alpha = 0.6f),
             textAlign = TextAlign.Center,
             style = TextStyle(fontFamily = monoFontFamily, fontSize = 10.sp, letterSpacing = 0.04.em),
@@ -239,7 +221,7 @@ private fun ModeSelector(
 
 @Composable
 private fun ModePill(
-    label: String,
+    @StringRes label: Int,
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -260,7 +242,7 @@ private fun ModePill(
                 .padding(horizontal = 18.dp, vertical = 9.dp),
     ) {
         Text(
-            text = label,
+            text = stringResource(label),
             style = TextStyle(fontFamily = monoFontFamily, fontSize = 11.sp, letterSpacing = 0.06.em),
             color = textColor,
         )
@@ -337,13 +319,4 @@ private fun visualizeGainmap(contents: Bitmap): Bitmap {
         }
     Canvas(output).drawBitmap(contents, 0f, 0f, paint)
     return output
-}
-
-private fun Context.findActivity(): Activity? {
-    var context: Context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
-    }
-    return null
 }

@@ -1,3 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="extensions_back">Back</string>
+    <string name="extensions_settings">Extension settings</string>
+    <string name="extensions_unsupported">Camera extensions aren\'t supported on this device.</string>
+    <string name="extensions_settings_header">Extension</string>
+    <string name="extensions_dropdown_label">Extension</string>
+    <string name="extensions_label_none">None</string>
+    <string name="extensions_label_hdr">HDR</string>
+    <string name="extensions_label_night">Night</string>
+    <string name="extensions_label_bokeh">Bokeh</string>
+    <string name="extensions_label_face_retouch">Face Retouch</string>
+    <string name="extensions_label_auto">Auto</string>
 </resources>

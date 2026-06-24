@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exposure_back">Back</string>
+    <string name="exposure_slider_label">Exposure (EV)</string>
+    <string name="exposure_ev_value">%1$+.1f EV</string>
+</resources>

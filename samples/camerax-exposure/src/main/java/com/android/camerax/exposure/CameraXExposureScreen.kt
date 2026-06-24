@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -139,7 +140,7 @@ private fun BoxScope.PreviewingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.exposure_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -154,13 +155,13 @@ private fun BoxScope.PreviewingContent(
     ) {
         val sliderEnabled = state.supported && state.minIndex < state.maxIndex
         ValueSlider(
-            label = "Exposure (EV)",
+            label = stringResource(R.string.exposure_slider_label),
             value = state.evIndex.toFloat(),
             onValueChange = { value -> onExposureChange(value.roundToInt()) },
             valueRange = state.minIndex.toFloat()..state.maxIndex.toFloat(),
             steps = (state.maxIndex - state.minIndex - 1).coerceAtLeast(0),
             enabled = sliderEnabled,
-            valueLabel = "%+.1f EV".format(state.evIndex * state.stepEv),
+            valueLabel = stringResource(R.string.exposure_ev_value, state.evIndex * state.stepEv),
             modifier =
                 Modifier
                     .fillMaxWidth()

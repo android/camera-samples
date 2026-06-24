@@ -29,7 +29,7 @@ android {
     defaultConfig {
         applicationId = "com.android.camera.catalog"
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
@@ -93,6 +93,7 @@ dependencies {
     implementation(project(":samples:camerax-videopauseresume"))
     implementation(project(":samples:camerax-effects"))
     implementation(project(":samples:camerax-greenscreen"))
+    implementation(project(":samples:camerax-hdrvideo"))
 
     // Camera2 Samples
     implementation(project(":samples:camera2-takeaphoto"))
@@ -103,6 +104,7 @@ dependencies {
     implementation(project(":samples:camera2-zoomandtorch"))
     implementation(project(":samples:camera2-manualcontrols"))
     implementation(project(":samples:camera2-qrscanner"))
+    implementation(project(":samples:camera2-hdrvideo"))
     implementation(project(":samples:camera2-rawcapture"))
 
     testImplementation(libs.junit)

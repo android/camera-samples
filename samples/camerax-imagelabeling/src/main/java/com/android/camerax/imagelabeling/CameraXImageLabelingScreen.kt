@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -143,7 +144,7 @@ private fun BoxScope.AnalyzingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.imagelabeling_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -180,7 +181,7 @@ private fun LabelOverlay(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            text = "LABELS",
+            text = stringResource(R.string.imagelabeling_labels_header),
             style =
                 TextStyle(
                     fontFamily = monoFontFamily,
@@ -207,7 +208,7 @@ private fun LabelOverlay(
                         ),
                 )
                 Text(
-                    text = "$percent%",
+                    text = stringResource(R.string.imagelabeling_confidence_percent, percent),
                     color = MaterialTheme.colorScheme.primary,
                     style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
                 )

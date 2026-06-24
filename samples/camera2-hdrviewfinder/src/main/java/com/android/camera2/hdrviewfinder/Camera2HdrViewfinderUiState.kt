@@ -15,23 +15,27 @@
  */
 package com.android.camera2.hdrviewfinder
 
+import androidx.annotation.StringRes
+
 /**
  * The per-pixel transform applied to the live luma frame before it is rendered. This replaces the
  * RenderScript-based processing of the legacy HdrViewfinder sample with plain CPU math so the sample
  * keeps working on modern Android, where RenderScript has been removed.
  */
-enum class ProcessingMode {
+enum class ProcessingMode(
+    @param:StringRes val label: Int,
+) {
     /** Pass the luma value through unchanged (a grayscale viewfinder). */
-    NORMAL,
+    NORMAL(R.string.hdrviewfinder_mode_normal),
 
     /** Invert each luma value (`255 - luma`). */
-    INVERT,
+    INVERT(R.string.hdrviewfinder_mode_invert),
 
     /** Binarize each luma value around the midpoint (`luma > 128 ? 255 : 0`). */
-    THRESHOLD,
+    THRESHOLD(R.string.hdrviewfinder_mode_threshold),
 
     /** Quantize each luma value into 64-step bands (`(luma / 64) * 64`). */
-    POSTERIZE,
+    POSTERIZE(R.string.hdrviewfinder_mode_posterize),
 }
 
 sealed interface Camera2HdrViewfinderUiState {

@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,7 +69,7 @@ fun Camera2RawCaptureScreen(
             }
 
             Camera2RawCaptureUiState.Unsupported -> {
-                UnsupportedView(message = "RAW (DNG) capture is not supported on this device's camera.")
+                UnsupportedView(message = stringResource(R.string.rawcapture_unsupported))
             }
 
             is Camera2RawCaptureUiState.Error -> {
@@ -120,7 +121,7 @@ private fun BoxScope.PreviewingContent(
     ScrimIconButton(
         onClick = onBack,
         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
+        contentDescription = stringResource(R.string.rawcapture_back),
         size = 34.dp,
         iconSize = 18.dp,
         modifier =
@@ -131,7 +132,7 @@ private fun BoxScope.PreviewingContent(
     )
 
     ViewfinderTitleChip(
-        text = "RAW / DNG",
+        text = stringResource(R.string.rawcapture_title),
         modifier =
             Modifier
                 .align(Alignment.TopCenter)
