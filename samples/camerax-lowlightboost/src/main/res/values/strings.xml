@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lowlightboost_close">Close</string>
+    <string name="lowlightboost_title">Low-Light Boost</string>
+    <string name="lowlightboost_unsupported">Low-light boost isn\'t supported on this device\'s camera.</string>
+    <string name="lowlightboost_chip">Low light</string>
+    <string name="lowlightboost_chip_on">Low light on</string>
+</resources>

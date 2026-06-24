@@ -21,6 +21,7 @@ spotless = "8.7.0"
 material3 = "1.5.0-alpha22"
 uiTextGoogleFonts = "1.11.3"
 cameraViewfinder = "1.6.1"
+cameraFeatureCombo = "1.6.1"
 kotlinxCoroutinesGuava = "1.11.0"
 mlkitBarcodeScanning = "17.3.0"
 mlkitImageLabeling = "17.0.9"
@@ -59,6 +60,8 @@ androidx-media3-ui-compose = { module = "androidx.media3:media3-ui-compose", ver
 androidx-camera-viewfinder-compose = { module = "androidx.camera.viewfinder:viewfinder-compose", version.ref = "cameraViewfinder" }
 androidx-camera-viewfinder-core = { module = "androidx.camera.viewfinder:viewfinder-core", version.ref = "cameraViewfinder" }
 androidx-camera-video = { module = "androidx.camera:camera-video", version.ref = "cameraCore" }
+androidx-camera-featurecombinationquery = { module = "androidx.camera.featurecombinationquery:featurecombinationquery", version.ref = "cameraFeatureCombo" }
+androidx-camera-featurecombinationquery-play-services = { module = "androidx.camera.featurecombinationquery:featurecombinationquery-play-services", version.ref = "cameraFeatureCombo" }
 androidx-camera-extensions = { module = "androidx.camera:camera-extensions", version.ref = "cameraCore" }
 mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkitBarcodeScanning" }
 mlkit-image-labeling = { module = "com.google.mlkit:image-labeling", version.ref = "mlkitImageLabeling" }

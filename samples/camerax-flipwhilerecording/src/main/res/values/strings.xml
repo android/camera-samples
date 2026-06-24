@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="flipwhilerecording_back">Back</string>
+    <string name="flipwhilerecording_settings">Settings</string>
+    <string name="flipwhilerecording_settings_header">Recording settings</string>
+    <string name="flipwhilerecording_quality_label">Quality</string>
+    <string name="flipwhilerecording_quality_sd">SD (480p)</string>
+    <string name="flipwhilerecording_quality_hd">HD (720p)</string>
+    <string name="flipwhilerecording_quality_fhd">FHD (1080p)</string>
+    <string name="flipwhilerecording_quality_uhd">UHD (2160p)</string>
+</resources>

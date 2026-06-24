@@ -35,15 +35,19 @@ import com.android.camerax.concurrentcamera.CameraXConcurrentCameraScreen
 import com.android.camerax.effects.CameraXEffectsScreen
 import com.android.camerax.exposure.CameraXExposureScreen
 import com.android.camerax.extensions.CameraXExtensionsScreen
+import com.android.camerax.featurecombination.CameraXFeatureCombination
+import com.android.camerax.flipwhilerecording.CameraXFlipWhileRecording
 import com.android.camerax.greenscreen.CameraXGreenScreenScreen
 import com.android.camerax.hdrvideo.CameraXHdrVideo
 import com.android.camerax.imagelabeling.CameraXImageLabelingScreen
+import com.android.camerax.lowlightboost.CameraXLowLightBoost
 import com.android.camerax.luminosity.CameraXLuminosityScreen
 import com.android.camerax.qrscanner.CameraXQrScannerScreen
 import com.android.camerax.takeaphoto.CameraXTakeAPhotoScreen
 import com.android.camerax.takeavideo.CameraXTakeAVideoScreen
 import com.android.camerax.ultrahdr.CameraXUltraHdrScreen
 import com.android.camerax.videopauseresume.CameraXVideoPauseResumeScreen
+import com.android.camerax.videostabilization.CameraXVideoStabilization
 import com.android.camerax.zoomandtorch.CameraXZoomAndTorchScreen
 
 val sampleCatalog =
@@ -254,6 +258,40 @@ val sampleCatalog =
             type = SampleType.CAMERA2,
             category = SampleCategory.VIDEO,
             tags = listOf(SampleTags.VIDEO),
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_lowlightboost_list_title,
+            description = R.string.camerax_lowlightboost_list_description,
+            route = "CameraXLowLightBoost",
+            sampleEntryScreen = { CameraXLowLightBoost() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.CONTROLS,
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_videostabilization_list_title,
+            description = R.string.camerax_videostabilization_list_description,
+            route = "CameraXVideoStabilization",
+            sampleEntryScreen = { CameraXVideoStabilization() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.VIDEO,
+            tags = listOf(SampleTags.VIDEO),
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_flipwhilerecording_list_title,
+            description = R.string.camerax_flipwhilerecording_list_description,
+            route = "CameraXFlipWhileRecording",
+            sampleEntryScreen = { CameraXFlipWhileRecording() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.VIDEO,
+            tags = listOf(SampleTags.VIDEO),
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_featurecombination_list_title,
+            description = R.string.camerax_featurecombination_list_description,
+            route = "CameraXFeatureCombination",
+            sampleEntryScreen = { CameraXFeatureCombination() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.CONTROLS,
         ),
         // To create a new sample entry, add a new SampleCatalogItem here.
     )
