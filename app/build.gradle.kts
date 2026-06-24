@@ -24,7 +24,7 @@ plugins {
 
 android {
     namespace = "com.android.camera.catalog"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.android.camera.catalog"

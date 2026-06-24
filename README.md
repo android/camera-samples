@@ -5,6 +5,17 @@ catalog of small, self-contained, **Compose-first** samples. Each sample focuses
 reuses a shared camera-scaffolding layer, so adding a new sample means writing the feature — not the
 boilerplate.
 
+## Screenshots
+
+The home catalog in the "Console" theme — a violet accent, monospace metadata, a bordered featured
+card, and a dense 2-column grid. The filter pills narrow the catalog by API (right: Camera2 only).
+
+<p align="center">
+  <img src="docs/screenshots/home.png" width="260" alt="Home catalog — all samples" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/screenshots/home_filtered.png" width="260" alt="Home catalog — filtered to Camera2" />
+</p>
+
 ## How to run
 
 1. Clone the repository.
@@ -51,19 +62,21 @@ follows the layered, unidirectional pattern in [android_architecture.md](android
 
 ### Shared modules
 
-The scaffolding that used to be copy-pasted into every sample lives in two shared modules, so a new
+The scaffolding that used to be copy-pasted into every sample lives in three shared modules, so a new
 sample focuses only on its feature:
 
+- **`:core-theme`** — the design system: the Material 3 color scheme with the violet "Console" accent,
+  Space Grotesk / Space Mono typography (via Google Fonts), and the `AISampleCatalogTheme` wrapper.
 - **`:core-camera`** — camera plumbing: `BaseCamera2Controller` (background thread, open/close,
   viewfinder transform, tap-to-focus, session creation), `Camera2Preview` / `CameraXPreview`,
   `ImageUtils` (`Image`/`ImageProxy` → `Bitmap`), `MediaStoreSaver`, `rememberDisplayRotation()`,
   and `CameraPermissions`. It re-exports the common CameraX/Camera2 libraries.
 - **`:core-ui`** — API-agnostic Compose chrome: `CameraSampleScaffold` (permission flow + surface),
-  `ShutterButton` / `RecordButton` / `CameraSwitchButton` / `CameraControlsBar`, `ValueSlider`,
-  `CapturedImagePreview` / `CapturedVideoPreview`, `SettingsOverlay` / `SettingsDropdown`,
-  `FocusIndicator`, and the loading / error / unsupported state views.
-
-`:ui-component` remains the shared design system (theme, typography, buttons, video player).
+  the viewfinder HUD (`FocusIndicator` reticle, `RuleOfThirdsGrid`, `ViewfinderTitleChip`,
+  `TorchChip`), `ShutterButton` / `RecordButton` / `CameraControlsBar` / `ScrimIconButton`,
+  `ValueSlider` / `ZoomControls`, `CapturedImagePreview` / `CapturedVideoPreview` / `VideoPlayer`,
+  the `SettingsOverlay` menu, and the loading / error / unsupported state views. It re-exports
+  `:core-camera` and `:core-theme`.
 
 A sample is registered in one place — a `SampleCatalogItem` in
 [SampleCatalog.kt](app/src/main/java/com/android/camera/catalog/domain/SampleCatalog.kt) — and the
@@ -86,11 +99,6 @@ the build and catalog:
 ```
 
 Then implement the feature in the generated `Controller` / `Screen` and re-sync Gradle.
-
-## Ideas for future samples
-
-QR scanning on Camera2, a luminosity `ImageAnalysis` demo, 10-bit HDR still capture, concurrent /
-multi-camera, video pause-resume, and RAW/DNG capture (Camera2).
 
 ## Code style
 

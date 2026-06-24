@@ -31,9 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cameraswitch
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -132,7 +130,6 @@ fun RecordButton(
     }
 }
 
-/** White camera-swap (front/back) button. */
 @Composable
 fun CameraSwitchButton(
     onClick: () -> Unit,
@@ -144,24 +141,6 @@ fun CameraSwitchButton(
             contentDescription = "Swap Camera",
             tint = Color.White,
             modifier = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-/** White overlay back button, used at the top-start of a camera screen. */
-@Composable
-fun CameraOverlayButton(
-    onClick: () -> Unit,
-    imageVector: ImageVector,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-) {
-    IconButton(onClick = onClick, modifier = modifier) {
-        Icon(
-            imageVector = imageVector,
-            contentDescription = contentDescription,
-            tint = Color.White,
-            modifier = Modifier.size(32.dp),
         )
     }
 }
@@ -195,34 +174,6 @@ fun ScrimIconButton(
             modifier = Modifier.size(iconSize),
         )
     }
-}
-
-/** White overlay back arrow. */
-@Composable
-fun CameraBackButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    CameraOverlayButton(
-        onClick = onClick,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = "Back",
-        modifier = modifier,
-    )
-}
-
-/** White overlay close button. */
-@Composable
-fun CameraCloseButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    CameraOverlayButton(
-        onClick = onClick,
-        imageVector = Icons.Filled.Close,
-        contentDescription = "Close",
-        modifier = modifier,
-    )
 }
 
 /**

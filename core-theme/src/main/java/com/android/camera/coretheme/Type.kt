@@ -54,7 +54,6 @@ val monoFontFamily =
         ),
     )
 
-// Default Material 3 typography values
 val baseline = Typography()
 
 val AppTypography =

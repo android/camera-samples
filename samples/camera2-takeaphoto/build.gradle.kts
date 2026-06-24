@@ -23,7 +23,7 @@ plugins {
 
 android {
     namespace = "com.android.camera2.takeaphoto"
-    compileSdk = 36
+    compileSdk = 37
 
     buildFeatures {
         compose = true

@@ -189,7 +189,7 @@ plugins {
 
 android {
     namespace = "$pkg"
-    compileSdk = 36
+    compileSdk = 37
 
     buildFeatures {
         compose = true

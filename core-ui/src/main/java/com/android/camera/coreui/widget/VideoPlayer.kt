@@ -249,7 +249,6 @@ fun VideoPickerDropdown(
 
 const val VIDEO_BASE_URL = "https://storage.googleapis.com/androiddevelopers/samples_assets/gtv-videos-bucket/sample"
 
-// Sample data for the picker
 private val sampleVideosForPicker =
     listOf(
         VideoPickerData("Big Buck Bunny", "$VIDEO_BASE_URL/BigBuckBunny.mp4".toUri()),
@@ -384,7 +383,6 @@ private fun VideoControlsScaffoldPreview() {
         Box(modifier = Modifier.size(width = 400.dp, height = 200.dp)) {
             VideoControlsScaffold(
                 videoPickerDropdown = {
-                    // Preview for the dropdown area
                     VideoPickerDropdownPreview()
                 },
                 centerControls = { CenterControlsPreview() },

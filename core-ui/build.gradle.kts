@@ -22,7 +22,7 @@ plugins {
 
 android {
     namespace = "com.android.camera.coreui"
-    compileSdk = 36
+    compileSdk = 37
 
     buildFeatures {
         compose = true

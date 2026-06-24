@@ -23,7 +23,7 @@ plugins {
 
 android {
     namespace = "com.android.camerax.imagelabeling"
-    compileSdk = 36
+    compileSdk = 37
 
     buildFeatures {
         compose = true
