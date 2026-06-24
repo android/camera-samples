@@ -34,11 +34,18 @@ Filter the catalog by **All / CameraX / Camera2** on the home screen.
 | --- | --- | --- |
 | Take a Photo | CameraX / Camera2 | Preview, tap-to-focus, capture a still |
 | Take a Video | CameraX (Recorder) / Camera2 (MediaRecorder) | Record video to `DCIM/Camera` |
+| Pause/Resume | CameraX (Recorder) | Pause and resume a recording mid-capture |
 | Slow Motion | Camera2 | High-speed (constrained) recording |
-| QR Scanner | CameraX + ML Kit | Real-time barcode/QR detection with overlay |
+| QR Scanner | CameraX / Camera2 + ML Kit | Real-time barcode/QR detection with overlay |
 | Image Labeling | CameraX + ML Kit | Real-time on-device labels via `ImageAnalysis` |
+| Luminosity | CameraX | Scene-brightness meter from the `ImageAnalysis` Y plane |
+| Green Screen | CameraX + ML Kit | Concurrent cameras: segment the front-camera subject over the live back camera |
 | Extensions | CameraX / Camera2 | Night / Bokeh / HDR / Face Retouch / Auto |
+| Ultra HDR | CameraX | Gain-map Ultra HDR (`JPEG_R`) still capture |
+| Effects | CameraX | Live color filters (grayscale, sepia, invert, …) via `ImageAnalysis` + `ColorMatrix` |
 | Viewfinder Effects | Camera2 | Real-time frame processing on the live preview |
+| Concurrent Camera | CameraX | Front + back preview at once (picture-in-picture) |
+| RAW / DNG | Camera2 | `RAW_SENSOR` → DNG via `DngCreator`, then an in-app viewer/editor (re-expose, re-white-balance) |
 | Zoom & Torch | CameraX / Camera2 | Zoom ratio slider + torch toggle |
 | Exposure | CameraX | Exposure-compensation slider |
 | Manual Controls | Camera2 | Manual ISO / shutter / focus distance |

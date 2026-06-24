@@ -70,9 +70,9 @@ dependencies {
     implementation(libs.ui.tooling.preview)
     debugImplementation(libs.ui.tooling)
 
-    // Captured-video preview
+    // Captured-video preview: ExoPlayer + the standard PlayerView UI.
     implementation(libs.androidx.media3.exoplayer)
-    implementation(libs.androidx.media3.ui.compose)
+    implementation(libs.androidx.media3.ui)
 
     // Re-exports :core-camera + :core-theme (and camera libs) to samples.
     api(project(":core-camera"))

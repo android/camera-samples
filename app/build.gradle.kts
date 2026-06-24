@@ -87,6 +87,12 @@ dependencies {
     implementation(project(":samples:camerax-extensions"))
     implementation(project(":samples:camerax-zoomandtorch"))
     implementation(project(":samples:camerax-exposure"))
+    implementation(project(":samples:camerax-luminosity"))
+    implementation(project(":samples:camerax-ultrahdr"))
+    implementation(project(":samples:camerax-concurrentcamera"))
+    implementation(project(":samples:camerax-videopauseresume"))
+    implementation(project(":samples:camerax-effects"))
+    implementation(project(":samples:camerax-greenscreen"))
 
     // Camera2 Samples
     implementation(project(":samples:camera2-takeaphoto"))
@@ -96,6 +102,8 @@ dependencies {
     implementation(project(":samples:camera2-hdrviewfinder"))
     implementation(project(":samples:camera2-zoomandtorch"))
     implementation(project(":samples:camera2-manualcontrols"))
+    implementation(project(":samples:camera2-qrscanner"))
+    implementation(project(":samples:camera2-rawcapture"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

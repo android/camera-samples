@@ -56,7 +56,15 @@ fun Camera2Preview(
         factory = { ctx ->
             ViewfinderView(ctx).apply { controller.viewfinder = this }
         },
-        update = { view -> controller.viewfinder = view },
+        update = { view ->
+            controller.viewfinder = view
+            // If the view is (re)attached while the lifecycle is already RESUMED — e.g. returning to
+            // the preview from another full-screen state — no ON_RESUME is emitted, so open here as
+            // well. openCamera() is idempotent, so this is a no-op when the camera is already open.
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                view.post { controller.openCamera() }
+            }
+        },
         modifier =
             modifier
                 .fillMaxSize()
