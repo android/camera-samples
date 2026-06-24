@@ -35,6 +35,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -86,6 +87,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.android.camera.catalog.R
 import com.android.camera.catalog.domain.SampleCatalogItem
+import com.android.camera.catalog.domain.SampleCategory
 import com.android.camera.catalog.domain.SampleType
 import com.android.camera.catalog.domain.sampleCatalog
 import com.android.camera.coretheme.bodyFontFamily
@@ -220,11 +222,14 @@ private fun CatalogHome(
     modifier: Modifier = Modifier,
     onSampleClick: (SampleCatalogItem) -> Unit,
 ) {
-    var selectedFilter by remember { mutableStateOf<SampleType?>(null) }
+    var selectedFilter by remember { mutableStateOf<SampleCategory?>(null) }
     val filtered =
-        sampleCatalog.filter { selectedFilter == null || it.type == selectedFilter }
+        sampleCatalog.filter { selectedFilter == null || it.category == selectedFilter }
     val featured = filtered.firstOrNull { it.isFeatured }
     val tiles = filtered.filter { !it.isFeatured }
+    // CameraX samples are listed first, Camera2 below, each under its own section label.
+    val cameraXTiles = tiles.filter { it.type == SampleType.CAMERAX }
+    val camera2Tiles = tiles.filter { it.type == SampleType.CAMERA2 }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -244,14 +249,21 @@ private fun CatalogHome(
                 CatalogWideCard(catalogItem = featured, onClick = { onSampleClick(featured) })
             }
         }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            SectionLabel(text = "ALL SAMPLES")
+        if (cameraXTiles.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SectionLabel(text = "CAMERAX")
+            }
+            items(items = cameraXTiles, key = { it.route }) { item ->
+                CatalogRowCard(catalogItem = item, onClick = { onSampleClick(item) })
+            }
         }
-        items(items = tiles, key = { it.route }) { item ->
-            CatalogRowCard(
-                catalogItem = item,
-                onClick = { onSampleClick(item) },
-            )
+        if (camera2Tiles.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SectionLabel(text = "CAMERA2")
+            }
+            items(items = camera2Tiles, key = { it.route }) { item ->
+                CatalogRowCard(catalogItem = item, onClick = { onSampleClick(item) })
+            }
         }
     }
 }
@@ -304,19 +316,19 @@ private fun CatalogHeader(count: Int) {
 
 @Composable
 private fun FilterRow(
-    selectedFilter: SampleType?,
-    onSelect: (SampleType?) -> Unit,
+    selectedFilter: SampleCategory?,
+    onSelect: (SampleCategory?) -> Unit,
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         FilterPill(label = "All", selected = selectedFilter == null) { onSelect(null) }
-        FilterPill(label = "CameraX", selected = selectedFilter == SampleType.CAMERAX) {
-            onSelect(SampleType.CAMERAX)
-        }
-        FilterPill(label = "Camera2", selected = selectedFilter == SampleType.CAMERA2) {
-            onSelect(SampleType.CAMERA2)
+        SampleCategory.entries.forEach { category ->
+            FilterPill(label = category.label, selected = selectedFilter == category) {
+                onSelect(category)
+            }
         }
     }
 }

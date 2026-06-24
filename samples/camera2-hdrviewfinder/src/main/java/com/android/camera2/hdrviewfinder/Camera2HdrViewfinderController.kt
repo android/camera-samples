@@ -19,6 +19,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageFormat
+import android.graphics.Matrix
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -32,6 +33,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -80,6 +82,13 @@ class Camera2HdrViewfinderController(
     @Volatile
     private var mode: ProcessingMode = ProcessingMode.NORMAL
 
+    // The processed frame is in sensor-readout orientation (landscape); these turn it upright.
+    @Volatile
+    private var sensorOrientation = 90
+
+    @Volatile
+    private var displayRotationDegrees = 0
+
     private var isCameraOpeningOrOpen = false
 
     /** Reusable pixel buffer so each frame does not allocate a fresh `IntArray`. */
@@ -87,6 +96,17 @@ class Camera2HdrViewfinderController(
 
     fun setMode(newMode: ProcessingMode) {
         mode = newMode
+    }
+
+    /** Updates the device display rotation (a `Surface.ROTATION_*`) so frames stay upright. */
+    fun setDisplayRotation(surfaceRotation: Int) {
+        displayRotationDegrees =
+            when (surfaceRotation) {
+                Surface.ROTATION_90 -> 90
+                Surface.ROTATION_180 -> 180
+                Surface.ROTATION_270 -> 270
+                else -> 0
+            }
     }
 
     /** Resolves the back-facing camera id, or `null` if none is present. */
@@ -108,6 +128,8 @@ class Camera2HdrViewfinderController(
 
         try {
             val id = findBackCameraId() ?: return
+            sensorOrientation =
+                cameraManager.getCameraCharacteristics(id).get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90
 
             imageReader =
                 ImageReader
@@ -230,20 +252,30 @@ class Camera2HdrViewfinderController(
                     }
                 }
 
-                val bitmap =
+                val source =
                     Bitmap.createBitmap(
                         pixels,
                         FRAME_WIDTH,
                         FRAME_HEIGHT,
                         Bitmap.Config.ARGB_8888,
                     )
-                frame = bitmap
+                frame = orientUpright(source)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to process frame", e)
             } finally {
                 image.close()
             }
         }
+
+    /** Rotates the landscape sensor frame so it is upright for the current device orientation. */
+    private fun orientUpright(bitmap: Bitmap): Bitmap {
+        val relativeRotation = (sensorOrientation - displayRotationDegrees + 360) % 360
+        if (relativeRotation == 0) return bitmap
+        val matrix = Matrix().apply { postRotate(relativeRotation.toFloat()) }
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        if (rotated !== bitmap) bitmap.recycle()
+        return rotated
+    }
 
     fun closeCamera() {
         backgroundHandler.post { closeCameraLocked() }

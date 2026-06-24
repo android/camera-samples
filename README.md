@@ -8,7 +8,8 @@ boilerplate.
 ## Screenshots
 
 The home catalog in the "Console" theme — a violet accent, monospace metadata, a bordered featured
-card, and a dense 2-column grid. The filter pills narrow the catalog by API (right: Camera2 only).
+card, and a dense 2-column grid. The filter pills narrow the catalog by category, and samples are
+grouped CameraX-first, Camera2 below.
 
 <p align="center">
   <img src="docs/screenshots/home.png" width="260" alt="Home catalog — all samples" />
@@ -28,7 +29,8 @@ No Firebase / `google-services.json` is required.
 
 ## Samples
 
-Filter the catalog by **All / CameraX / Camera2** on the home screen.
+Filter the catalog by category (**Images / Video / ML / Graphics / Extensions / Controls**) on the
+home screen. Within each view, **CameraX** samples are listed first and **Camera2** below.
 
 | Sample | API | What it shows |
 | --- | --- | --- |
@@ -41,7 +43,7 @@ Filter the catalog by **All / CameraX / Camera2** on the home screen.
 | Luminosity | CameraX | Scene-brightness meter from the `ImageAnalysis` Y plane |
 | Green Screen | CameraX + ML Kit | Concurrent cameras: segment the front-camera subject over the live back camera |
 | Extensions | CameraX / Camera2 | Night / Bokeh / HDR / Face Retouch / Auto |
-| Ultra HDR | CameraX | Gain-map Ultra HDR (`JPEG_R`) still capture |
+| Ultra HDR | CameraX | Gain-map Ultra HDR (`JPEG_R`) capture + a viewer to compare SDR / gain map / Ultra HDR |
 | Effects | CameraX | Live color filters (grayscale, sepia, invert, …) via `ImageAnalysis` + `ColorMatrix` |
 | Viewfinder Effects | Camera2 | Real-time frame processing on the live preview |
 | Concurrent Camera | CameraX | Front + back preview at once (picture-in-picture) |

@@ -32,7 +32,7 @@
     <string name="camerax_luminosity_list_title">CameraX • Luminosity</string>
     <string name="camerax_luminosity_list_description">Measure scene brightness from the ImageAnalysis stream.</string>
     <string name="camerax_ultrahdr_list_title">CameraX • Ultra HDR</string>
-    <string name="camerax_ultrahdr_list_description">Capture a gain-map Ultra HDR JPEG still.</string>
+    <string name="camerax_ultrahdr_list_description">Capture a gain-map Ultra HDR JPEG, then compare SDR, gain map, and Ultra HDR.</string>
     <string name="camerax_concurrentcamera_list_title">CameraX • Concurrent Camera</string>
     <string name="camerax_concurrentcamera_list_description">Preview the front and back cameras at the same time.</string>
     <string name="camerax_videopauseresume_list_title">CameraX • Pause/Resume</string>

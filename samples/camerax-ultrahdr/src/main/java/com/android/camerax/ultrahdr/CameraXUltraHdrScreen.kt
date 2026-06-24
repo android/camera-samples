@@ -43,7 +43,6 @@ import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ShutterButton
 import com.android.camera.coreui.overlay.RuleOfThirdsGrid
 import com.android.camera.coreui.overlay.ViewfinderTitleChip
-import com.android.camera.coreui.preview.CapturedImagePreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
@@ -89,15 +88,9 @@ fun CameraXUltraHdrScreen(
             }
 
             is CameraXUltraHdrUiState.PhotoCaptured -> {
-                CapturingContent(
-                    onPhotoCaptured = viewModel::photoCaptured,
-                    onUnsupported = viewModel::setUnsupported,
-                    onBack = onBack,
-                )
-                CapturedImagePreview(
-                    bitmap = state.photoBitmap,
-                    onRetake = viewModel::resetToCamera,
-                    onDone = onBack,
+                UltraHdrViewer(
+                    uri = state.uri,
+                    onBack = viewModel::resetToCamera,
                 )
             }
         }
@@ -106,7 +99,7 @@ fun CameraXUltraHdrScreen(
 
 @Composable
 private fun BoxScope.CapturingContent(
-    onPhotoCaptured: (android.graphics.Bitmap) -> Unit,
+    onPhotoCaptured: (android.net.Uri) -> Unit,
     onUnsupported: () -> Unit,
     onBack: () -> Unit,
 ) {

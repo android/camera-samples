@@ -42,6 +42,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.overlay.SettingsDropdown
@@ -98,6 +99,11 @@ private fun BoxScope.ViewfinderContent(
     val context = LocalContext.current
     val controller = rememberCamera2HdrViewfinderController(context)
     val lifecycleOwner = LocalLifecycleOwner.current
+    val displayRotation = rememberDisplayRotation()
+
+    LaunchedEffect(displayRotation, controller) {
+        controller.setDisplayRotation(displayRotation)
+    }
 
     DisposableEffect(controller, lifecycleOwner) {
         val observer =

@@ -52,7 +52,7 @@ val sampleCatalog =
             route = "CameraXTakeAPhotoScreen",
             sampleEntryScreen = { CameraXTakeAPhotoScreen() },
             type = SampleType.CAMERAX,
-            isFeatured = true,
+            category = SampleCategory.IMAGES,
         ),
         SampleCatalogItem(
             title = R.string.camera2_takeaphoto_list_title,
@@ -60,6 +60,7 @@ val sampleCatalog =
             route = "Camera2TakeAPhotoScreen",
             sampleEntryScreen = { Camera2TakeAPhotoScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.IMAGES,
         ),
         SampleCatalogItem(
             title = R.string.camerax_takeavideo_list_title,
@@ -67,6 +68,7 @@ val sampleCatalog =
             route = "CameraXTakeAVideoScreen",
             sampleEntryScreen = { CameraXTakeAVideoScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.VIDEO,
             tags = listOf(SampleTags.VIDEO),
         ),
         SampleCatalogItem(
@@ -75,6 +77,7 @@ val sampleCatalog =
             route = "Camera2TakeAVideoScreen",
             sampleEntryScreen = { Camera2TakeAVideoScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.VIDEO,
             tags = listOf(SampleTags.VIDEO),
         ),
         SampleCatalogItem(
@@ -83,6 +86,7 @@ val sampleCatalog =
             route = "Camera2SlowMotionScreen",
             sampleEntryScreen = { Camera2SlowMotionScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.VIDEO,
             tags = listOf(SampleTags.VIDEO),
         ),
         SampleCatalogItem(
@@ -91,6 +95,7 @@ val sampleCatalog =
             route = "CameraXQrScannerScreen",
             sampleEntryScreen = { CameraXQrScannerScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.ML,
             tags = listOf(SampleTags.ML_KIT),
         ),
         SampleCatalogItem(
@@ -99,6 +104,7 @@ val sampleCatalog =
             route = "CameraXImageLabelingScreen",
             sampleEntryScreen = { CameraXImageLabelingScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.ML,
             tags = listOf(SampleTags.ML_KIT, SampleTags.ANALYSIS),
         ),
         SampleCatalogItem(
@@ -107,6 +113,7 @@ val sampleCatalog =
             route = "Camera2HdrViewfinderScreen",
             sampleEntryScreen = { Camera2HdrViewfinderScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.GRAPHICS,
             tags = listOf(SampleTags.ANALYSIS),
         ),
         SampleCatalogItem(
@@ -115,6 +122,7 @@ val sampleCatalog =
             route = "CameraXExtensionsScreen",
             sampleEntryScreen = { CameraXExtensionsScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.EXTENSIONS,
             tags = listOf(SampleTags.EXTENSIONS),
         ),
         SampleCatalogItem(
@@ -123,6 +131,7 @@ val sampleCatalog =
             route = "Camera2ExtensionsScreen",
             sampleEntryScreen = { Camera2ExtensionsScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.EXTENSIONS,
             tags = listOf(SampleTags.EXTENSIONS),
         ),
         SampleCatalogItem(
@@ -131,6 +140,7 @@ val sampleCatalog =
             route = "CameraXZoomAndTorchScreen",
             sampleEntryScreen = { CameraXZoomAndTorchScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.CONTROLS,
         ),
         SampleCatalogItem(
             title = R.string.camera2_zoomandtorch_list_title,
@@ -138,6 +148,7 @@ val sampleCatalog =
             route = "Camera2ZoomAndTorchScreen",
             sampleEntryScreen = { Camera2ZoomAndTorchScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.CONTROLS,
         ),
         SampleCatalogItem(
             title = R.string.camerax_exposure_list_title,
@@ -145,6 +156,7 @@ val sampleCatalog =
             route = "CameraXExposureScreen",
             sampleEntryScreen = { CameraXExposureScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.CONTROLS,
         ),
         SampleCatalogItem(
             title = R.string.camera2_manualcontrols_list_title,
@@ -152,6 +164,7 @@ val sampleCatalog =
             route = "Camera2ManualControlsScreen",
             sampleEntryScreen = { Camera2ManualControlsScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.CONTROLS,
         ),
         SampleCatalogItem(
             title = R.string.camerax_luminosity_list_title,
@@ -159,6 +172,7 @@ val sampleCatalog =
             route = "CameraXLuminosityScreen",
             sampleEntryScreen = { CameraXLuminosityScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.GRAPHICS,
             tags = listOf(SampleTags.ANALYSIS),
         ),
         SampleCatalogItem(
@@ -167,6 +181,7 @@ val sampleCatalog =
             route = "Camera2QrScannerScreen",
             sampleEntryScreen = { Camera2QrScannerScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.ML,
             tags = listOf(SampleTags.ML_KIT),
         ),
         SampleCatalogItem(
@@ -175,6 +190,7 @@ val sampleCatalog =
             route = "CameraXUltraHdrScreen",
             sampleEntryScreen = { CameraXUltraHdrScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.IMAGES,
         ),
         SampleCatalogItem(
             title = R.string.camerax_concurrentcamera_list_title,
@@ -182,6 +198,7 @@ val sampleCatalog =
             route = "CameraXConcurrentCameraScreen",
             sampleEntryScreen = { CameraXConcurrentCameraScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.GRAPHICS,
         ),
         SampleCatalogItem(
             title = R.string.camerax_videopauseresume_list_title,
@@ -189,6 +206,7 @@ val sampleCatalog =
             route = "CameraXVideoPauseResumeScreen",
             sampleEntryScreen = { CameraXVideoPauseResumeScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.VIDEO,
             tags = listOf(SampleTags.VIDEO),
         ),
         SampleCatalogItem(
@@ -197,6 +215,7 @@ val sampleCatalog =
             route = "Camera2RawCaptureScreen",
             sampleEntryScreen = { Camera2RawCaptureScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.IMAGES,
         ),
         SampleCatalogItem(
             title = R.string.camerax_effects_list_title,
@@ -204,6 +223,8 @@ val sampleCatalog =
             route = "CameraXEffectsScreen",
             sampleEntryScreen = { CameraXEffectsScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.GRAPHICS,
+            isFeatured = true,
         ),
         SampleCatalogItem(
             title = R.string.camerax_greenscreen_list_title,
@@ -211,6 +232,7 @@ val sampleCatalog =
             route = "CameraXGreenScreenScreen",
             sampleEntryScreen = { CameraXGreenScreenScreen() },
             type = SampleType.CAMERAX,
+            category = SampleCategory.ML,
             tags = listOf(SampleTags.ML_KIT, SampleTags.ANALYSIS),
         ),
         // To create a new sample entry, add a new SampleCatalogItem here.
@@ -222,6 +244,7 @@ data class SampleCatalogItem(
     val route: String,
     val sampleEntryScreen: @Composable () -> Unit,
     val type: SampleType,
+    val category: SampleCategory = SampleCategory.IMAGES,
     val tags: List<SampleTags> = emptyList(),
     val isFeatured: Boolean = false,
     @param:DrawableRes val keyArt: Int? = null,
@@ -236,6 +259,18 @@ enum class SampleTags(
     VIDEO("Video", extendedColorScheme.media3),
     EXTENSIONS("Extensions", extendedColorScheme.imagen),
     ANALYSIS("Analysis", extendedColorScheme.geminiProFlash),
+}
+
+/** Broad groupings used by the home-screen filter pills. Every sample belongs to exactly one. */
+enum class SampleCategory(
+    val label: String,
+) {
+    IMAGES("Images"),
+    VIDEO("Video"),
+    ML("ML"),
+    GRAPHICS("Graphics"),
+    EXTENSIONS("Extensions"),
+    CONTROLS("Controls"),
 }
 
 enum class SampleType {

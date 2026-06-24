@@ -17,9 +17,6 @@ package com.android.camerax.ultrahdr
 
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -35,14 +32,9 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,29 +47,27 @@ private const val TAG = "CameraXUltraHdr"
 fun rememberCameraXUltraHdrController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
-    onPhotoCaptured: (Bitmap) -> Unit,
+    onPhotoCaptured: (Uri) -> Unit,
     onUnsupported: () -> Unit,
-): CameraXUltraHdrController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, lifecycleOwner, onPhotoCaptured, onUnsupported) {
-        CameraXUltraHdrController(context, lifecycleOwner, onPhotoCaptured, onUnsupported, coroutineScope)
+): CameraXUltraHdrController =
+    remember(context, lifecycleOwner, onPhotoCaptured, onUnsupported) {
+        CameraXUltraHdrController(context, lifecycleOwner, onPhotoCaptured, onUnsupported)
     }
-}
 
 /**
  * Captures gain-map Ultra HDR JPEGs. After resolving the back camera it checks
  * [ImageCapture.getImageCaptureCapabilities]; if [ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR] is not
  * advertised it reports [onUnsupported] instead of binding. Capture goes straight to MediaStore via
- * [ImageCapture.OutputFileOptions] so CameraX writes the JPEG_R (base image + gain map) untouched —
- * decoding to a `Bitmap` and re-compressing would discard the gain map.
+ * [ImageCapture.OutputFileOptions] so CameraX writes the JPEG_R (base image + gain map) untouched,
+ * and the saved [Uri] is handed back for the viewer to decode (decoding-and-recompressing would
+ * discard the gain map).
  */
 @Stable
 class CameraXUltraHdrController(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val onPhotoCaptured: (Bitmap) -> Unit,
+    private val onPhotoCaptured: (Uri) -> Unit,
     private val onUnsupported: () -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) {
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
@@ -157,11 +147,7 @@ class CameraXUltraHdrController(
             cameraExecutor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    val uri = outputFileResults.savedUri ?: return
-                    coroutineScope.launch {
-                        val bitmap = withContext(Dispatchers.IO) { loadPreviewBitmap(context, uri) }
-                        if (bitmap != null) onPhotoCaptured(bitmap)
-                    }
+                    outputFileResults.savedUri?.let { onPhotoCaptured(it) }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -180,26 +166,3 @@ class CameraXUltraHdrController(
         cameraExecutor.shutdown()
     }
 }
-
-/**
- * Decodes the just-saved image for the in-app review. [ImageDecoder] honors the JPEG's EXIF
- * orientation; the result is an SDR preview of the Ultra HDR file (the gain map stays in the saved
- * file regardless of how it is rendered here).
- */
-private fun loadPreviewBitmap(
-    context: Context,
-    uri: Uri,
-): Bitmap? =
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val source = ImageDecoder.createSource(context.contentResolver, uri)
-            ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-            }
-        } else {
-            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
-        }
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to decode captured Ultra HDR image", e)
-        null
-    }

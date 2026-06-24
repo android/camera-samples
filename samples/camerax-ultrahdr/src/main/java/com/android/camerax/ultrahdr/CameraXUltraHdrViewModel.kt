@@ -15,7 +15,7 @@
  */
 package com.android.camerax.ultrahdr
 
-import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,8 +41,8 @@ class CameraXUltraHdrViewModel
             _uiState.value = CameraXUltraHdrUiState.Unsupported
         }
 
-        fun photoCaptured(bitmap: Bitmap) {
-            _uiState.value = CameraXUltraHdrUiState.PhotoCaptured(bitmap)
+        fun photoCaptured(uri: Uri) {
+            _uiState.value = CameraXUltraHdrUiState.PhotoCaptured(uri)
         }
 
         fun resetToCamera() {

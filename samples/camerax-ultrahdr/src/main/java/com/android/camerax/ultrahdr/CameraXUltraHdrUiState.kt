@@ -15,7 +15,7 @@
  */
 package com.android.camerax.ultrahdr
 
-import android.graphics.Bitmap
+import android.net.Uri
 
 sealed interface CameraXUltraHdrUiState {
     data object Initial : CameraXUltraHdrUiState
@@ -23,7 +23,7 @@ sealed interface CameraXUltraHdrUiState {
     data object Previewing : CameraXUltraHdrUiState
 
     data class PhotoCaptured(
-        val photoBitmap: Bitmap,
+        val uri: Uri,
     ) : CameraXUltraHdrUiState
 
     /** Shown when the camera cannot produce gain-map Ultra HDR JPEGs on this device. */
