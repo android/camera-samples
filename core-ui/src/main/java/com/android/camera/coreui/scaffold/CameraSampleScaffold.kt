@@ -22,15 +22,20 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -47,8 +52,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
@@ -74,6 +81,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun CameraSampleScaffold(
     permissions: List<String>,
+    api: CameraApi,
     modifier: Modifier = Modifier,
     rationale: String = "This sample needs camera access to run.",
     deniedMessage: String = "Camera access was denied. Enable it in Settings to use this sample.",
@@ -133,6 +141,13 @@ fun CameraSampleScaffold(
         ) {
             if (hasPermission) {
                 content()
+                ApiBadge(
+                    api = api,
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp),
+                )
             } else {
                 PermissionCard(
                     message = if (permanentlyDenied) deniedMessage else rationale,
@@ -151,6 +166,37 @@ fun CameraSampleScaffold(
                 )
             }
         }
+    }
+}
+
+/** A small pill identifying which camera API the current sample uses (CameraX vs Camera2). */
+@Composable
+private fun ApiBadge(
+    api: CameraApi,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(percent = 50))
+                .background(Color.Black.copy(alpha = 0.45f))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(api.accent),
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = api.label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

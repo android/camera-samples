@@ -76,6 +76,4 @@ dependencies {
     api(libs.androidx.camera.compose)
     api(libs.androidx.camera.viewfinder.core)
     api(libs.androidx.camera.viewfinder.view)
-
-    api(project(":ui-component"))
 }

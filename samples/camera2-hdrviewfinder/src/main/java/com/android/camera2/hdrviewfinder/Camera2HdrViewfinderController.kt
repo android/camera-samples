@@ -97,8 +97,13 @@ class Camera2HdrViewfinderController(
                 .get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
         }
 
-    @SuppressLint("MissingPermission")
     fun openCamera() {
+        // Serialize open/close on the background thread so neither blocks the main thread.
+        backgroundHandler.post { openCameraLocked() }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun openCameraLocked() {
         if (cameraDevice != null || isCameraOpeningOrOpen) return
 
         try {
@@ -241,6 +246,10 @@ class Camera2HdrViewfinderController(
         }
 
     fun closeCamera() {
+        backgroundHandler.post { closeCameraLocked() }
+    }
+
+    private fun closeCameraLocked() {
         isCameraOpeningOrOpen = false
         try {
             captureSession?.close()
@@ -255,12 +264,8 @@ class Camera2HdrViewfinderController(
     }
 
     fun release() {
-        closeCamera()
+        // Post the final teardown and let the thread quit on its own; no main-thread join().
+        backgroundHandler.post { closeCameraLocked() }
         backgroundThread.quitSafely()
-        try {
-            backgroundThread.join(1000)
-        } catch (e: InterruptedException) {
-            Log.e(TAG, "Interrupted while waiting for background thread to finish", e)
-        }
     }
 }

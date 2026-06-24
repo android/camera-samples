@@ -67,7 +67,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
-    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    // Shared camera scaffolding (re-exports camera libs).
     implementation(project(":core-camera"))
     implementation(project(":core-ui"))
 }

@@ -25,9 +25,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -42,14 +41,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coreui.controls.CameraBackButton
 import com.android.camera.coreui.controls.CameraControlsBar
-import com.android.camera.coreui.controls.CameraOverlayButton
 import com.android.camera.coreui.controls.CameraSwitchButton
 import com.android.camera.coreui.controls.RecordButton
+import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.overlay.SettingsDropdown
+import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
 import com.android.camera.coreui.preview.CapturedVideoPreview
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -71,7 +71,7 @@ fun Camera2TakeAVideoScreen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.VIDEO) {
+    CameraSampleScaffold(permissions = CameraPermissions.VIDEO, api = CameraApi.CAMERA2) {
         // Previewing / Recording / VideoCaptured share a SINGLE CapturingContent call site so the
         // camera controller (and an in-progress recording) survive the state transitions. Separate
         // when-branches would give each its own composition identity, disposing and recreating the
@@ -156,12 +156,20 @@ private fun BoxScope.CapturingContent(
                 .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        CameraBackButton(onClick = onBack)
+        ScrimIconButton(
+            onClick = onBack,
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            size = 34.dp,
+            iconSize = 18.dp,
+        )
         if (!isRecording) {
-            CameraOverlayButton(
+            ScrimIconButton(
                 onClick = viewModel::toggleOverlay,
                 imageVector = Icons.Filled.Settings,
                 contentDescription = "Settings",
+                size = 34.dp,
+                iconSize = 18.dp,
             )
         }
     }
@@ -194,8 +202,7 @@ private fun VideoSettings(
     config: CameraVideoConfig,
     onConfigUpdate: ((CameraVideoConfig) -> CameraVideoConfig) -> Unit,
 ) {
-    Text(text = "Recording settings", style = MaterialTheme.typography.titleMedium)
-    Spacer(modifier = Modifier.height(8.dp))
+    SettingsHeader(text = "Recording settings")
 
     SettingsDropdown(
         label = "FPS",

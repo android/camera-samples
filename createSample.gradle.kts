@@ -132,8 +132,8 @@ abstract class CreateSampleTask : DefaultTask() {
         if (!appBuildText.contains("implementation(project(\":samples:$sName\"))")) {
             appBuildFile.writeText(
                 appBuildText.replace(
-                    "    implementation(project(\":ui-component\"))",
-                    "    implementation(project(\":ui-component\"))\n" +
+                    "    implementation(project(\":core-ui\"))",
+                    "    implementation(project(\":core-ui\"))\n" +
                         "    implementation(project(\":samples:$sName\"))",
                 ),
             )
@@ -233,7 +233,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
-    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    // Shared camera scaffolding (re-exports camera libs).
     implementation(project(":core-camera"))
     implementation(project(":core-ui"))
 }
@@ -377,6 +377,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraBackButton
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -397,7 +398,7 @@ fun $screen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.PHOTO) {
+    CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
             ${base}UiState.Initial -> LoadingView()
             is ${base}UiState.Error ->
@@ -525,6 +526,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraBackButton
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -545,7 +547,7 @@ fun $screen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.PHOTO) {
+    CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERAX) {
         when (val state = uiState) {
             ${base}UiState.Initial -> LoadingView()
             is ${base}UiState.Error ->

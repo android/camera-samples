@@ -16,13 +16,18 @@
 package com.android.camerax.imagelabeling
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -30,10 +35,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -42,7 +51,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coreui.controls.CameraBackButton
+import com.android.camera.coretheme.bodyFontFamily
+import com.android.camera.coretheme.monoFontFamily
+import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -66,7 +78,7 @@ fun CameraXImageLabelingScreen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.PHOTO) {
+    CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERAX) {
         when (val state = uiState) {
             CameraXImageLabelingUiState.Initial -> {
                 LoadingView()
@@ -128,8 +140,12 @@ private fun BoxScope.AnalyzingContent(
         CameraXPreview(surfaceRequest = request)
     }
 
-    CameraBackButton(
+    ScrimIconButton(
         onClick = onBack,
+        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "Back",
+        size = 34.dp,
+        iconSize = 18.dp,
         modifier =
             Modifier
                 .align(Alignment.TopStart)
@@ -153,26 +169,47 @@ private fun LabelOverlay(
 ) {
     if (labels.isEmpty()) return
 
-    Card(
-        modifier = modifier,
-        colors =
-            CardDefaults.cardColors(
-                containerColor = Color.Black.copy(alpha = 0.55f),
-            ),
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier =
+            modifier
+                .clip(shape)
+                .background(Color.Black.copy(alpha = 0.55f))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            labels.take(MAX_LABELS).forEach { label ->
-                val percent = (label.confidence * 100).roundToInt()
+        Text(
+            text = "LABELS",
+            style =
+                TextStyle(
+                    fontFamily = monoFontFamily,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.16.em,
+                ),
+            color = Color.White.copy(alpha = 0.40f),
+        )
+        labels.take(MAX_LABELS).forEach { label ->
+            val percent = (label.confidence * 100).roundToInt()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
-                    text = "${label.text} — $percent%",
-                    color = Color.White,
-                    fontWeight = FontWeight.Medium,
+                    text = label.text,
+                    color = Color.White.copy(alpha = 0.92f),
+                    style =
+                        TextStyle(
+                            fontFamily = bodyFontFamily,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                )
+                Text(
+                    text = "$percent%",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
                 )
             }
         }

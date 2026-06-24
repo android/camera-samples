@@ -70,7 +70,7 @@ dependencies {
     // Real-time barcode / QR detection on the analysis stream.
     implementation(libs.mlkit.barcode.scanning)
 
-    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    // Shared camera scaffolding (re-exports camera libs).
     implementation(project(":core-camera"))
     implementation(project(":core-ui"))
 }

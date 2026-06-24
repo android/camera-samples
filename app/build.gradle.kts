@@ -77,7 +77,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
-    implementation(project(":ui-component"))
+    implementation(project(":core-theme"))
 
     // CameraX Samples
     implementation(project(":samples:camerax-takeaphoto"))

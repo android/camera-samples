@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
@@ -39,11 +40,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coreui.controls.CameraBackButton
-import com.android.camera.coreui.controls.CameraOverlayButton
+import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ValueSlider
+import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
 import com.android.camera.coreui.overlay.SettingsRow
+import com.android.camera.coreui.overlay.settingsSwitchColors
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -66,7 +69,7 @@ fun Camera2ManualControlsScreen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.PHOTO) {
+    CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
             Camera2ManualControlsUiState.Unsupported -> {
                 UnsupportedView(message = "Manual sensor controls aren't supported on this device.")
@@ -109,8 +112,12 @@ private fun BoxScope.CameraContent(
 
     Camera2Preview(controller = controller)
 
-    CameraBackButton(
+    ScrimIconButton(
         onClick = onBack,
+        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "Back",
+        size = 34.dp,
+        iconSize = 18.dp,
         modifier =
             Modifier
                 .align(Alignment.TopStart)
@@ -135,10 +142,12 @@ private fun BoxScope.CameraContent(
 
     var settingsVisible by remember { mutableStateOf(false) }
 
-    CameraOverlayButton(
+    ScrimIconButton(
         onClick = { settingsVisible = true },
         imageVector = Icons.Filled.Tune,
         contentDescription = "Manual controls",
+        size = 34.dp,
+        iconSize = 18.dp,
         modifier =
             Modifier
                 .align(Alignment.TopEnd)
@@ -146,10 +155,12 @@ private fun BoxScope.CameraContent(
     )
 
     SettingsOverlay(visible = settingsVisible, onDismiss = { settingsVisible = false }) {
+        SettingsHeader(text = "Manual controls")
         SettingsRow(label = "Manual") {
             Switch(
                 checked = state.manualEnabled,
                 onCheckedChange = viewModel::setManualEnabled,
+                colors = settingsSwitchColors(),
             )
         }
 

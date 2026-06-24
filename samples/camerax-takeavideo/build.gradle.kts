@@ -70,7 +70,7 @@ dependencies {
     // CameraX VideoCapture (Recorder API).
     implementation(libs.androidx.camera.video)
 
-    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    // Shared camera scaffolding (re-exports camera libs).
     implementation(project(":core-camera"))
     implementation(project(":core-ui"))
 }

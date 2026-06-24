@@ -19,8 +19,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.android.ai.theme.AISampleCatalogTheme
 import com.android.camera.catalog.ui.CatalogApp
+import com.android.camera.coretheme.AISampleCatalogTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

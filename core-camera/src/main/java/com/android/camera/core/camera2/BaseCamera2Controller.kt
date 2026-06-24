@@ -120,8 +120,14 @@ abstract class BaseCamera2Controller(
             )
     }
 
-    @SuppressLint("MissingPermission")
     fun openCamera() {
+        // Serialize open/close on the camera background thread so neither ever blocks the main
+        // thread (which would jank the enter/exit animation).
+        backgroundHandler.post { openCameraLocked() }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun openCameraLocked() {
         if (cameraDevice != null || isCameraOpeningOrOpen) return
         val currentViewfinder = viewfinder ?: return
 
@@ -178,6 +184,12 @@ abstract class BaseCamera2Controller(
     protected open fun onCameraClosed() {}
 
     open fun closeCamera() {
+        // Tear down on the camera background thread — closing the device/session on the main thread
+        // can block long enough to freeze the screen's exit animation.
+        backgroundHandler.post { closeCameraLocked() }
+    }
+
+    private fun closeCameraLocked() {
         isCameraOpeningOrOpen = false
         captureSession?.close()
         captureSession = null
@@ -189,13 +201,10 @@ abstract class BaseCamera2Controller(
     }
 
     open fun release() {
-        closeCamera()
+        // Post the final teardown, then let the thread drain its queue and quit. We deliberately do
+        // NOT join() — blocking the main thread for up to a second is what froze the exit animation.
+        backgroundHandler.post { closeCameraLocked() }
         backgroundThread.quitSafely()
-        try {
-            backgroundThread.join(1000)
-        } catch (e: InterruptedException) {
-            Log.e(TAG, "Interrupted while waiting for background thread to finish", e)
-        }
     }
 
     /**

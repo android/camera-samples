@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The Android Open Source Project
+ * Copyright 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,12 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.ksp)
     alias(libs.plugins.compose.compiler)
 }
 
 android {
-    namespace = "com.android.camera2.takeavideo"
-    compileSdk = 36
+    namespace = "com.android.camera.coretheme"
+    compileSdk = 37
 
     buildFeatures {
         compose = true
@@ -31,25 +30,11 @@ android {
 
     defaultConfig {
         minSdk = 23
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
     }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
-        }
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
     }
 }
 
@@ -58,21 +43,10 @@ kotlin {
 }
 
 dependencies {
-    // Kotlin & Core
     implementation(libs.androidx.core.ktx)
 
-    // Compose core components
+    // Material 3 color scheme + typography, and Space Grotesk / Space Mono via Google Fonts.
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
-
-    // Hilt / Architecture
-    implementation(libs.hilt.android)
-    implementation(libs.hilt.navigation.compose)
-    ksp(libs.hilt.compiler)
-
-    // Shared camera scaffolding (re-exports camera libs).
-    implementation(project(":core-camera"))
-    implementation(project(":core-ui"))
+    implementation(libs.androidx.ui.google.fonts)
 }

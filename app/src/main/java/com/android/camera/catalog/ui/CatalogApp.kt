@@ -29,10 +29,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,24 +44,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TwoRowsTopAppBar
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -68,14 +65,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -85,11 +85,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.android.camera.catalog.R
+import com.android.camera.catalog.domain.SampleCatalogItem
 import com.android.camera.catalog.domain.SampleType
 import com.android.camera.catalog.domain.sampleCatalog
+import com.android.camera.coretheme.bodyFontFamily
+import com.android.camera.coretheme.monoFontFamily
 import kotlinx.serialization.Serializable
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CatalogApp() {
     val context = LocalContext.current
@@ -158,52 +160,7 @@ fun CatalogApp() {
         startDestination = HomeScreen,
     ) {
         composable<HomeScreen> {
-            val topAppBarState = rememberTopAppBarState()
-            val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(topAppBarState)
-            Scaffold(
-                modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-                topBar = {
-                    TwoRowsTopAppBar(
-                        colors =
-                            TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color.Transparent,
-                                scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                                titleContentColor = MaterialTheme.colorScheme.primary,
-                            ),
-                        navigationIcon = { AppBarPill() },
-                        title = { expanded ->
-                            if (expanded) {
-                                Text(
-                                    text = stringResource(id = R.string.top_bar_title_expanded),
-                                    style = MaterialTheme.typography.displaySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 2,
-                                    modifier = Modifier.padding(bottom = 12.dp),
-                                )
-                            } else {
-                                Row {
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.top_bar_title),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        modifier = Modifier.align(Alignment.CenterVertically),
-                                    )
-                                }
-                            }
-                        },
-                        scrollBehavior = scrollBehavior,
-                    )
-                },
-            ) { innerPadding ->
-                Image(
-                    painter = painterResource(id = R.drawable.img_bg_landing),
-                    contentDescription = stringResource(id = R.string.background_image),
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.FillWidth,
-                )
-
+            Scaffold(containerColor = AppBackground) { innerPadding ->
                 AnimatedContent(
                     targetState = hasCameraPermission,
                     label = "PermissionAnimation",
@@ -218,148 +175,33 @@ fun CatalogApp() {
                     },
                 ) { hasPermission ->
                     if (hasPermission) {
-                        Column(
+                        CatalogHome(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
                                     .padding(innerPadding),
-                        ) {
-                            var selectedFilter by remember { mutableStateOf<SampleType?>(null) }
-
-                            SingleChoiceSegmentedButtonRow(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                            ) {
-                                SegmentedButton(
-                                    selected = selectedFilter == null,
-                                    onClick = { selectedFilter = null },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
-                                ) {
-                                    Text("All")
-                                }
-                                SegmentedButton(
-                                    selected = selectedFilter == SampleType.CAMERAX,
-                                    onClick = { selectedFilter = SampleType.CAMERAX },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
-                                ) {
-                                    Text("CameraX")
-                                }
-                                SegmentedButton(
-                                    selected = selectedFilter == SampleType.CAMERA2,
-                                    onClick = { selectedFilter = SampleType.CAMERA2 },
-                                    shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
-                                ) {
-                                    Text("Camera 2")
-                                }
-                            }
-
-                            LazyColumn(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                val filteredSamples =
-                                    sampleCatalog.filter {
-                                        selectedFilter == null || it.type == selectedFilter
-                                    }
-                                items(items = filteredSamples, key = { it.route }) {
-                                    val onClick = {
-                                        navController.navigate(it.route)
-                                    }
-                                    Column(modifier = Modifier.animateItem()) {
-                                        if (it.isFeatured) {
-                                            CatalogWideCard(catalogItem = it, onClick = onClick)
-                                        } else {
-                                            CatalogRowCard(catalogItem = it, onClick = onClick)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                            onSampleClick = { navController.navigate(it.route) },
+                        )
                     } else {
-                        Column(
+                        PermissionContent(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
                                     .padding(innerPadding)
                                     .padding(horizontal = 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(24.dp),
-                                colors =
-                                    CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    ),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(32.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.spark_android),
-                                        contentDescription = stringResource(id = R.string.camera_permission_title),
-                                        modifier =
-                                            Modifier
-                                                .height(64.dp)
-                                                .width(92.dp),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                    Spacer(modifier = Modifier.height(24.dp))
-                                    Text(
-                                        text = stringResource(id = R.string.camera_permission_title),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text =
-                                            if (isPermanentlyDenied) {
-                                                stringResource(id = R.string.camera_permission_denied)
-                                            } else {
-                                                stringResource(id = R.string.camera_permission_rationale)
-                                            },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center,
-                                    )
-                                    Spacer(modifier = Modifier.height(32.dp))
-                                    Button(
-                                        onClick = {
-                                            if (isPermanentlyDenied) {
-                                                val intent =
-                                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                        data =
-                                                            Uri.fromParts(
-                                                                "package",
-                                                                context.packageName,
-                                                                null,
-                                                            )
-                                                    }
-                                                context.startActivity(intent)
-                                            } else {
-                                                permissionLauncher.launch(Manifest.permission.CAMERA)
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                    ) {
-                                        Text(
-                                            text =
-                                                if (isPermanentlyDenied) {
-                                                    stringResource(id = R.string.open_settings)
-                                                } else {
-                                                    stringResource(id = R.string.grant_permission)
-                                                },
-                                            modifier = Modifier.padding(vertical = 8.dp),
-                                        )
-                                    }
+                            isPermanentlyDenied = isPermanentlyDenied,
+                            onAction = {
+                                if (isPermanentlyDenied) {
+                                    val intent =
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.fromParts("package", context.packageName, null)
+                                        }
+                                    context.startActivity(intent)
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.CAMERA)
                                 }
-                            }
-                        }
+                            },
+                        )
                     }
                 }
             }
@@ -372,25 +214,224 @@ fun CatalogApp() {
     }
 }
 
-@Serializable
-object HomeScreen
+/** The console catalog: mono header, filter pills, featured hero, and a 2-column tile grid. */
+@Composable
+private fun CatalogHome(
+    modifier: Modifier = Modifier,
+    onSampleClick: (SampleCatalogItem) -> Unit,
+) {
+    var selectedFilter by remember { mutableStateOf<SampleType?>(null) }
+    val filtered =
+        sampleCatalog.filter { selectedFilter == null || it.type == selectedFilter }
+    val featured = filtered.firstOrNull { it.isFeatured }
+    val tiles = filtered.filter { !it.isFeatured }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CatalogHeader(count = filtered.size)
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            FilterRow(selectedFilter = selectedFilter, onSelect = { selectedFilter = it })
+        }
+        if (featured != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                CatalogWideCard(catalogItem = featured, onClick = { onSampleClick(featured) })
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            SectionLabel(text = "ALL SAMPLES")
+        }
+        items(items = tiles, key = { it.route }) { item ->
+            CatalogRowCard(
+                catalogItem = item,
+                onClick = { onSampleClick(item) },
+            )
+        }
+    }
+}
 
 @Composable
-fun AppBarPill() {
-    Row {
-        Spacer(Modifier.width(12.dp))
-        Icon(
-            painter = painterResource(R.drawable.spark_android),
-            contentDescription = null,
-            modifier =
-                Modifier
-                    .height(40.dp)
-                    .width(58.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(24.dp),
-                    ).padding(10.dp),
-            tint = MaterialTheme.colorScheme.onPrimary,
+private fun CatalogHeader(count: Int) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringResource(id = R.string.top_bar_title_expanded),
+                style =
+                    TextStyle(
+                        fontFamily = bodyFontFamily,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                color = TextPrimary,
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = count.toString(),
+                style = TextStyle(fontFamily = monoFontFamily, fontSize = 11.sp),
+                color = Color.White.copy(alpha = 0.55f),
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "CAMERA2 · CAMERAX · COMPOSE",
+            style =
+                TextStyle(
+                    fontFamily = monoFontFamily,
+                    fontSize = 9.sp,
+                    letterSpacing = 0.12.em,
+                ),
+            color = Color.White.copy(alpha = 0.40f),
         )
     }
 }
+
+@Composable
+private fun FilterRow(
+    selectedFilter: SampleType?,
+    onSelect: (SampleType?) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        FilterPill(label = "All", selected = selectedFilter == null) { onSelect(null) }
+        FilterPill(label = "CameraX", selected = selectedFilter == SampleType.CAMERAX) {
+            onSelect(SampleType.CAMERAX)
+        }
+        FilterPill(label = "Camera2", selected = selectedFilter == SampleType.CAMERA2) {
+            onSelect(SampleType.CAMERA2)
+        }
+    }
+}
+
+@Composable
+private fun FilterPill(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val borderColor = if (selected) accent else Color.White.copy(alpha = 0.14f)
+    val textColor = if (selected) accent else Color.White.copy(alpha = 0.5f)
+    val shape = RoundedCornerShape(15.dp)
+    Box(
+        modifier =
+            Modifier
+                .clip(shape)
+                .border(1.dp, borderColor, shape)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 7.dp),
+    ) {
+        Text(
+            text = label,
+            style = TextStyle(fontFamily = monoFontFamily, fontSize = 10.sp),
+            color = textColor,
+        )
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style =
+            TextStyle(
+                fontFamily = monoFontFamily,
+                fontSize = 9.sp,
+                letterSpacing = 0.16.em,
+            ),
+        color = Color.White.copy(alpha = 0.35f),
+        modifier = Modifier.padding(top = 6.dp),
+    )
+}
+
+@Composable
+private fun PermissionContent(
+    isPermanentlyDenied: Boolean,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors =
+                CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.spark_android),
+                    contentDescription = stringResource(id = R.string.camera_permission_title),
+                    modifier =
+                        Modifier
+                            .height(64.dp)
+                            .width(92.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = stringResource(id = R.string.camera_permission_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text =
+                        if (isPermanentlyDenied) {
+                            stringResource(id = R.string.camera_permission_denied)
+                        } else {
+                            stringResource(id = R.string.camera_permission_rationale)
+                        },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = onAction,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(
+                        text =
+                            if (isPermanentlyDenied) {
+                                stringResource(id = R.string.open_settings)
+                            } else {
+                                stringResource(id = R.string.grant_permission)
+                            },
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Serializable
+object HomeScreen

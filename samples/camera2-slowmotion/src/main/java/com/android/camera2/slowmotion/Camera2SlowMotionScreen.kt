@@ -18,6 +18,8 @@ package com.android.camera2.slowmotion
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -32,10 +34,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coreui.controls.CameraBackButton
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.RecordButton
+import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.preview.CapturedVideoPreview
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -57,7 +60,7 @@ fun Camera2SlowMotionScreen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.VIDEO) {
+    CameraSampleScaffold(permissions = CameraPermissions.VIDEO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
             is Camera2SlowMotionUiState.Initial -> {
                 LoadingView()
@@ -110,8 +113,12 @@ private fun BoxScope.CapturingContent(
 
     Camera2Preview(controller = controller)
 
-    CameraBackButton(
+    ScrimIconButton(
         onClick = onBack,
+        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "Back",
+        size = 34.dp,
+        iconSize = 18.dp,
         modifier =
             Modifier
                 .align(Alignment.TopStart)

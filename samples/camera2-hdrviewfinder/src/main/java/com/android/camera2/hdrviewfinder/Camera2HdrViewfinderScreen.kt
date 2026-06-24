@@ -21,9 +21,8 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,10 +43,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coreui.controls.CameraBackButton
-import com.android.camera.coreui.controls.CameraOverlayButton
+import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.overlay.SettingsDropdown
+import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
+import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
@@ -68,7 +68,7 @@ fun Camera2HdrViewfinderScreen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    CameraSampleScaffold(permissions = CameraPermissions.PHOTO) {
+    CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
             Camera2HdrViewfinderUiState.Initial -> {
                 LoadingView()
@@ -133,18 +133,24 @@ private fun BoxScope.ViewfinderContent(
 
     var isOverlayVisible by remember { mutableStateOf(false) }
 
-    CameraBackButton(
+    ScrimIconButton(
         onClick = onBack,
+        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "Back",
+        size = 34.dp,
+        iconSize = 18.dp,
         modifier =
             Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp),
     )
 
-    CameraOverlayButton(
+    ScrimIconButton(
         onClick = { isOverlayVisible = true },
         imageVector = Icons.Filled.Tune,
         contentDescription = "Processing mode",
+        size = 34.dp,
+        iconSize = 18.dp,
         modifier =
             Modifier
                 .align(Alignment.TopEnd)
@@ -152,7 +158,7 @@ private fun BoxScope.ViewfinderContent(
     )
 
     SettingsOverlay(visible = isOverlayVisible, onDismiss = { isOverlayVisible = false }) {
-        Text(text = "Processing mode", style = MaterialTheme.typography.titleMedium)
+        SettingsHeader(text = "Processing mode")
         SettingsDropdown(
             label = "Mode",
             options = ProcessingMode.entries,

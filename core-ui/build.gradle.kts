@@ -66,9 +66,15 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
+    // Compose tooling previews (e.g. VideoPlayer).
+    implementation(libs.ui.tooling.preview)
+    debugImplementation(libs.ui.tooling)
+
     // Captured-video preview
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui.compose)
 
-    // Re-exports :core-camera (and transitively :ui-component + camera libs) to samples.
+    // Re-exports :core-camera + :core-theme (and camera libs) to samples.
     api(project(":core-camera"))
+    api(project(":core-theme"))
 }

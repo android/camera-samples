@@ -19,8 +19,8 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import com.android.ai.theme.extendedColorScheme
 import com.android.camera.catalog.R
+import com.android.camera.coretheme.extendedColorScheme
 import com.android.camera2.extensions.Camera2ExtensionsScreen
 import com.android.camera2.hdrviewfinder.Camera2HdrViewfinderScreen
 import com.android.camera2.manualcontrols.Camera2ManualControlsScreen

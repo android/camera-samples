@@ -70,7 +70,7 @@ dependencies {
     // On-device ML Kit image labeling (bundled default model).
     implementation(libs.mlkit.image.labeling)
 
-    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    // Shared camera scaffolding (re-exports camera libs).
     implementation(project(":core-camera"))
     implementation(project(":core-ui"))
 }

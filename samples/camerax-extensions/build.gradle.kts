@@ -70,7 +70,7 @@ dependencies {
     // CameraX vendor extensions (BOKEH/HDR/NIGHT/FACE_RETOUCH/AUTO).
     implementation(libs.androidx.camera.extensions)
 
-    // Shared camera scaffolding (re-exports camera libs + :ui-component).
+    // Shared camera scaffolding (re-exports camera libs).
     implementation(project(":core-camera"))
     implementation(project(":core-ui"))
 }

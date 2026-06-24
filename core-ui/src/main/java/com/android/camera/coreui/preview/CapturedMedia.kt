@@ -19,29 +19,62 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.android.ai.uicomponent.VideoPlayer
-import com.android.camera.coreui.controls.CameraCloseButton
+import com.android.camera.coretheme.bodyFontFamily
+import com.android.camera.coretheme.monoFontFamily
+import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.widget.VideoPlayer
 
-/** Full-screen review of a captured still, with a close button to return to the camera. */
+/**
+ * Full-screen review of a captured still in the console style: a scrim back button, the real image
+ * dimensions as mono metadata, and a Retake / Done action bar. [onRetake] returns to the viewfinder;
+ * [onDone] leaves the sample.
+ */
 @Composable
 fun CapturedImagePreview(
     bitmap: Bitmap,
-    onDismiss: () -> Unit,
+    onRetake: () -> Unit,
+    onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -54,13 +87,110 @@ fun CapturedImagePreview(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = "Captured Photo",
             modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
         )
-        CameraCloseButton(
-            onClick = onDismiss,
+
+        ScrimIconButton(
+            onClick = onDone,
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            size = 34.dp,
+            iconSize = 18.dp,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
+                    .statusBarsPadding()
                     .padding(16.dp),
+        )
+
+        Text(
+            text = "${bitmap.width} × ${bitmap.height}",
+            style =
+                TextStyle(
+                    fontFamily = monoFontFamily,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.06.em,
+                ),
+            color = Color.White.copy(alpha = 0.55f),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(start = 20.dp, bottom = 100.dp),
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ReviewActionPill(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Refresh,
+                label = "Retake",
+                filled = false,
+                onClick = onRetake,
+            )
+            ReviewActionPill(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Check,
+                label = "Done",
+                filled = true,
+                onClick = onDone,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewActionPill(
+    icon: ImageVector,
+    label: String,
+    filled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val shape = RoundedCornerShape(26.dp)
+    val contentColor = if (filled) MaterialTheme.colorScheme.onPrimary else Color.White
+    val base =
+        modifier
+            .height(52.dp)
+            .clip(shape)
+    val styled =
+        if (filled) {
+            base.background(accent)
+        } else {
+            base
+                .background(Color.White.copy(alpha = 0.04f))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
+        }
+    Row(
+        modifier = styled.clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            style =
+                TextStyle(
+                    fontFamily = bodyFontFamily,
+                    fontSize = 14.sp,
+                    fontWeight = if (filled) FontWeight.Bold else FontWeight.Medium,
+                ),
+            color = contentColor,
         )
     }
 }
@@ -95,11 +225,16 @@ fun CapturedVideoPreview(
                 .background(Color.Black),
     ) {
         VideoPlayer(player = player)
-        CameraCloseButton(
+        ScrimIconButton(
             onClick = onDismiss,
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            size = 34.dp,
+            iconSize = 18.dp,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
+                    .statusBarsPadding()
                     .padding(16.dp),
         )
     }

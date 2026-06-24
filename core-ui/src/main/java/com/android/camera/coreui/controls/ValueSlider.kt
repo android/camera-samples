@@ -21,18 +21,23 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.android.camera.coretheme.monoFontFamily
 
 /**
  * A labeled slider styled for use over a dark camera preview. Used by samples that expose a single
- * scalar control (zoom ratio, exposure compensation, ISO, etc.).
+ * scalar control (zoom ratio, exposure compensation, ISO, etc.). The thumb and active track use
+ * [accentColor] (the theme accent by default).
  */
 @Composable
 fun ValueSlider(
@@ -44,6 +49,7 @@ fun ValueSlider(
     steps: Int = 0,
     enabled: Boolean = true,
     valueLabel: String = value.toString(),
+    accentColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     Column(
         modifier =
@@ -55,11 +61,20 @@ fun ValueSlider(
         Row(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = label,
+                style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
                 color = Color.White,
-                fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f),
             )
-            Text(text = valueLabel, color = Color.White)
+            Text(
+                text = valueLabel,
+                style =
+                    TextStyle(
+                        fontFamily = monoFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                color = accentColor,
+            )
         }
         Slider(
             value = value,
@@ -69,8 +84,8 @@ fun ValueSlider(
             enabled = enabled,
             colors =
                 SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
+                    thumbColor = accentColor,
+                    activeTrackColor = accentColor,
                     inactiveTrackColor = Color.White.copy(alpha = 0.3f),
                 ),
         )
