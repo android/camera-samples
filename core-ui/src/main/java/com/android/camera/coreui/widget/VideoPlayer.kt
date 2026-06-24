@@ -13,38 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:kotlin.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package com.android.camera.coreui.widget
 
-import android.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.media3.common.Player
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import androidx.media3.ui.compose.PlayerSurface
+import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
+import androidx.media3.ui.compose.modifiers.resizeWithContentScale
+import androidx.media3.ui.compose.state.rememberPresentationState
 
 /**
- * A simple ExoPlayer-backed review player: Media3's standard [PlayerView] (built-in transport
- * controls + seek bar + buffering/first-frame handling) wrapped in an [AndroidView]. The caller owns
- * the [Player] lifecycle — this only attaches the player to the view and detaches it on release.
+ * A Compose-first ExoPlayer review surface: Media3's [PlayerSurface] (no Android views in our code)
+ * scaled to fit the video, on a black backdrop. Tap to toggle play/pause. The caller owns the
+ * [Player] lifecycle and any auto-play/loop configuration.
  */
 @Composable
 fun VideoPlayer(
     player: Player,
     modifier: Modifier = Modifier,
 ) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            PlayerView(context).apply {
-                this.player = player
-                useController = true
-                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                setBackgroundColor(Color.BLACK)
-            }
-        },
-        update = { view -> view.player = player },
-        onRelease = { view -> view.player = null },
-    )
+    val presentationState = rememberPresentationState(player)
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        PlayerSurface(
+            player = player,
+            surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+            modifier =
+                Modifier
+                    .resizeWithContentScale(ContentScale.Fit, presentationState.videoSizeDp)
+                    .clickable(interactionSource = interactionSource, indication = null) {
+                        if (player.isPlaying) player.pause() else player.play()
+                    },
+        )
+    }
 }

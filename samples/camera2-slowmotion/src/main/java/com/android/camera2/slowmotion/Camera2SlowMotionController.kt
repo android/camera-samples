@@ -32,9 +32,6 @@ import android.util.Log
 import android.util.Range
 import android.util.Size
 import android.view.Surface
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -42,11 +39,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera.core.media.MediaStoreSaver
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.Executor
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "Camera2SlowMotionCtrl"
 
@@ -88,6 +83,9 @@ class Camera2SlowMotionController(
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
     private var currentVideoFile: File? = null
+    private var previewSurface: Surface? = null
+
+    override val previewSize: Size get() = highSpeedSize
 
     override fun onCameraPrepared(characteristics: CameraCharacteristics) {
         val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
@@ -147,13 +145,14 @@ class Camera2SlowMotionController(
 
     override fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
         if (!isSupported) {
             onUnsupported()
             return
         }
-        startPreviewSession(camera, viewfinder)
+        previewSurface = surface
+        startPreviewSession(camera, surface)
     }
 
     override fun onCameraClosed() {
@@ -162,32 +161,15 @@ class Camera2SlowMotionController(
 
     private fun startPreviewSession(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
-        coroutineScope.launch {
-            try {
-                val request = ViewfinderSurfaceRequest(highSpeedSize.width, highSpeedSize.height)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
-
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val surface = session.surface
-
-                previewRequestBuilder =
-                    camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(surface)
-                        set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, highSpeedFpsRange)
-                    }
-
-                createHighSpeedSession(camera, listOf(surface)) { session ->
-                    startHighSpeedRepeating(session)
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting preview", e)
+        previewRequestBuilder =
+            camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
+                set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, highSpeedFpsRange)
             }
+        createHighSpeedSession(camera, listOf(surface)) { session ->
+            startHighSpeedRepeating(session)
         }
     }
 
@@ -297,7 +279,7 @@ class Camera2SlowMotionController(
     fun startRecording() {
         if (isRecording || !isSupported) return
         val camera = cameraDevice ?: return
-        val viewfinderSurface = surfaceSession?.surface ?: return
+        val viewfinderSurface = previewSurface ?: return
 
         coroutineScope.launch {
             try {
@@ -362,8 +344,8 @@ class Camera2SlowMotionController(
         currentVideoFile = null
 
         // Restart the preview session.
-        viewfinder?.let { view ->
-            cameraDevice?.let { camera -> startPreviewSession(camera, view) }
-        }
+        val surface = previewSurface
+        val camera = cameraDevice
+        if (surface != null && camera != null) startPreviewSession(camera, surface)
     }
 }

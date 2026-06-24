@@ -286,18 +286,11 @@ import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CaptureRequest
 import android.util.Log
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
+import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.camera2.BaseCamera2Controller
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "${base}Controller"
 
@@ -305,52 +298,35 @@ private const val TAG = "${base}Controller"
 fun remember${base}Controller(
     context: Context,
     isFrontCamera: Boolean,
-): ${base}Controller {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera) {
-        ${base}Controller(context, isFrontCamera, coroutineScope)
+): ${base}Controller =
+    remember(context, isFrontCamera) {
+        ${base}Controller(context, isFrontCamera)
     }
-}
 
 /** Preview-only Camera2 controller. Add your feature logic (capture, zoom, …) here. */
 @Stable
 class ${base}Controller(
     context: Context,
     isFrontCamera: Boolean,
-    private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera) {
-    override fun onCameraOpened(camera: CameraDevice, viewfinder: ViewfinderView) {
-        coroutineScope.launch {
+    override fun onCameraOpened(
+        camera: CameraDevice,
+        surface: Surface,
+    ) {
+        previewRequestBuilder =
+            camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
+            }
+        createCaptureSession(camera, listOf(surface)) {
             try {
-                val request = ViewfinderSurfaceRequest(1920, 1080)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
-
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val surface = session.surface
-
-                previewRequestBuilder =
-                    camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(surface)
-                    }
-
-                createCaptureSession(camera, listOf(surface)) {
-                    try {
-                        val builder = previewRequestBuilder ?: return@createCaptureSession
-                        builder.set(
-                            CaptureRequest.CONTROL_AF_MODE,
-                            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE,
-                        )
-                        captureSession?.setRepeatingRequest(builder.build(), null, backgroundHandler)
-                    } catch (e: CameraAccessException) {
-                        Log.e(TAG, "Failed to start preview", e)
-                    }
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting preview", e)
+                val builder = previewRequestBuilder ?: return@createCaptureSession
+                builder.set(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE,
+                )
+                captureSession?.setRepeatingRequest(builder.build(), null, backgroundHandler)
+            } catch (e: CameraAccessException) {
+                Log.e(TAG, "Failed to start preview", e)
             }
         }
     }

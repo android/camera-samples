@@ -32,33 +32,49 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import androidx.camera.viewfinder.core.TransformationInfo
-import androidx.camera.viewfinder.core.ViewfinderSurfaceSession
+import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
 import androidx.camera.viewfinder.core.camera2.Camera2TransformationInfo
-import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.util.concurrent.Executor
+import kotlin.coroutines.resume
 
 private const val TAG = "BaseCamera2Controller"
 
 /**
- * Captures the Camera2 plumbing shared by every Camera2 sample: a background [HandlerThread],
- * camera discovery/open by lens facing, the viewfinder transformation math, tap-to-focus, and
+ * Captures the Camera2 plumbing shared by every Camera2 sample: a background [HandlerThread], camera
+ * discovery/open by lens facing, the viewfinder transformation math, tap-to-focus, and
  * cross-API-level capture-session creation.
  *
- * Subclasses implement [onCameraOpened] to build their preview (and any extra targets such as an
- * `ImageReader` or `MediaRecorder` surface), and may override [onCameraPrepared] / [onCameraClosed]
- * to allocate and release their own resources.
+ * Preview is Compose-first: the controller exposes a [surfaceRequest] and [transformationInfo] as
+ * state, and the [Camera2Preview] composable renders them through the Compose `Viewfinder`. When the
+ * viewfinder hands back a [Surface], [onCameraOpened] is invoked so the subclass can build its
+ * preview (and any extra targets such as an `ImageReader`). Subclasses may override [onCameraPrepared]
+ * / [onCameraClosed] to allocate and release their own resources, and [previewSize] to request a
+ * different viewfinder resolution.
  */
 @Stable
 abstract class BaseCamera2Controller(
     protected val context: Context,
     val isFrontCamera: Boolean,
 ) {
-    /** The view the camera renders into. Set by the preview composable before [openCamera]. */
-    var viewfinder: ViewfinderView? = null
+    /** The viewfinder surface request, published once the camera opens; null while closed. */
+    var surfaceRequest: ViewfinderSurfaceRequest? by mutableStateOf(null)
+        private set
+
+    /** How the Compose `Viewfinder` should rotate/mirror the preview for the current device. */
+    var transformationInfo: TransformationInfo by mutableStateOf(TransformationInfo.DEFAULT)
+        private set
 
     protected val cameraManager: CameraManager =
         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -69,13 +85,16 @@ abstract class BaseCamera2Controller(
     protected var cameraDevice: CameraDevice? = null
     protected var captureSession: CameraCaptureSession? = null
     protected var previewRequestBuilder: CaptureRequest.Builder? = null
-    protected var surfaceSession: ViewfinderSurfaceSession? = null
 
     protected var cameraId: String = ""
     protected var currentCharacteristics: CameraCharacteristics? = null
     protected var currentDisplayRotation: Int = Surface.ROTATION_0
 
+    private var previewSurface: Surface? = null
     private var isCameraOpeningOrOpen: Boolean = false
+
+    /** The resolution requested for the preview viewfinder. Subclasses may override. */
+    protected open val previewSize: Size = Size(1920, 1080)
 
     /** Resolves the camera id matching the requested lens facing, or `null` if none. */
     private fun findCameraId(): String? {
@@ -92,23 +111,25 @@ abstract class BaseCamera2Controller(
         }
     }
 
-    /** Updates the viewfinder transform so the preview is oriented for the current rotation. */
-    fun updateTransformationInfo(displayRotation: Int) {
+    /** Updates the preview transform for the current device display rotation (a `Surface.ROTATION_*`). */
+    fun updateDisplayRotation(displayRotation: Int) {
         currentDisplayRotation = displayRotation
-        val characteristics = currentCharacteristics ?: return
-        val currentViewfinder = viewfinder ?: return
+        recomputeTransformation()
+    }
 
+    private fun recomputeTransformation() {
+        val characteristics = currentCharacteristics ?: return
         val sensorRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
         val lensFacing =
             characteristics.get(CameraCharacteristics.LENS_FACING)
                 ?: CameraCharacteristics.LENS_FACING_BACK
         val sign = if (lensFacing == CameraCharacteristics.LENS_FACING_FRONT) 1 else -1
 
-        val rotationDegrees = displayRotation.toRotationDegrees()
+        val rotationDegrees = currentDisplayRotation.toRotationDegrees()
         val relativeRotation = (sensorRotation - rotationDegrees * sign + 360) % 360
 
         val baseInfo = Camera2TransformationInfo.createFromCharacteristics(characteristics)
-        currentViewfinder.transformationInfo =
+        transformationInfo =
             TransformationInfo(
                 sourceRotation = relativeRotation,
                 isSourceMirroredHorizontally = baseInfo.isSourceMirroredHorizontally,
@@ -129,7 +150,6 @@ abstract class BaseCamera2Controller(
     @SuppressLint("MissingPermission")
     private fun openCameraLocked() {
         if (cameraDevice != null || isCameraOpeningOrOpen) return
-        val currentViewfinder = viewfinder ?: return
 
         try {
             val id = findCameraId() ?: return
@@ -137,6 +157,7 @@ abstract class BaseCamera2Controller(
             val characteristics = cameraManager.getCameraCharacteristics(id)
             currentCharacteristics = characteristics
             onCameraPrepared(characteristics)
+            recomputeTransformation()
             isCameraOpeningOrOpen = true
 
             cameraManager.openCamera(
@@ -145,8 +166,10 @@ abstract class BaseCamera2Controller(
                     override fun onOpened(camera: CameraDevice) {
                         isCameraOpeningOrOpen = false
                         cameraDevice = camera
-                        updateTransformationInfo(currentDisplayRotation)
-                        onCameraOpened(camera, currentViewfinder)
+                        // Publishing the request makes the Compose Viewfinder render and hand us a
+                        // surface (via Camera2Preview -> runViewfinderSession).
+                        surfaceRequest = ViewfinderSurfaceRequest(previewSize.width, previewSize.height)
+                        maybeStartSession()
                     }
 
                     override fun onDisconnected(camera: CameraDevice) {
@@ -171,13 +194,56 @@ abstract class BaseCamera2Controller(
         }
     }
 
+    /**
+     * Runs the viewfinder surface session, called by [Camera2Preview] from the Compose `Viewfinder`
+     * once a [surface] is available. Starts the preview session and keeps the surface alive until the
+     * viewfinder leaves composition, then tears the session down before the surface is released.
+     */
+    suspend fun runViewfinderSession(surface: Surface) {
+        backgroundHandler.post {
+            previewSurface = surface
+            maybeStartSession()
+        }
+        try {
+            awaitCancellation()
+        } finally {
+            withContext(NonCancellable) {
+                suspendCancellableCoroutine { continuation ->
+                    backgroundHandler.post {
+                        try {
+                            captureSession?.close()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Exception closing capture session", e)
+                        }
+                        captureSession = null
+                        if (previewSurface === surface) previewSurface = null
+                        continuation.resume(Unit)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Starts the preview session once both the device is open and a viewfinder surface exists. */
+    private fun maybeStartSession() {
+        val camera = cameraDevice ?: return
+        val surface = previewSurface ?: return
+        try {
+            captureSession?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Exception closing previous session", e)
+        }
+        captureSession = null
+        onCameraOpened(camera, surface)
+    }
+
     /** Allocate per-session resources (e.g. an `ImageReader`) before the device is opened. */
     protected open fun onCameraPrepared(characteristics: CameraCharacteristics) {}
 
-    /** Build and start the preview session once the [camera] device is open. */
+    /** Build and start the preview session for the open [camera] using the viewfinder [surface]. */
     protected abstract fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     )
 
     /** Release per-session resources allocated in [onCameraPrepared]. */
@@ -191,12 +257,16 @@ abstract class BaseCamera2Controller(
 
     private fun closeCameraLocked() {
         isCameraOpeningOrOpen = false
-        captureSession?.close()
+        try {
+            captureSession?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Exception closing capture session", e)
+        }
         captureSession = null
         cameraDevice?.close()
         cameraDevice = null
-        surfaceSession?.close()
-        surfaceSession = null
+        previewSurface = null
+        surfaceRequest = null
         onCameraClosed()
     }
 

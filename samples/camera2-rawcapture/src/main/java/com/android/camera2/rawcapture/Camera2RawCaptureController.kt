@@ -34,23 +34,16 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
+import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.media.MediaStoreSaver
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "Camera2RawCapture"
 private const val PREVIEW_WIDTH = 1920
@@ -62,12 +55,10 @@ fun rememberCamera2RawCaptureController(
     isFrontCamera: Boolean,
     onDngSaved: (uri: Uri, rotationDegrees: Int) -> Unit,
     onUnsupported: () -> Unit,
-): Camera2RawCaptureController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera, onDngSaved, onUnsupported) {
-        Camera2RawCaptureController(context, isFrontCamera, onDngSaved, onUnsupported, coroutineScope)
+): Camera2RawCaptureController =
+    remember(context, isFrontCamera, onDngSaved, onUnsupported) {
+        Camera2RawCaptureController(context, isFrontCamera, onDngSaved, onUnsupported)
     }
-}
 
 /**
  * Captures a single `RAW_SENSOR` frame and writes it as a DNG via [DngCreator]. The shared
@@ -82,7 +73,6 @@ class Camera2RawCaptureController(
     isFrontCamera: Boolean,
     private val onDngSaved: (uri: Uri, rotationDegrees: Int) -> Unit,
     private val onUnsupported: () -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) : com.android.camera.core.camera2.BaseCamera2Controller(context, isFrontCamera) {
     private var rawReader: ImageReader? = null
     private var sensorOrientation: Int = 90
@@ -125,33 +115,17 @@ class Camera2RawCaptureController(
 
     override fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
-        coroutineScope.launch {
-            try {
-                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
+        val targets = mutableListOf(surface)
+        rawReader?.surface?.let { targets.add(it) }
 
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val surface = session.surface
-
-                val targets = mutableListOf(surface)
-                rawReader?.surface?.let { targets.add(it) }
-
-                previewRequestBuilder =
-                    camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(surface)
-                    }
-
-                createCaptureSession(camera, targets) { startRepeatingRequest() }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting preview", e)
+        previewRequestBuilder =
+            camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
             }
-        }
+
+        createCaptureSession(camera, targets) { startRepeatingRequest() }
     }
 
     private fun startRepeatingRequest() {

@@ -15,7 +15,7 @@
  */
 package com.android.camera.core.camera2
 
-import androidx.camera.viewfinder.view.ViewfinderView
+import androidx.camera.viewfinder.compose.Viewfinder
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -24,17 +24,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.android.camera.core.display.rememberDisplayRotation
 
 /**
- * Renders a [BaseCamera2Controller] preview into a [ViewfinderView] and wires up the boilerplate
- * every Camera2 sample needs: display-rotation transforms, lifecycle-driven open/close, and
- * tap-to-focus. The owning screen is responsible for creating the controller and calling
- * `release()` when it leaves composition.
+ * Renders a [BaseCamera2Controller]'s preview through the Compose `Viewfinder` (no Android views) and
+ * wires up the boilerplate every Camera2 sample needs: display-rotation transforms, lifecycle-driven
+ * open/close, and tap-to-focus. The controller publishes a `surfaceRequest`; this composable feeds
+ * the resulting surface back via `onSurfaceSession`. The owning screen creates the controller and
+ * calls `release()` when it leaves composition.
  *
  * @param onFocusTap invoked with the tapped offset (in view pixels) after focus is requested, so a
  * sample can show a focus indicator.
@@ -49,43 +49,15 @@ fun Camera2Preview(
     val displayRotation = rememberDisplayRotation()
 
     LaunchedEffect(displayRotation, controller) {
-        controller.updateTransformationInfo(displayRotation)
+        controller.updateDisplayRotation(displayRotation)
     }
-
-    AndroidView(
-        factory = { ctx ->
-            ViewfinderView(ctx).apply { controller.viewfinder = this }
-        },
-        update = { view ->
-            controller.viewfinder = view
-            // If the view is (re)attached while the lifecycle is already RESUMED — e.g. returning to
-            // the preview from another full-screen state — no ON_RESUME is emitted, so open here as
-            // well. openCamera() is idempotent, so this is a no-op when the camera is already open.
-            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                view.post { controller.openCamera() }
-            }
-        },
-        modifier =
-            modifier
-                .fillMaxSize()
-                .pointerInput(controller) {
-                    detectTapGestures(
-                        onTap = { offset ->
-                            controller.focus(offset, size.width.toFloat(), size.height.toFloat())
-                            onFocusTap?.invoke(offset)
-                        },
-                    )
-                },
-    )
 
     DisposableEffect(lifecycleOwner, controller) {
         val observer =
             LifecycleEventObserver { _, event ->
                 when (event) {
-                    Lifecycle.Event.ON_CREATE,
-                    Lifecycle.Event.ON_RESUME,
-                    -> {
-                        controller.viewfinder?.post { controller.openCamera() }
+                    Lifecycle.Event.ON_CREATE, Lifecycle.Event.ON_RESUME -> {
+                        controller.openCamera()
                     }
 
                     Lifecycle.Event.ON_PAUSE -> {
@@ -99,6 +71,29 @@ fun Camera2Preview(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             controller.closeCamera()
+        }
+    }
+
+    val request = controller.surfaceRequest
+    if (request != null) {
+        Viewfinder(
+            surfaceRequest = request,
+            transformationInfo = controller.transformationInfo,
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .pointerInput(controller) {
+                        detectTapGestures(
+                            onTap = { offset ->
+                                controller.focus(offset, size.width.toFloat(), size.height.toFloat())
+                                onFocusTap?.invoke(offset)
+                            },
+                        )
+                    },
+        ) {
+            onSurfaceSession {
+                controller.runViewfinderSession(surface)
+            }
         }
     }
 }

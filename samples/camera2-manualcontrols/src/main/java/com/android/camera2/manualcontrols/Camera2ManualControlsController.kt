@@ -22,18 +22,12 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.util.Log
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
+import android.util.Size
+import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.camera2.BaseCamera2Controller
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "Camera2ManualCtrl"
 
@@ -51,12 +45,10 @@ fun rememberCamera2ManualControlsController(
         exposureRangeNs: Pair<Long, Long>,
         minFocusDistance: Float,
     ) -> Unit,
-): Camera2ManualControlsController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context) {
-        Camera2ManualControlsController(context, onUnsupported, onCameraReady, coroutineScope)
+): Camera2ManualControlsController =
+    remember(context) {
+        Camera2ManualControlsController(context, onUnsupported, onCameraReady)
     }
-}
 
 /**
  * Camera2 manual-sensor-controls controller. Shared open/close/focus/transform plumbing lives in
@@ -75,8 +67,9 @@ class Camera2ManualControlsController(
         exposureRangeNs: Pair<Long, Long>,
         minFocusDistance: Float,
     ) -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera = false) {
+    override val previewSize: Size = Size(PREVIEW_WIDTH, PREVIEW_HEIGHT)
+
     private var isSupported = false
 
     private var isoRange: Pair<Int, Int> = 100 to 100
@@ -121,42 +114,18 @@ class Camera2ManualControlsController(
 
     override fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
         if (!isSupported) {
             onUnsupported()
             return
         }
-        startPreviewSession(camera, viewfinder)
-    }
-
-    private fun startPreviewSession(
-        camera: CameraDevice,
-        viewfinder: ViewfinderView,
-    ) {
-        coroutineScope.launch {
-            try {
-                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
-
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val surface = session.surface
-
-                previewRequestBuilder =
-                    camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(surface)
-                    }
-
-                createCaptureSession(camera, listOf(surface)) {
-                    applyRepeating()
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting preview", e)
+        previewRequestBuilder =
+            camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
             }
+        createCaptureSession(camera, listOf(surface)) {
+            applyRepeating()
         }
     }
 

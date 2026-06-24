@@ -22,18 +22,11 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CaptureRequest
 import android.os.Build
 import android.util.Log
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
+import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.camera2.BaseCamera2Controller
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "Camera2ZoomAndTorchCtrl"
 
@@ -42,12 +35,10 @@ fun rememberCamera2ZoomAndTorchController(
     context: Context,
     isFrontCamera: Boolean,
     onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
-): Camera2ZoomAndTorchController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera, onCameraReady) {
-        Camera2ZoomAndTorchController(context, isFrontCamera, onCameraReady, coroutineScope)
+): Camera2ZoomAndTorchController =
+    remember(context, isFrontCamera, onCameraReady) {
+        Camera2ZoomAndTorchController(context, isFrontCamera, onCameraReady)
     }
-}
 
 /**
  * Camera2 controller exposing optical/digital zoom via [CaptureRequest.CONTROL_ZOOM_RATIO]
@@ -61,7 +52,6 @@ class Camera2ZoomAndTorchController(
     context: Context,
     isFrontCamera: Boolean,
     private val onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera) {
     companion object {
         const val PREVIEW_WIDTH = 1920
@@ -96,31 +86,14 @@ class Camera2ZoomAndTorchController(
 
     override fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
-        coroutineScope.launch {
-            try {
-                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
-
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val surface = session.surface
-
-                previewRequestBuilder =
-                    camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(surface)
-                    }
-
-                createCaptureSession(camera, listOf(surface)) {
-                    applyRepeating()
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting preview", e)
+        previewRequestBuilder =
+            camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
             }
+        createCaptureSession(camera, listOf(surface)) {
+            applyRepeating()
         }
     }
 

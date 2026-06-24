@@ -29,22 +29,14 @@ import android.os.Build
 import android.util.Log
 import android.view.Surface
 import androidx.annotation.RequiresApi
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera2.extensions.Camera2ExtensionsViewModel.Companion.NO_EXTENSION
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "Camera2ExtensionsController"
 private const val PREVIEW_WIDTH = 1920
@@ -56,18 +48,15 @@ fun rememberCamera2ExtensionsController(
     onUnsupported: () -> Unit,
     onSupportedExtensions: (List<Int>) -> Unit,
     onPhotoCaptured: (Image, Int) -> Unit,
-): Camera2ExtensionsController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, onUnsupported, onSupportedExtensions, onPhotoCaptured) {
+): Camera2ExtensionsController =
+    remember(context, onUnsupported, onSupportedExtensions, onPhotoCaptured) {
         Camera2ExtensionsController(
             context,
             onUnsupported,
             onSupportedExtensions,
             onPhotoCaptured,
-            coroutineScope,
         )
     }
-}
 
 /**
  * Camera2 vendor-extension controller. The shared open/close/transform/focus plumbing lives in
@@ -81,7 +70,6 @@ class Camera2ExtensionsController(
     private val onUnsupported: () -> Unit,
     private val onSupportedExtensions: (List<Int>) -> Unit,
     private val onPhotoCaptured: (Image, Int) -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera = false) {
     /** Executor for extension-session creation and capture callbacks. */
     private val extensionExecutor: Executor = Executors.newSingleThreadExecutor()
@@ -147,62 +135,46 @@ class Camera2ExtensionsController(
 
     override fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
         if (!isSupported || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             onUnsupported()
             return
         }
-        createExtensionSession(camera, viewfinder)
+        createExtensionSession(camera, surface)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun createExtensionSession(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        previewSurface: Surface,
     ) {
-        coroutineScope.launch {
-            try {
-                val reader = imageReader ?: return@launch
-                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
+        val reader = imageReader ?: return
+        val configuration =
+            ExtensionSessionConfiguration(
+                currentExtension,
+                listOf(
+                    OutputConfiguration(previewSurface),
+                    OutputConfiguration(reader.surface),
+                ),
+                extensionExecutor,
+                object : CameraExtensionSession.StateCallback() {
+                    override fun onConfigured(session: CameraExtensionSession) {
+                        if (cameraDevice == null) return
+                        extensionSession = session
+                        startPreview(previewSurface)
+                    }
 
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val previewSurface = session.surface
+                    override fun onConfigureFailed(session: CameraExtensionSession) {
+                        Log.e(TAG, "Failed to configure extension session")
+                    }
 
-                val configuration =
-                    ExtensionSessionConfiguration(
-                        currentExtension,
-                        listOf(
-                            OutputConfiguration(previewSurface),
-                            OutputConfiguration(reader.surface),
-                        ),
-                        extensionExecutor,
-                        object : CameraExtensionSession.StateCallback() {
-                            override fun onConfigured(session: CameraExtensionSession) {
-                                if (cameraDevice == null) return
-                                extensionSession = session
-                                startPreview(previewSurface)
-                            }
-
-                            override fun onConfigureFailed(session: CameraExtensionSession) {
-                                Log.e(TAG, "Failed to configure extension session")
-                            }
-
-                            override fun onClosed(session: CameraExtensionSession) {
-                                if (extensionSession === session) extensionSession = null
-                            }
-                        },
-                    )
-                camera.createExtensionSession(configuration)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting extension preview", e)
-            }
-        }
+                    override fun onClosed(session: CameraExtensionSession) {
+                        if (extensionSession === session) extensionSession = null
+                    }
+                },
+            )
+        camera.createExtensionSession(configuration)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

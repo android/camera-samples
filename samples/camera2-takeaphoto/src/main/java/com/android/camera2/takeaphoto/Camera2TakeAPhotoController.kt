@@ -27,18 +27,11 @@ import android.hardware.camera2.TotalCaptureResult
 import android.media.Image
 import android.media.ImageReader
 import android.util.Log
-import androidx.camera.viewfinder.core.ScaleType
-import androidx.camera.viewfinder.core.ViewfinderSurfaceRequest
-import androidx.camera.viewfinder.view.ViewfinderView
+import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import com.android.camera.core.camera2.BaseCamera2Controller
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 
 private const val TAG = "Camera2TakeAPhotoController"
 
@@ -47,12 +40,10 @@ fun rememberCamera2TakeAPhotoController(
     context: Context,
     isFrontCamera: Boolean,
     onPhotoCaptured: (Image, Int) -> Unit,
-): Camera2TakeAPhotoController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera, onPhotoCaptured) {
-        Camera2TakeAPhotoController(context, isFrontCamera, onPhotoCaptured, coroutineScope)
+): Camera2TakeAPhotoController =
+    remember(context, isFrontCamera, onPhotoCaptured) {
+        Camera2TakeAPhotoController(context, isFrontCamera, onPhotoCaptured)
     }
-}
 
 /**
  * Camera2 still-capture controller. The shared open/close/focus/transform plumbing lives in
@@ -63,7 +54,6 @@ class Camera2TakeAPhotoController(
     context: Context,
     isFrontCamera: Boolean,
     private val onPhotoCaptured: (Image, Int) -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera) {
     companion object {
         const val PREVIEW_WIDTH = 1920
@@ -88,32 +78,15 @@ class Camera2TakeAPhotoController(
 
     override fun onCameraOpened(
         camera: CameraDevice,
-        viewfinder: ViewfinderView,
+        surface: Surface,
     ) {
-        coroutineScope.launch {
-            try {
-                val request = ViewfinderSurfaceRequest(PREVIEW_WIDTH, PREVIEW_HEIGHT)
-                updateTransformationInfo(currentDisplayRotation)
-                viewfinder.scaleType = ScaleType.FILL_CENTER
-
-                surfaceSession?.close()
-                val session = viewfinder.requestSurfaceSessionAsync(request).await()
-                surfaceSession = session
-                val surface = session.surface
-                val activeImageReader = imageReader ?: return@launch
-
-                previewRequestBuilder =
-                    camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                        addTarget(surface)
-                    }
-
-                createCaptureSession(camera, listOf(surface, activeImageReader.surface)) {
-                    startRepeatingRequest()
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.e(TAG, "Exception starting preview", e)
+        val activeImageReader = imageReader ?: return
+        previewRequestBuilder =
+            camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
             }
+        createCaptureSession(camera, listOf(surface, activeImageReader.surface)) {
+            startRepeatingRequest()
         }
     }
 

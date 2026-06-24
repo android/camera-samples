@@ -28,8 +28,8 @@ import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
 import android.util.Log
-import android.widget.ImageView
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -57,13 +57,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
 import com.android.camera.coretheme.monoFontFamily
 import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.overlay.ViewfinderTitleChip
@@ -151,15 +153,11 @@ fun BoxScope.UltraHdrViewer(
                 } else {
                     current.image
                 }
-            AndroidView(
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Captured Ultra HDR image",
                 modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    ImageView(ctx).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
-                },
-                update = { view ->
-                    view.setImageBitmap(bitmap)
-                    view.invalidate()
-                },
+                contentScale = ContentScale.Fit,
             )
         }
     }
@@ -308,7 +306,7 @@ private fun decodeUltraHdr(
  * monochrome image — bright where the gain map lifts the most. Matches the platform Ultra HDR sample.
  */
 private fun visualizeGainmap(contents: Bitmap): Bitmap {
-    val output = Bitmap.createBitmap(contents.width, contents.height, Bitmap.Config.ARGB_8888)
+    val output = createBitmap(contents.width, contents.height)
     val paint =
         Paint().apply {
             colorFilter =

@@ -75,5 +75,5 @@ dependencies {
     api(libs.androidx.camera.lifecycle)
     api(libs.androidx.camera.compose)
     api(libs.androidx.camera.viewfinder.core)
-    api(libs.androidx.camera.viewfinder.view)
+    api(libs.androidx.camera.viewfinder.compose)
 }
