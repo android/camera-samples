@@ -15,23 +15,42 @@
  */
 package com.android.camerax.videopauseresume
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import com.android.camera.core.media.MediaStoreSaver
+import com.android.camera.coreui.feedback.SaveEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class CameraXVideoPauseResumeViewModel
     @Inject
-    constructor() : ViewModel() {
+    constructor(
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
         private val _uiState =
             MutableStateFlow<CameraXVideoPauseResumeUiState>(CameraXVideoPauseResumeUiState.Initial)
         val uiState: StateFlow<CameraXVideoPauseResumeUiState> = _uiState.asStateFlow()
 
-        private var isFrontCamera = false
+        private val _events = Channel<SaveEvent>(Channel.BUFFERED)
+        val events = _events.receiveAsFlow()
+
+        // The active lens lives in the UiState; read it back out when a transition needs it.
+        private val isFrontCamera: Boolean
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXVideoPauseResumeUiState.Previewing -> state.isFrontCamera
+                    is CameraXVideoPauseResumeUiState.Recording -> state.isFrontCamera
+                    is CameraXVideoPauseResumeUiState.VideoCaptured -> state.isFrontCamera
+                    else -> false
+                }
 
         fun initialize() {
             if (_uiState.value is CameraXVideoPauseResumeUiState.Initial) {
@@ -40,8 +59,7 @@ class CameraXVideoPauseResumeViewModel
         }
 
         fun swapCamera() {
-            isFrontCamera = !isFrontCamera
-            _uiState.value = CameraXVideoPauseResumeUiState.Previewing(isFrontCamera)
+            _uiState.value = CameraXVideoPauseResumeUiState.Previewing(!isFrontCamera)
         }
 
         fun startRecording() {
@@ -65,6 +83,15 @@ class CameraXVideoPauseResumeViewModel
 
         fun videoCaptured(uri: Uri) {
             _uiState.value = CameraXVideoPauseResumeUiState.VideoCaptured(uri, isFrontCamera)
+            _events.trySend(SaveEvent.Saved)
+        }
+
+        /** Discards the just-saved clip from the gallery and returns to the viewfinder. */
+        fun retake() {
+            (_uiState.value as? CameraXVideoPauseResumeUiState.VideoCaptured)?.let {
+                MediaStoreSaver.deleteMedia(context, it.videoUri)
+            }
+            resetToCamera()
         }
 
         fun resetToCamera() {

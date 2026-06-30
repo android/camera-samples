@@ -15,10 +15,9 @@
  */
 package com.android.camerax.extensions
 
+import android.graphics.Bitmap
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.camera.core.ImageProxy
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -39,16 +38,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ShutterButton
+import com.android.camera.coreui.feedback.ObserveSaveEvents
 import com.android.camera.coreui.overlay.SettingsDropdown
 import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedImagePreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -58,12 +58,7 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun CameraXExtensionsScreen(
     viewModel: CameraXExtensionsViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -71,10 +66,7 @@ fun CameraXExtensionsScreen(
 
     LaunchedEffect(Unit) { viewModel.initialize() }
 
-    // Latched from the latest Previewing state so the camera behind a captured-photo overlay keeps
-    // its selected extension rather than rebinding to NONE.
-    var displayedMode by remember { mutableStateOf(EXTENSION_MODE_NONE) }
-    var displayedModes by remember { mutableStateOf(listOf(EXTENSION_MODE_NONE)) }
+    ObserveSaveEvents(viewModel.events)
 
     CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERAX) {
         when (val state = uiState) {
@@ -86,46 +78,48 @@ fun CameraXExtensionsScreen(
                 ErrorView(errorMessage = state.errorMessage, onRetry = viewModel::resetError)
             }
 
-            is CameraXExtensionsUiState.Previewing -> {
-                displayedMode = state.currentMode
-                displayedModes = state.availableModes
-                CapturingContent(
-                    currentMode = state.currentMode,
-                    availableModes = state.availableModes,
-                    onPhotoCaptured = viewModel::processImage,
-                    onModesReady = viewModel::setAvailableModes,
-                    onExtensionSelected = viewModel::setExtension,
-                    onBack = onBack,
-                )
-            }
+            // One shared CapturingContent call site for both Previewing and PhotoCaptured so the
+            // controller persists across the transition (and keeps its selected extension) instead
+            // of being disposed/recreated and rebinding to NONE.
+            else -> {
+                val currentMode: Int
+                val availableModes: List<Int>
+                when (state) {
+                    is CameraXExtensionsUiState.Previewing -> {
+                        currentMode = state.currentMode
+                        availableModes = state.availableModes
+                    }
 
-            is CameraXExtensionsUiState.PhotoCaptured -> {
+                    is CameraXExtensionsUiState.PhotoCaptured -> {
+                        currentMode = state.currentMode
+                        availableModes = state.availableModes
+                    }
+                }
                 CapturingContent(
-                    currentMode = displayedMode,
-                    availableModes = displayedModes,
+                    currentMode = currentMode,
+                    availableModes = availableModes,
                     onPhotoCaptured = viewModel::processImage,
                     onModesReady = viewModel::setAvailableModes,
                     onExtensionSelected = viewModel::setExtension,
                     onBack = onBack,
                 )
-                CapturedImagePreview(
-                    bitmap = state.photoBitmap,
-                    onRetake = viewModel::resetToCamera,
-                    onDone = onBack,
-                )
+                if (state is CameraXExtensionsUiState.PhotoCaptured) {
+                    CapturedImagePreview(
+                        bitmap = state.photoBitmap,
+                        onRetake = viewModel::resetToCamera,
+                        onDone = { viewModel.saveAndFinish(onBack) },
+                    )
+                }
             }
         }
     }
 }
 
-// ExtensionMode.NONE is 0; kept here so this when-branch needn't import the extensions library.
-private const val EXTENSION_MODE_NONE = 0
-
 @Composable
 private fun BoxScope.CapturingContent(
     currentMode: Int,
     availableModes: List<Int>,
-    onPhotoCaptured: (ImageProxy) -> Unit,
+    onPhotoCaptured: (Bitmap) -> Unit,
     onModesReady: (List<Int>) -> Unit,
     onExtensionSelected: (Int) -> Unit,
     onBack: () -> Unit,
@@ -183,28 +177,19 @@ private fun BoxScope.CapturingContent(
         )
     }
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.extensions_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-    )
-
-    ScrimIconButton(
-        onClick = { settingsVisible = true },
-        imageVector = Icons.Filled.AutoAwesome,
-        contentDescription = stringResource(R.string.extensions_mode_button),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
+    ViewfinderTopBar(
+        title = null,
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        actions = {
+            ScrimIconButton(
+                onClick = { settingsVisible = true },
+                imageVector = Icons.Filled.AutoAwesome,
+                contentDescription = stringResource(R.string.extensions_mode_button),
+                size = 34.dp,
+                iconSize = 18.dp,
+            )
+        },
     )
 
     CameraControlsBar(

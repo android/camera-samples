@@ -16,10 +16,7 @@
 package com.android.camerax.videostabilization
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
@@ -42,17 +39,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.RecordButton
 import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.feedback.ObserveSaveEvents
 import com.android.camera.coreui.overlay.SettingsDropdown
 import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
 import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedVideoPreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -62,18 +60,14 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun CameraXVideoStabilization(
     viewModel: CameraXVideoStabilizationViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val onBack = { backDispatcher?.onBackPressed() ?: Unit }
 
     LaunchedEffect(Unit) { viewModel.initialize() }
+    ObserveSaveEvents(viewModel.events)
 
     CameraSampleScaffold(permissions = CameraPermissions.VIDEO, api = CameraApi.CAMERAX) {
         when (val state = uiState) {
@@ -116,7 +110,11 @@ fun CameraXVideoStabilization(
                     onBack = onBack,
                 )
                 if (state is CameraXVideoStabilizationUiState.VideoCaptured) {
-                    CapturedVideoPreview(uri = state.videoUri, onDismiss = viewModel::resetToCamera)
+                    CapturedVideoPreview(
+                        uri = state.videoUri,
+                        onRetake = viewModel::retake,
+                        onDone = onBack,
+                    )
                 }
             }
         }
@@ -181,40 +179,32 @@ private fun BoxScope.CapturingContent(
         )
     }
 
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        ScrimIconButton(
-            onClick = onBack,
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = stringResource(R.string.videostabilization_back),
-            size = 34.dp,
-            iconSize = 18.dp,
-        )
-        if (!isRecording) {
-            ScrimIconButton(
-                onClick = { isOverlayVisible = true },
-                imageVector = Icons.Filled.Settings,
-                contentDescription = stringResource(R.string.videostabilization_settings),
-                size = 34.dp,
-                iconSize = 18.dp,
-            )
-        }
-    }
+    ViewfinderTopBar(
+        title = stringResource(R.string.videostabilization_title),
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        actions = {
+            if (!isRecording) {
+                ScrimIconButton(
+                    onClick = { isOverlayVisible = true },
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = stringResource(R.string.videostabilization_settings),
+                    size = 34.dp,
+                    iconSize = 18.dp,
+                )
+            }
+        },
+    )
 
     if (stabilization == StabilizationMode.ON) {
+        // Sits below the ViewfinderTopBar so the badge doesn't collide with the title.
         ViewfinderTitleChip(
             text = stringResource(R.string.videostabilization_badge),
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 44.dp),
+                    .padding(top = 96.dp),
         )
     }
 

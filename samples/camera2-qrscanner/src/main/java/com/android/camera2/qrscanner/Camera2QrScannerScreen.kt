@@ -47,17 +47,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coretheme.monoFontFamily
-import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
@@ -66,12 +64,7 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun Camera2QrScannerScreen(
     viewModel: Camera2QrScannerViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -138,16 +131,10 @@ private fun BoxScope.ScanningContent(
         )
     }
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.qrscanner_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
+    ViewfinderTopBar(
+        title = null,
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
 }
 

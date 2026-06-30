@@ -16,6 +16,7 @@
 package com.android.camera2.qrscanner
 
 import android.graphics.Rect
+import androidx.compose.runtime.Immutable
 
 /** A single barcode/QR detection: its decoded [value] and bounding box in source-frame pixels. */
 data class DetectedBarcode(
@@ -26,6 +27,7 @@ data class DetectedBarcode(
 sealed interface Camera2QrScannerUiState {
     data object Initial : Camera2QrScannerUiState
 
+    @Immutable
     data class Scanning(
         val barcodes: List<DetectedBarcode>,
         val sourceWidth: Int,

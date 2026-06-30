@@ -30,7 +30,9 @@ import android.util.Log
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 
 private const val TAG = "Camera2TakeAPhotoController"
@@ -40,10 +42,16 @@ fun rememberCamera2TakeAPhotoController(
     context: Context,
     isFrontCamera: Boolean,
     onPhotoCaptured: (Image, Int) -> Unit,
-): Camera2TakeAPhotoController =
-    remember(context, isFrontCamera, onPhotoCaptured) {
-        Camera2TakeAPhotoController(context, isFrontCamera, onPhotoCaptured)
+): Camera2TakeAPhotoController {
+    val latestOnPhotoCaptured by rememberUpdatedState(onPhotoCaptured)
+    return remember(context, isFrontCamera) {
+        Camera2TakeAPhotoController(
+            context,
+            isFrontCamera,
+            onPhotoCaptured = { image, orientation -> latestOnPhotoCaptured(image, orientation) },
+        )
     }
+}
 
 /**
  * Camera2 still-capture controller. The shared open/close/focus/transform plumbing lives in

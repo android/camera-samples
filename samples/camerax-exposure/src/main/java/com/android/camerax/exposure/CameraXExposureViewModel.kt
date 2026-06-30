@@ -30,18 +30,19 @@ class CameraXExposureViewModel
             MutableStateFlow<CameraXExposureUiState>(CameraXExposureUiState.Initial)
         val uiState: StateFlow<CameraXExposureUiState> = _uiState.asStateFlow()
 
-        private var isFrontCamera = false
+        // The active lens lives in the Previewing UiState; read it back out for each transition.
+        private val isFrontCamera: Boolean
+            get() = (_uiState.value as? CameraXExposureUiState.Previewing)?.isFrontCamera ?: false
 
         fun initialize() {
             if (_uiState.value is CameraXExposureUiState.Initial) {
-                _uiState.value = previewing()
+                _uiState.value = previewing(isFrontCamera)
             }
         }
 
         fun swapCamera() {
-            isFrontCamera = !isFrontCamera
             // Reset to a neutral exposure; the new camera reports its own range via onCameraReady.
-            _uiState.value = previewing()
+            _uiState.value = previewing(!isFrontCamera)
         }
 
         fun onCameraReady(
@@ -72,10 +73,10 @@ class CameraXExposureViewModel
         }
 
         fun resetError() {
-            _uiState.value = previewing()
+            _uiState.value = previewing(isFrontCamera)
         }
 
-        private fun previewing(): CameraXExposureUiState.Previewing =
+        private fun previewing(isFrontCamera: Boolean): CameraXExposureUiState.Previewing =
             CameraXExposureUiState.Previewing(
                 isFrontCamera = isFrontCamera,
                 evIndex = 0,

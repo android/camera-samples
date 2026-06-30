@@ -19,8 +19,6 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoFixHigh
@@ -39,11 +37,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.ScrimIconButton
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
@@ -52,12 +49,7 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun CameraXEffectsScreen(
     viewModel: CameraXEffectsViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -141,26 +133,10 @@ private fun BoxScope.PreviewingContent(
         LoadingView()
     }
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.effects_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp),
-    )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.effects_title, stringResource(state.effect.label)),
-        modifier =
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 44.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.effects_title, stringResource(state.effect.label)),
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
 
     CameraControlsBar(

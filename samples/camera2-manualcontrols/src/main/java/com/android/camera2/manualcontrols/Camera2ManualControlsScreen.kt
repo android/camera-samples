@@ -20,7 +20,6 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Tune
@@ -32,14 +31,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.ScrimIconButton
@@ -47,6 +44,7 @@ import com.android.camera.coreui.controls.ValueSlider
 import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
 import com.android.camera.coreui.overlay.SettingsRow
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.overlay.settingsSwitchColors
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -58,12 +56,7 @@ import kotlin.math.roundToInt
 @Composable
 fun Camera2ManualControlsScreen(
     viewModel: Camera2ManualControlsViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -114,20 +107,13 @@ private fun BoxScope.CameraContent(
 
     Camera2Preview(controller = controller)
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.manualcontrols_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-    )
-
     if (previewing == null) {
         // Camera is opening / reporting its capabilities.
+        ViewfinderTopBar(
+            title = null,
+            onClose = onBack,
+            closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        )
         LoadingView()
         return
     }
@@ -144,16 +130,19 @@ private fun BoxScope.CameraContent(
 
     var settingsVisible by remember { mutableStateOf(false) }
 
-    ScrimIconButton(
-        onClick = { settingsVisible = true },
-        imageVector = Icons.Filled.Tune,
-        contentDescription = stringResource(R.string.manualcontrols_settings),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
+    ViewfinderTopBar(
+        title = null,
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        actions = {
+            ScrimIconButton(
+                onClick = { settingsVisible = true },
+                imageVector = Icons.Filled.Tune,
+                contentDescription = stringResource(R.string.manualcontrols_settings),
+                size = 34.dp,
+                iconSize = 18.dp,
+            )
+        },
     )
 
     SettingsOverlay(visible = settingsVisible, onDismiss = { settingsVisible = false }) {

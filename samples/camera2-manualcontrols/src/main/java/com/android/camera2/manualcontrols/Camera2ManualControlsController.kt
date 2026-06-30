@@ -26,7 +26,9 @@ import android.util.Size
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 
 private const val TAG = "Camera2ManualCtrl"
@@ -45,10 +47,19 @@ fun rememberCamera2ManualControlsController(
         exposureRangeNs: Pair<Long, Long>,
         minFocusDistance: Float,
     ) -> Unit,
-): Camera2ManualControlsController =
-    remember(context) {
-        Camera2ManualControlsController(context, onUnsupported, onCameraReady)
+): Camera2ManualControlsController {
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    val latestOnCameraReady by rememberUpdatedState(onCameraReady)
+    return remember(context) {
+        Camera2ManualControlsController(
+            context,
+            onUnsupported = { latestOnUnsupported() },
+            onCameraReady = { supported, isoRange, exposureRangeNs, minFocusDistance ->
+                latestOnCameraReady(supported, isoRange, exposureRangeNs, minFocusDistance)
+            },
+        )
     }
+}
 
 /**
  * Camera2 manual-sensor-controls controller. Shared open/close/focus/transform plumbing lives in

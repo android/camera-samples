@@ -41,10 +41,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -59,18 +66,21 @@ fun rememberCameraXHdrVideoController(
     range: HdrDynamicRange,
     onRangesScanned: (List<HdrDynamicRange>) -> Unit,
     onVideoCaptured: (Uri) -> Unit,
-): CameraXHdrVideoController =
-    remember(context, isFrontCamera, onRangesScanned, onVideoCaptured) {
+): CameraXHdrVideoController {
+    val latestOnRangesScanned by rememberUpdatedState(onRangesScanned)
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    return remember(context, lifecycleOwner, isFrontCamera) {
         CameraXHdrVideoController(
             context,
             lifecycleOwner,
             isFrontCamera,
             quality,
             range,
-            onRangesScanned,
-            onVideoCaptured,
+            onRangesScanned = { ranges -> latestOnRangesScanned(ranges) },
+            onVideoCaptured = { uri -> latestOnVideoCaptured(uri) },
         )
     }
+}
 
 /**
  * CameraX HDR-video controller. Like the take-a-video sample but it scans the device for supported
@@ -89,6 +99,10 @@ class CameraXHdrVideoController(
     private val onRangesScanned: (List<HdrDynamicRange>) -> Unit,
     private val onVideoCaptured: (Uri) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -134,20 +148,19 @@ class CameraXHdrVideoController(
     }
 
     fun openCamera() {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
-            val provider = future.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             // Scan supported dynamic ranges before binding so we never bind an unsupported range.
             val supported = scanSupportedRanges(provider)
             onRangesScanned(supported)
-            if (supported.none { it.isHdr }) return@addListener // emulator/SDR-only → screen shows Unsupported
+            if (supported.none { it.isHdr }) return@launch // emulator/SDR-only → screen shows Unsupported
 
             currentRange = supported.first { it.isHdr }
             videoCapture = buildVideoCapture(currentQuality, currentRange)
             bindUseCases(provider)
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     private fun scanSupportedRanges(provider: ProcessCameraProvider): List<HdrDynamicRange> =
@@ -209,7 +222,7 @@ class CameraXHdrVideoController(
             }
         val outputOptions =
             MediaStoreOutputOptions
-                .Builder(context.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+                .Builder(appContext.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
                 .setContentValues(contentValues)
                 .build()
 
@@ -217,7 +230,7 @@ class CameraXHdrVideoController(
             videoCapture.output
                 .prepareRecording(context, outputOptions)
                 .withAudioEnabled()
-                .start(ContextCompat.getMainExecutor(context)) { event ->
+                .start(ContextCompat.getMainExecutor(appContext)) { event ->
                     if (event is VideoRecordEvent.Finalize) {
                         if (!event.hasError()) {
                             onVideoCaptured(event.outputResults.outputUri)
@@ -252,5 +265,6 @@ class CameraXHdrVideoController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
     }
 }

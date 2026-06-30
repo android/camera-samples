@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="videostabilization_back">Back</string>
+    <string name="videostabilization_title">Video Stabilization</string>
     <string name="videostabilization_settings">Settings</string>
     <string name="videostabilization_settings_header">Recording settings</string>
     <string name="videostabilization_stab_label">Stabilization</string>

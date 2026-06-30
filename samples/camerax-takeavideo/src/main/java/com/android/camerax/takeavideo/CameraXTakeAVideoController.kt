@@ -41,10 +41,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
@@ -59,10 +66,18 @@ fun rememberCameraXTakeAVideoController(
     isFrontCamera: Boolean,
     quality: VideoQuality,
     onVideoCaptured: (Uri) -> Unit,
-): CameraXTakeAVideoController =
-    remember(context, isFrontCamera, onVideoCaptured) {
-        CameraXTakeAVideoController(context, lifecycleOwner, isFrontCamera, quality, onVideoCaptured)
+): CameraXTakeAVideoController {
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    return remember(context, lifecycleOwner, isFrontCamera) {
+        CameraXTakeAVideoController(
+            context,
+            lifecycleOwner,
+            isFrontCamera,
+            quality,
+            onVideoCaptured = { uri -> latestOnVideoCaptured(uri) },
+        )
     }
+}
 
 @Stable
 class CameraXTakeAVideoController(
@@ -72,6 +87,10 @@ class CameraXTakeAVideoController(
     quality: VideoQuality,
     private val onVideoCaptured: (Uri) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -106,12 +125,11 @@ class CameraXTakeAVideoController(
     }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             bindUseCases(provider)
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     private fun bindUseCases(provider: ProcessCameraProvider) {
@@ -173,7 +191,7 @@ class CameraXTakeAVideoController(
         val outputOptions =
             MediaStoreOutputOptions
                 .Builder(
-                    context.contentResolver,
+                    appContext.contentResolver,
                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 ).setContentValues(contentValues)
                 .build()
@@ -182,7 +200,7 @@ class CameraXTakeAVideoController(
             videoCapture.output
                 .prepareRecording(context, outputOptions)
                 .withAudioEnabled()
-                .start(ContextCompat.getMainExecutor(context)) { event ->
+                .start(ContextCompat.getMainExecutor(appContext)) { event ->
                     if (event is VideoRecordEvent.Finalize) {
                         if (!event.hasError()) {
                             onVideoCaptured(event.outputResults.outputUri)
@@ -217,6 +235,7 @@ class CameraXTakeAVideoController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         cameraExecutor.shutdown()
     }
 }

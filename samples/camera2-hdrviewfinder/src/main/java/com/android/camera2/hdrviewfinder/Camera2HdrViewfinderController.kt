@@ -55,9 +55,11 @@ fun rememberCamera2HdrViewfinderController(context: Context): Camera2HdrViewfind
  * Standalone Camera2 controller for the HDR viewfinder sample.
  *
  * Unlike the other Camera2 samples, this controller does not render into a `ViewfinderView`. It
- * captures `YUV_420_888` frames via an [ImageReader], processes the luma (Y) plane on a background
- * thread according to the current [ProcessingMode], and publishes the result as a [Bitmap] in
- * [frame] so Compose can render it directly. This mirrors the structure of [the Camera2 controllers]
+ * captures `YUV_420_888` frames via an [ImageReader], converts each frame to a full-color ARGB
+ * [Bitmap] on a background thread, applies the current [ProcessingMode], and publishes the result in
+ * [frame] so Compose can render it directly. NORMAL shows the true-color preview and INVERT applies
+ * a per-channel color inversion (matching camerax-effects' INVERT ColorMatrix); THRESHOLD/POSTERIZE
+ * operate on the same decoded pixels. This mirrors the structure of [the Camera2 controllers]
  * (background [HandlerThread], [CameraManager], open by `LENS_FACING_BACK`) but keeps the
  * frame-processing pipeline self-contained.
  */
@@ -226,32 +228,7 @@ class Camera2HdrViewfinderController(
         ImageReader.OnImageAvailableListener { reader ->
             val image = reader.acquireLatestImage() ?: return@OnImageAvailableListener
             try {
-                val yPlane = image.planes[0]
-                val buffer = yPlane.buffer
-                val rowStride = yPlane.rowStride
-                // pixelStride is 1 for the Y plane in YUV_420_888, but read it for correctness.
-                val pixelStride = yPlane.pixelStride
-                val currentMode = mode
-
-                var pixelIndex = 0
-                for (row in 0 until FRAME_HEIGHT) {
-                    // The buffer may be padded: each row occupies rowStride bytes even though only
-                    // the first FRAME_WIDTH * pixelStride carry luma samples.
-                    var columnOffset = row * rowStride
-                    for (col in 0 until FRAME_WIDTH) {
-                        val luma = buffer.get(columnOffset).toInt() and 0xFF
-                        val value =
-                            when (currentMode) {
-                                ProcessingMode.NORMAL -> luma
-                                ProcessingMode.INVERT -> 255 - luma
-                                ProcessingMode.THRESHOLD -> if (luma > 128) 255 else 0
-                                ProcessingMode.POSTERIZE -> (luma / 64) * 64
-                            }
-                        pixels[pixelIndex++] = (0xFF shl 24) or (value shl 16) or (value shl 8) or value
-                        columnOffset += pixelStride
-                    }
-                }
-
+                decodeFrame(image)
                 val source =
                     Bitmap.createBitmap(
                         pixels,
@@ -266,6 +243,94 @@ class Camera2HdrViewfinderController(
                 image.close()
             }
         }
+
+    /**
+     * Decodes the `YUV_420_888` [image] to full-color ARGB into the reusable [pixels] buffer,
+     * applying the current [ProcessingMode]. NORMAL is the true-color preview; INVERT applies the
+     * per-channel inversion `255 - c` on each of R/G/B (the color-matrix INVERT from camerax-effects)
+     * instead of inverting luma only; THRESHOLD and POSTERIZE operate on the decoded pixels.
+     */
+    private fun decodeFrame(image: android.media.Image) {
+        val yPlane = image.planes[0]
+        val uPlane = image.planes[1]
+        val vPlane = image.planes[2]
+        val yBuffer = yPlane.buffer
+        val uBuffer = uPlane.buffer
+        val vBuffer = vPlane.buffer
+        val yRowStride = yPlane.rowStride
+        val yPixelStride = yPlane.pixelStride
+        val uvRowStride = uPlane.rowStride
+        val uvPixelStride = uPlane.pixelStride
+        val currentMode = mode
+
+        var pixelIndex = 0
+        for (row in 0 until FRAME_HEIGHT) {
+            val yRow = row * yRowStride
+            // Chroma is subsampled 2x2, so two luma rows/cols share one chroma sample.
+            val uvRow = (row shr 1) * uvRowStride
+            for (col in 0 until FRAME_WIDTH) {
+                val y = yBuffer.get(yRow + col * yPixelStride).toInt() and 0xFF
+                val uvCol = (col shr 1) * uvPixelStride
+                val u = (uBuffer.get(uvRow + uvCol).toInt() and 0xFF) - 128
+                val v = (vBuffer.get(uvRow + uvCol).toInt() and 0xFF) - 128
+
+                // BT.601 full-range YUV -> RGB.
+                var r = y + ((91881 * v) shr 16)
+                var g = y - ((22554 * u + 46802 * v) shr 16)
+                var b = y + ((116130 * u) shr 16)
+                r =
+                    if (r < 0) {
+                        0
+                    } else if (r > 255) {
+                        255
+                    } else {
+                        r
+                    }
+                g =
+                    if (g < 0) {
+                        0
+                    } else if (g > 255) {
+                        255
+                    } else {
+                        g
+                    }
+                b =
+                    if (b < 0) {
+                        0
+                    } else if (b > 255) {
+                        255
+                    } else {
+                        b
+                    }
+
+                when (currentMode) {
+                    ProcessingMode.NORMAL -> {}
+
+                    ProcessingMode.INVERT -> {
+                        r = 255 - r
+                        g = 255 - g
+                        b = 255 - b
+                    }
+
+                    ProcessingMode.THRESHOLD -> {
+                        // Luma threshold rendered as black/white.
+                        val on = if (y > 128) 255 else 0
+                        r = on
+                        g = on
+                        b = on
+                    }
+
+                    ProcessingMode.POSTERIZE -> {
+                        r = (r / 64) * 64
+                        g = (g / 64) * 64
+                        b = (b / 64) * 64
+                    }
+                }
+
+                pixels[pixelIndex++] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+            }
+        }
+    }
 
     /** Rotates the landscape sensor frame so it is upright for the current device orientation. */
     private fun orientUpright(bitmap: Bitmap): Bitmap {

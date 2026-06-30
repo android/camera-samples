@@ -17,6 +17,7 @@ package com.android.camerax.featurecombination
 
 import androidx.annotation.StringRes
 import androidx.camera.core.featuregroup.GroupableFeature
+import androidx.compose.runtime.Immutable
 
 /** A CameraX groupable feature the user can query/apply, mapped to its [GroupableFeature]. */
 enum class FeatureToggle(
@@ -30,6 +31,7 @@ enum class FeatureToggle(
 }
 
 /** One precomputed support-matrix row: a label, the queried feature set, and the device verdict. */
+@Immutable
 data class MatrixRow(
     @param:StringRes val label: Int,
     val features: List<FeatureToggle>,
@@ -44,6 +46,7 @@ sealed interface CameraXFeatureCombinationUiState {
         val isFrontCamera: Boolean,
     ) : CameraXFeatureCombinationUiState
 
+    @Immutable
     data class Ready(
         val isFrontCamera: Boolean,
         val matrix: List<MatrixRow>,

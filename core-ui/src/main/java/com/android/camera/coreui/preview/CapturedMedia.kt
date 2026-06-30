@@ -197,12 +197,15 @@ private fun ReviewActionPill(
 
 /**
  * Full-screen review of a captured video using the shared [VideoPlayer]. The player is created for
- * the supplied [uri], loops, and is released automatically when this leaves composition.
+ * the supplied [uri], loops, and is released automatically when this leaves composition. Mirrors
+ * [CapturedImagePreview]: a scrim back button plus a Retake / Done action bar. [onRetake] returns to
+ * the viewfinder (discarding the clip); [onDone] leaves the sample.
  */
 @Composable
 fun CapturedVideoPreview(
     uri: Uri,
-    onDismiss: () -> Unit,
+    onRetake: () -> Unit,
+    onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -226,7 +229,7 @@ fun CapturedVideoPreview(
     ) {
         VideoPlayer(player = player)
         ScrimIconButton(
-            onClick = onDismiss,
+            onClick = onDone,
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = "Back",
             size = 34.dp,
@@ -237,5 +240,31 @@ fun CapturedVideoPreview(
                     .statusBarsPadding()
                     .padding(16.dp),
         )
+
+        Row(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ReviewActionPill(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Refresh,
+                label = "Retake",
+                filled = false,
+                onClick = onRetake,
+            )
+            ReviewActionPill(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Filled.Check,
+                label = "Done",
+                filled = true,
+                onClick = onDone,
+            )
+        }
     }
 }

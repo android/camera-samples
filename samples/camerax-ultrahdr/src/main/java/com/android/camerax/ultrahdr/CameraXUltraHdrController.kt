@@ -32,9 +32,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -49,10 +55,18 @@ fun rememberCameraXUltraHdrController(
     lifecycleOwner: LifecycleOwner,
     onPhotoCaptured: (Uri) -> Unit,
     onUnsupported: () -> Unit,
-): CameraXUltraHdrController =
-    remember(context, lifecycleOwner, onPhotoCaptured, onUnsupported) {
-        CameraXUltraHdrController(context, lifecycleOwner, onPhotoCaptured, onUnsupported)
+): CameraXUltraHdrController {
+    val latestOnPhotoCaptured by rememberUpdatedState(onPhotoCaptured)
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    return remember(context, lifecycleOwner) {
+        CameraXUltraHdrController(
+            context,
+            lifecycleOwner,
+            onPhotoCaptured = { uri -> latestOnPhotoCaptured(uri) },
+            onUnsupported = { latestOnUnsupported() },
+        )
     }
+}
 
 /**
  * Captures gain-map Ultra HDR JPEGs. After resolving the back camera it checks
@@ -69,6 +83,10 @@ class CameraXUltraHdrController(
     private val onPhotoCaptured: (Uri) -> Unit,
     private val onUnsupported: () -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -82,23 +100,22 @@ class CameraXUltraHdrController(
         }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             val selector = CameraSelector.DEFAULT_BACK_CAMERA
             try {
                 val cameraInfo = selector.filter(provider.availableCameraInfos).firstOrNull()
                 if (cameraInfo == null) {
                     onUnsupported()
-                    return@addListener
+                    return@launch
                 }
                 val capabilities = ImageCapture.getImageCaptureCapabilities(cameraInfo)
                 if (!capabilities.supportedOutputFormats
                         .contains(ImageCapture.OUTPUT_FORMAT_JPEG_ULTRA_HDR)
                 ) {
                     onUnsupported()
-                    return@addListener
+                    return@launch
                 }
 
                 val capture =
@@ -115,7 +132,7 @@ class CameraXUltraHdrController(
                 Log.e(TAG, "Use case binding failed", e)
                 onUnsupported()
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun updateTargetRotation(rotation: Int) {
@@ -137,7 +154,7 @@ class CameraXUltraHdrController(
         val outputOptions =
             ImageCapture.OutputFileOptions
                 .Builder(
-                    context.contentResolver,
+                    appContext.contentResolver,
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     contentValues,
                 ).build()
@@ -163,6 +180,7 @@ class CameraXUltraHdrController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         cameraExecutor.shutdown()
     }
 }

@@ -41,10 +41,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -63,16 +70,18 @@ fun rememberCameraXFlipWhileRecordingController(
     initialFrontCamera: Boolean,
     quality: VideoQuality,
     onVideoCaptured: (Uri) -> Unit,
-): CameraXFlipWhileRecordingController =
-    remember(context, onVideoCaptured) {
+): CameraXFlipWhileRecordingController {
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    return remember(context, lifecycleOwner) {
         CameraXFlipWhileRecordingController(
             context,
             lifecycleOwner,
             initialFrontCamera,
             quality,
-            onVideoCaptured,
+            onVideoCaptured = { uri -> latestOnVideoCaptured(uri) },
         )
     }
+}
 
 @Stable
 class CameraXFlipWhileRecordingController(
@@ -82,6 +91,10 @@ class CameraXFlipWhileRecordingController(
     quality: VideoQuality,
     private val onVideoCaptured: (Uri) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -121,12 +134,11 @@ class CameraXFlipWhileRecordingController(
             ).build()
 
     fun openCamera() {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
-            val provider = future.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             bindUseCases(provider)
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     private fun bindUseCases(provider: ProcessCameraProvider) {
@@ -178,7 +190,7 @@ class CameraXFlipWhileRecordingController(
             }
         val outputOptions =
             MediaStoreOutputOptions
-                .Builder(context.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+                .Builder(appContext.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
                 .setContentValues(contentValues)
                 .build()
 
@@ -190,7 +202,7 @@ class CameraXFlipWhileRecordingController(
                 // Stop would then do nothing). The single output file spans both lenses.
                 .asPersistentRecording()
                 .withAudioEnabled()
-                .start(ContextCompat.getMainExecutor(context)) { event ->
+                .start(ContextCompat.getMainExecutor(appContext)) { event ->
                     if (event is VideoRecordEvent.Finalize) {
                         if (!event.hasError()) {
                             onVideoCaptured(event.outputResults.outputUri)
@@ -225,5 +237,6 @@ class CameraXFlipWhileRecordingController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
     }
 }

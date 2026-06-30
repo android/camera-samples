@@ -19,6 +19,7 @@ import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.camera.core.DynamicRange
 import androidx.camera.video.Quality
+import androidx.compose.runtime.Immutable
 
 /**
  * A 10-bit HDR dynamic range CameraX can record, mapped to its [DynamicRange] constant. The sample
@@ -56,6 +57,7 @@ sealed interface CameraXHdrVideoUiState {
     /** No 10-bit HDR dynamic range is available on this device (e.g. emulators). */
     data object Unsupported : CameraXHdrVideoUiState
 
+    @Immutable
     data class Previewing(
         val isFrontCamera: Boolean,
         val selectedRange: HdrDynamicRange,
@@ -63,6 +65,7 @@ sealed interface CameraXHdrVideoUiState {
         val quality: VideoQuality,
     ) : CameraXHdrVideoUiState
 
+    @Immutable
     data class Recording(
         val isFrontCamera: Boolean,
         val selectedRange: HdrDynamicRange,
@@ -70,6 +73,7 @@ sealed interface CameraXHdrVideoUiState {
         val quality: VideoQuality,
     ) : CameraXHdrVideoUiState
 
+    @Immutable
     data class VideoCaptured(
         val videoUri: Uri,
         val isFrontCamera: Boolean,

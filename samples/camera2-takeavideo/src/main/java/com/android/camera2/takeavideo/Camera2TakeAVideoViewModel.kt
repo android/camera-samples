@@ -15,25 +15,63 @@
  */
 package com.android.camera2.takeavideo
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import com.android.camera.core.media.MediaStoreSaver
+import com.android.camera.coreui.feedback.SaveEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class Camera2TakeAVideoViewModel
     @Inject
-    constructor() : ViewModel() {
+    constructor(
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
         private val _uiState =
             MutableStateFlow<Camera2TakeAVideoUiState>(Camera2TakeAVideoUiState.Initial(CameraVideoConfig()))
         val uiState: StateFlow<Camera2TakeAVideoUiState> = _uiState.asStateFlow()
 
-        private var isFrontCamera = false
-        private var currentConfig: CameraVideoConfig = CameraVideoConfig()
-        private var isOverlayVisible = false
+        // One-shot save results surfaced to the UI as a toast (see ObserveSaveEvents). The recording
+        // is already finalized to MediaStore by the controller; this just signals the toast.
+        private val _events = Channel<SaveEvent>(Channel.BUFFERED)
+        val events = _events.receiveAsFlow()
+
+        // The active lens, config, and overlay visibility live in the UiState; read them back out for
+        // each transition.
+        private val isFrontCamera: Boolean
+            get() =
+                when (val state = _uiState.value) {
+                    is Camera2TakeAVideoUiState.Previewing -> state.isFrontCamera
+                    is Camera2TakeAVideoUiState.Recording -> state.isFrontCamera
+                    is Camera2TakeAVideoUiState.VideoCaptured -> state.isFrontCamera
+                    else -> false
+                }
+
+        private val currentConfig: CameraVideoConfig
+            get() =
+                when (val state = _uiState.value) {
+                    is Camera2TakeAVideoUiState.Initial -> state.config
+                    is Camera2TakeAVideoUiState.Previewing -> state.config
+                    is Camera2TakeAVideoUiState.Recording -> state.config
+                    is Camera2TakeAVideoUiState.VideoCaptured -> state.config
+                    else -> CameraVideoConfig()
+                }
+
+        private val isOverlayVisible: Boolean
+            get() =
+                when (val state = _uiState.value) {
+                    is Camera2TakeAVideoUiState.Previewing -> state.isOverlayVisible
+                    is Camera2TakeAVideoUiState.Recording -> state.isOverlayVisible
+                    else -> false
+                }
 
         fun initialize() {
             if (_uiState.value is Camera2TakeAVideoUiState.Initial) {
@@ -42,26 +80,24 @@ class Camera2TakeAVideoViewModel
         }
 
         fun submitConfig(config: CameraVideoConfig) {
-            currentConfig = config
-            _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
+            _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, config, isOverlayVisible)
         }
 
         fun updateConfig(update: (CameraVideoConfig) -> CameraVideoConfig) {
-            currentConfig = update(currentConfig)
             if (_uiState.value is Camera2TakeAVideoUiState.Previewing) {
-                _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
+                _uiState.value =
+                    Camera2TakeAVideoUiState.Previewing(isFrontCamera, update(currentConfig), isOverlayVisible)
             }
         }
 
         fun toggleOverlay() {
-            isOverlayVisible = !isOverlayVisible
             when (val state = _uiState.value) {
                 is Camera2TakeAVideoUiState.Previewing -> {
-                    _uiState.value = state.copy(isOverlayVisible = isOverlayVisible)
+                    _uiState.value = state.copy(isOverlayVisible = !state.isOverlayVisible)
                 }
 
                 is Camera2TakeAVideoUiState.Recording -> {
-                    _uiState.value = state.copy(isOverlayVisible = isOverlayVisible)
+                    _uiState.value = state.copy(isOverlayVisible = !state.isOverlayVisible)
                 }
 
                 else -> {}
@@ -69,8 +105,7 @@ class Camera2TakeAVideoViewModel
         }
 
         fun swapCamera() {
-            isFrontCamera = !isFrontCamera
-            _uiState.value = Camera2TakeAVideoUiState.Previewing(isFrontCamera, currentConfig, isOverlayVisible)
+            _uiState.value = Camera2TakeAVideoUiState.Previewing(!isFrontCamera, currentConfig, isOverlayVisible)
         }
 
         fun startRecording() {
@@ -79,6 +114,15 @@ class Camera2TakeAVideoViewModel
 
         fun videoCaptured(uri: Uri) {
             _uiState.value = Camera2TakeAVideoUiState.VideoCaptured(uri, isFrontCamera, currentConfig)
+            _events.trySend(SaveEvent.Saved)
+        }
+
+        /** Discards the just-saved clip from the gallery and returns to the viewfinder. */
+        fun retake() {
+            (_uiState.value as? Camera2TakeAVideoUiState.VideoCaptured)?.let {
+                MediaStoreSaver.deleteMedia(context, it.videoUri)
+            }
+            resetToCamera()
         }
 
         fun resetToCamera() {

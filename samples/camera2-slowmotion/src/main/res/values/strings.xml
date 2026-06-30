@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="slowmotion_back">Back</string>
+    <string name="slowmotion_title">Slow Motion</string>
     <string name="slowmotion_unsupported">Slow-motion (high-speed) recording isn\'t supported on this device.</string>
 </resources>

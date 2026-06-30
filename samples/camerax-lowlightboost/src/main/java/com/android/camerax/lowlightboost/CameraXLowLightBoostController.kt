@@ -30,10 +30,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 
 private const val TAG = "CameraXLowLightController"
 
@@ -42,10 +48,16 @@ fun rememberCameraXLowLightBoostController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     onCameraReady: (supported: Boolean) -> Unit,
-): CameraXLowLightBoostController =
-    remember(context, lifecycleOwner, onCameraReady) {
-        CameraXLowLightBoostController(context, lifecycleOwner, onCameraReady)
+): CameraXLowLightBoostController {
+    val latestOnCameraReady by rememberUpdatedState(onCameraReady)
+    return remember(context, lifecycleOwner) {
+        CameraXLowLightBoostController(
+            context,
+            lifecycleOwner,
+            onCameraReady = { supported -> latestOnCameraReady(supported) },
+        )
     }
+}
 
 /**
  * Back-camera preview controller demonstrating CameraX low-light boost. After binding it reports
@@ -60,6 +72,10 @@ class CameraXLowLightBoostController(
     private val lifecycleOwner: LifecycleOwner,
     private val onCameraReady: (supported: Boolean) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -73,9 +89,8 @@ class CameraXLowLightBoostController(
         }
 
     fun openCamera() {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
-            val provider = future.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             try {
                 provider.unbindAll()
@@ -92,7 +107,7 @@ class CameraXLowLightBoostController(
                 Log.e(TAG, "Use case binding failed", e)
                 onCameraReady(false)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun setEnabled(enabled: Boolean) {
@@ -120,5 +135,6 @@ class CameraXLowLightBoostController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
     }
 }

@@ -16,6 +16,7 @@
 package com.android.camerax.takeaphoto
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
@@ -32,12 +33,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.android.camera.core.image.toBitmap
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -49,11 +54,16 @@ fun rememberCameraXTakeAPhotoController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     isFrontCamera: Boolean,
-    onPhotoCaptured: (ImageProxy) -> Unit,
+    onPhotoCaptured: (Bitmap) -> Unit,
 ): CameraXTakeAPhotoController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera, onPhotoCaptured) {
-        CameraXTakeAPhotoController(context, lifecycleOwner, isFrontCamera, onPhotoCaptured, coroutineScope)
+    val latestOnPhotoCaptured by rememberUpdatedState(onPhotoCaptured)
+    return remember(context, lifecycleOwner, isFrontCamera) {
+        CameraXTakeAPhotoController(
+            context,
+            lifecycleOwner,
+            isFrontCamera,
+            onPhotoCaptured = { latestOnPhotoCaptured(it) },
+        )
     }
 }
 
@@ -62,9 +72,12 @@ class CameraXTakeAPhotoController(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     val isFrontCamera: Boolean,
-    private val onPhotoCaptured: (ImageProxy) -> Unit,
-    private val coroutineScope: CoroutineScope,
+    private val onPhotoCaptured: (Bitmap) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -87,9 +100,8 @@ class CameraXTakeAPhotoController(
         }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             val lensFacing =
@@ -118,7 +130,7 @@ class CameraXTakeAPhotoController(
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun updateTargetRotation(rotation: Int) {
@@ -131,9 +143,10 @@ class CameraXTakeAPhotoController(
             cameraExecutor,
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
-                    coroutineScope.launch {
-                        onPhotoCaptured(image)
-                    }
+                    // Convert synchronously on the camera executor thread so the proxy is always
+                    // closed (toBitmap() closes it), even if the calling scope is gone.
+                    val bitmap = image.toBitmap(mirror = isFrontCamera)
+                    onPhotoCaptured(bitmap)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -160,6 +173,7 @@ class CameraXTakeAPhotoController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         cameraExecutor.shutdown()
     }
 }

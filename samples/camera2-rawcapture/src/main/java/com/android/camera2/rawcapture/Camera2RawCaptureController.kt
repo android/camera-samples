@@ -37,7 +37,9 @@ import android.util.Log
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.media.MediaStoreSaver
 import java.io.File
 import java.io.FileOutputStream
@@ -55,10 +57,18 @@ fun rememberCamera2RawCaptureController(
     isFrontCamera: Boolean,
     onDngSaved: (uri: Uri, rotationDegrees: Int) -> Unit,
     onUnsupported: () -> Unit,
-): Camera2RawCaptureController =
-    remember(context, isFrontCamera, onDngSaved, onUnsupported) {
-        Camera2RawCaptureController(context, isFrontCamera, onDngSaved, onUnsupported)
+): Camera2RawCaptureController {
+    val latestOnDngSaved by rememberUpdatedState(onDngSaved)
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    return remember(context, isFrontCamera) {
+        Camera2RawCaptureController(
+            context,
+            isFrontCamera,
+            onDngSaved = { uri, rotationDegrees -> latestOnDngSaved(uri, rotationDegrees) },
+            onUnsupported = { latestOnUnsupported() },
+        )
     }
+}
 
 /**
  * Captures a single `RAW_SENSOR` frame and writes it as a DNG via [DngCreator]. The shared

@@ -17,8 +17,6 @@ package com.android.camera2.rawcapture
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
@@ -32,14 +30,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
-import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ShutterButton
 import com.android.camera.coreui.overlay.RuleOfThirdsGrid
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
@@ -49,12 +45,7 @@ import com.android.camera.coreui.state.UnsupportedView
 @Composable
 fun Camera2RawCaptureScreen(
     viewModel: Camera2RawCaptureViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -118,26 +109,10 @@ private fun BoxScope.PreviewingContent(
 
     RuleOfThirdsGrid()
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.rawcapture_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp),
-    )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.rawcapture_title),
-        modifier =
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 44.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.rawcapture_title),
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
 
     CameraControlsBar(

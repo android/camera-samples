@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -33,13 +32,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
@@ -47,7 +44,8 @@ import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.CameraSwitchButton
 import com.android.camera.coreui.controls.RecordButton
 import com.android.camera.coreui.controls.ScrimIconButton
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.feedback.ObserveSaveEvents
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedVideoPreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -57,18 +55,15 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun CameraXVideoPauseResumeScreen(
     viewModel: CameraXVideoPauseResumeViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val onBack = { backDispatcher?.onBackPressed() ?: Unit }
 
     LaunchedEffect(Unit) { viewModel.initialize() }
+
+    ObserveSaveEvents(viewModel.events)
 
     CameraSampleScaffold(permissions = CameraPermissions.VIDEO, api = CameraApi.CAMERAX) {
         // Previewing / Recording / VideoCaptured share a SINGLE CapturingContent call site so the
@@ -99,7 +94,11 @@ fun CameraXVideoPauseResumeScreen(
                     onBack = onBack,
                 )
                 if (state is CameraXVideoPauseResumeUiState.VideoCaptured) {
-                    CapturedVideoPreview(uri = state.videoUri, onDismiss = viewModel::resetToCamera)
+                    CapturedVideoPreview(
+                        uri = state.videoUri,
+                        onRetake = viewModel::retake,
+                        onDone = onBack,
+                    )
                 }
             }
         }
@@ -163,34 +162,23 @@ private fun BoxScope.CapturingContent(
         )
     }
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.videopauseresume_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-    )
-
-    if (recording != null) {
-        val clock = formatClock(recording.elapsedNanos)
-        val recordingText =
+    val barTitle =
+        if (recording != null) {
+            val clock = formatClock(recording.elapsedNanos)
             if (isPaused) {
                 stringResource(R.string.videopauseresume_paused, clock)
             } else {
                 stringResource(R.string.videopauseresume_recording, clock)
             }
-        ViewfinderTitleChip(
-            text = recordingText,
-            modifier =
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 44.dp),
-        )
-    }
+        } else {
+            stringResource(R.string.videopauseresume_title)
+        }
+
+    ViewfinderTopBar(
+        title = barTitle,
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+    )
 
     CameraControlsBar(
         modifier = Modifier.align(Alignment.BottomCenter),

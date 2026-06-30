@@ -30,7 +30,9 @@ class CameraXLowLightBoostViewModel
             MutableStateFlow<CameraXLowLightBoostUiState>(CameraXLowLightBoostUiState.Initial)
         val uiState: StateFlow<CameraXLowLightBoostUiState> = _uiState.asStateFlow()
 
-        private var enabled = false
+        // The boost toggle lives in the Previewing UiState; read it back out for each transition.
+        private val enabled: Boolean
+            get() = (_uiState.value as? CameraXLowLightBoostUiState.Previewing)?.enabled ?: false
 
         fun initialize() {
             if (_uiState.value is CameraXLowLightBoostUiState.Initial) {
@@ -49,9 +51,9 @@ class CameraXLowLightBoostViewModel
         }
 
         fun toggle() {
-            enabled = !enabled
-            if (_uiState.value is CameraXLowLightBoostUiState.Previewing) {
-                _uiState.value = CameraXLowLightBoostUiState.Previewing(enabled)
+            val state = _uiState.value
+            if (state is CameraXLowLightBoostUiState.Previewing) {
+                _uiState.value = state.copy(enabled = !state.enabled)
             }
         }
 

@@ -29,7 +29,9 @@ import android.util.Size
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
@@ -43,10 +45,18 @@ fun rememberCamera2QrScannerController(
     context: Context,
     isFrontCamera: Boolean,
     onBarcodes: (barcodes: List<DetectedBarcode>, sourceWidth: Int, sourceHeight: Int) -> Unit,
-): Camera2QrScannerController =
-    remember(context, isFrontCamera, onBarcodes) {
-        Camera2QrScannerController(context, isFrontCamera, onBarcodes)
+): Camera2QrScannerController {
+    val latestOnBarcodes by rememberUpdatedState(onBarcodes)
+    return remember(context, isFrontCamera) {
+        Camera2QrScannerController(
+            context,
+            isFrontCamera,
+            onBarcodes = { barcodes, sourceWidth, sourceHeight ->
+                latestOnBarcodes(barcodes, sourceWidth, sourceHeight)
+            },
+        )
     }
+}
 
 /**
  * Camera2 barcode/QR scanner. The shared open/close/transform plumbing lives in

@@ -42,7 +42,10 @@ import com.android.camerax.hdrvideo.CameraXHdrVideo
 import com.android.camerax.imagelabeling.CameraXImageLabelingScreen
 import com.android.camerax.lowlightboost.CameraXLowLightBoost
 import com.android.camerax.luminosity.CameraXLuminosityScreen
+import com.android.camerax.media3effects.CameraXMedia3EffectsScreen
 import com.android.camerax.qrscanner.CameraXQrScannerScreen
+import com.android.camerax.rawcapture.CameraXRawCaptureScreen
+import com.android.camerax.slowmotion.CameraXSlowMotionScreen
 import com.android.camerax.takeaphoto.CameraXTakeAPhotoScreen
 import com.android.camerax.takeavideo.CameraXTakeAVideoScreen
 import com.android.camerax.ultrahdr.CameraXUltraHdrScreen
@@ -83,6 +86,15 @@ val sampleCatalog =
             route = "Camera2TakeAVideoScreen",
             sampleEntryScreen = { Camera2TakeAVideoScreen() },
             type = SampleType.CAMERA2,
+            category = SampleCategory.VIDEO,
+            tags = listOf(SampleTags.VIDEO),
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_slowmotion_list_title,
+            description = R.string.camerax_slowmotion_list_description,
+            route = "CameraXSlowMotionScreen",
+            sampleEntryScreen = { CameraXSlowMotionScreen() },
+            type = SampleType.CAMERAX,
             category = SampleCategory.VIDEO,
             tags = listOf(SampleTags.VIDEO),
         ),
@@ -216,6 +228,14 @@ val sampleCatalog =
             tags = listOf(SampleTags.VIDEO),
         ),
         SampleCatalogItem(
+            title = R.string.camerax_rawcapture_list_title,
+            description = R.string.camerax_rawcapture_list_description,
+            route = "CameraXRawCaptureScreen",
+            sampleEntryScreen = { CameraXRawCaptureScreen() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.IMAGES,
+        ),
+        SampleCatalogItem(
             title = R.string.camera2_rawcapture_list_title,
             description = R.string.camera2_rawcapture_list_description,
             route = "Camera2RawCaptureScreen",
@@ -231,6 +251,15 @@ val sampleCatalog =
             type = SampleType.CAMERAX,
             category = SampleCategory.GRAPHICS,
             isFeatured = true,
+        ),
+        SampleCatalogItem(
+            title = R.string.camerax_media3effects_list_title,
+            description = R.string.camerax_media3effects_list_description,
+            route = "CameraXMedia3EffectsScreen",
+            sampleEntryScreen = { CameraXMedia3EffectsScreen() },
+            type = SampleType.CAMERAX,
+            category = SampleCategory.GRAPHICS,
+            tags = listOf(SampleTags.MEDIA3),
         ),
         SampleCatalogItem(
             title = R.string.camerax_greenscreen_list_title,

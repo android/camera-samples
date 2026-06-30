@@ -73,4 +73,10 @@
     <string name="camerax_flipwhilerecording_list_description">Switch between front and back cameras without interrupting the recording.</string>
     <string name="camerax_featurecombination_list_title">CameraX • Feature Combination</string>
     <string name="camerax_featurecombination_list_description">Query and apply CameraX feature-group combinations: HDR, 60fps, stabilization, Ultra HDR.</string>
+    <string name="camerax_slowmotion_list_title">CameraX • Slow Motion</string>
+    <string name="camerax_slowmotion_list_description">High-speed (slow-motion) video capture with the CameraX Recorder.</string>
+    <string name="camerax_rawcapture_list_title">CameraX • RAW/DNG</string>
+    <string name="camerax_rawcapture_list_description">Capture a RAW DNG alongside a JPEG with CameraX.</string>
+    <string name="camerax_media3effects_list_title">CameraX • Media3 Effects</string>
+    <string name="camerax_media3effects_list_description">Apply Media3 GPU effects to the CameraX viewfinder via the CameraX-Media3 bridge.</string>
 </resources>

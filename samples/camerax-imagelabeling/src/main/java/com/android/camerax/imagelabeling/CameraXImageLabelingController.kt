@@ -29,12 +29,18 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -45,10 +51,16 @@ fun rememberCameraXImageLabelingController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     onLabels: (List<DetectedLabel>) -> Unit,
-): CameraXImageLabelingController =
-    remember(context, lifecycleOwner, onLabels) {
-        CameraXImageLabelingController(context, lifecycleOwner, onLabels)
+): CameraXImageLabelingController {
+    val latestOnLabels by rememberUpdatedState(onLabels)
+    return remember(context, lifecycleOwner) {
+        CameraXImageLabelingController(
+            context,
+            lifecycleOwner,
+            onLabels = { labels -> latestOnLabels(labels) },
+        )
     }
+}
 
 @Stable
 class CameraXImageLabelingController(
@@ -56,6 +68,10 @@ class CameraXImageLabelingController(
     private val lifecycleOwner: LifecycleOwner,
     private val onLabels: (List<DetectedLabel>) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -108,9 +124,8 @@ class CameraXImageLabelingController(
     }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             val cameraSelector =
@@ -130,7 +145,7 @@ class CameraXImageLabelingController(
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun closeCamera() {
@@ -139,6 +154,7 @@ class CameraXImageLabelingController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         labeler.close()
         cameraExecutor.shutdown()
     }

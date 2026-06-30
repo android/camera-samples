@@ -30,10 +30,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -45,10 +51,19 @@ fun rememberCameraXZoomAndTorchController(
     lifecycleOwner: LifecycleOwner,
     isFrontCamera: Boolean,
     onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
-): CameraXZoomAndTorchController =
-    remember(context, lifecycleOwner, isFrontCamera, onCameraReady) {
-        CameraXZoomAndTorchController(context, lifecycleOwner, isFrontCamera, onCameraReady)
+): CameraXZoomAndTorchController {
+    val latestOnCameraReady by rememberUpdatedState(onCameraReady)
+    return remember(context, lifecycleOwner, isFrontCamera) {
+        CameraXZoomAndTorchController(
+            context,
+            lifecycleOwner,
+            isFrontCamera,
+            onCameraReady = { minZoom, maxZoom, hasFlash ->
+                latestOnCameraReady(minZoom, maxZoom, hasFlash)
+            },
+        )
     }
+}
 
 @Stable
 class CameraXZoomAndTorchController(
@@ -57,6 +72,10 @@ class CameraXZoomAndTorchController(
     val isFrontCamera: Boolean,
     private val onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -74,9 +93,8 @@ class CameraXZoomAndTorchController(
         }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             val lensFacing =
@@ -112,7 +130,7 @@ class CameraXZoomAndTorchController(
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun setZoomRatio(ratio: Float) {
@@ -140,6 +158,7 @@ class CameraXZoomAndTorchController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         cameraExecutor.shutdown()
     }
 }

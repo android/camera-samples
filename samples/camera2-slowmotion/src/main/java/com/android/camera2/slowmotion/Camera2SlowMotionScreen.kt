@@ -17,7 +17,6 @@ package com.android.camera2.slowmotion
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
@@ -28,16 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.RecordButton
-import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.feedback.ObserveSaveEvents
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedVideoPreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -48,18 +45,15 @@ import com.android.camera.coreui.state.UnsupportedView
 @Composable
 fun Camera2SlowMotionScreen(
     viewModel: Camera2SlowMotionViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val onBack = { backDispatcher?.onBackPressed() ?: Unit }
 
     LaunchedEffect(Unit) { viewModel.initialize() }
+
+    ObserveSaveEvents(viewModel.events)
 
     CameraSampleScaffold(permissions = CameraPermissions.VIDEO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
@@ -87,7 +81,11 @@ fun Camera2SlowMotionScreen(
                     onBack = onBack,
                 )
                 if (state is Camera2SlowMotionUiState.VideoCaptured) {
-                    CapturedVideoPreview(uri = state.videoUri, onDismiss = viewModel::resetToCamera)
+                    CapturedVideoPreview(
+                        uri = state.videoUri,
+                        onRetake = viewModel::retake,
+                        onDone = onBack,
+                    )
                 }
             }
         }
@@ -105,7 +103,7 @@ private fun BoxScope.CapturingContent(
         rememberCamera2SlowMotionController(
             context = context,
             onUnsupported = viewModel::markUnsupported,
-            onVideoCaptured = { file -> viewModel.videoCaptured(file.toUri()) },
+            onVideoCaptured = viewModel::videoCaptured,
         )
 
     DisposableEffect(controller) {
@@ -114,16 +112,10 @@ private fun BoxScope.CapturingContent(
 
     Camera2Preview(controller = controller)
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.slowmotion_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.slowmotion_title),
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
 
     CameraControlsBar(

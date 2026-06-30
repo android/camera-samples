@@ -19,9 +19,6 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,18 +37,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.CameraSwitchButton
-import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ZoomControls
 import com.android.camera.coreui.overlay.FocusIndicator
 import com.android.camera.coreui.overlay.RuleOfThirdsGrid
 import com.android.camera.coreui.overlay.TorchChip
 import com.android.camera.coreui.overlay.TorchGlow
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
@@ -60,12 +55,7 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun CameraXZoomAndTorchScreen(
     viewModel: CameraXZoomAndTorchViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -155,40 +145,19 @@ private fun BoxScope.PreviewingContent(
     RuleOfThirdsGrid()
     FocusIndicator(tapOffset = focusPoint)
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.Filled.Close,
-        contentDescription = stringResource(R.string.zoomandtorch_close),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.zoomandtorch_title),
+        onClose = onBack,
+        actions = {
+            // Torch toggle only makes sense on a back camera that actually has a flash unit.
+            if (state.hasFlash && !state.isFrontCamera) {
+                TorchChip(
+                    on = state.torchOn,
+                    onToggle = viewModel::toggleTorch,
+                )
+            }
+        },
     )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.zoomandtorch_title),
-        modifier =
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 44.dp),
-    )
-
-    // Torch toggle only makes sense on a back camera that actually has a flash unit.
-    if (state.hasFlash && !state.isFrontCamera) {
-        TorchChip(
-            on = state.torchOn,
-            onToggle = viewModel::toggleTorch,
-            modifier =
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(16.dp),
-        )
-    }
 
     val zoomEnabled = state.minZoom < state.maxZoom
     // Guard against a degenerate range (e.g. before the camera reports its zoom limits, or on a

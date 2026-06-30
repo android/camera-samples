@@ -15,6 +15,8 @@
  */
 package com.android.camerax.imagelabeling
 
+import androidx.compose.runtime.Immutable
+
 /** A single label produced by the on-device image labeler. */
 data class DetectedLabel(
     val text: String,
@@ -24,6 +26,7 @@ data class DetectedLabel(
 sealed interface CameraXImageLabelingUiState {
     data object Initial : CameraXImageLabelingUiState
 
+    @Immutable
     data class Analyzing(
         val labels: List<DetectedLabel>,
     ) : CameraXImageLabelingUiState

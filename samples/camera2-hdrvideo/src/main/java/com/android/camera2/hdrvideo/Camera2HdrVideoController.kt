@@ -24,6 +24,7 @@ import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.params.OutputConfiguration
 import android.media.MediaCodecInfo
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.util.Size
@@ -31,13 +32,14 @@ import android.view.Surface
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera.core.media.MediaStoreSaver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.io.File
 
 private const val TAG = "Camera2HdrVideoCtrl"
 private val RECORDING_SIZE = Size(1920, 1080)
@@ -47,12 +49,21 @@ private const val RECORDING_FPS = 30
 fun rememberCamera2HdrVideoController(
     context: Context,
     onRangesScanned: (List<HdrDynamicRange>) -> Unit,
-    onVideoCaptured: (File) -> Unit,
+    onVideoCaptured: (Uri) -> Unit,
     onRecordingError: () -> Unit,
 ): Camera2HdrVideoController {
     val coroutineScope = rememberCoroutineScope()
-    return remember(context, onRangesScanned, onVideoCaptured, onRecordingError) {
-        Camera2HdrVideoController(context, onRangesScanned, onVideoCaptured, onRecordingError, coroutineScope)
+    val latestOnRangesScanned by rememberUpdatedState(onRangesScanned)
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    val latestOnRecordingError by rememberUpdatedState(onRecordingError)
+    return remember(context) {
+        Camera2HdrVideoController(
+            context,
+            onRangesScanned = { latestOnRangesScanned(it) },
+            onVideoCaptured = { latestOnVideoCaptured(it) },
+            onRecordingError = { latestOnRecordingError() },
+            coroutineScope,
+        )
     }
 }
 
@@ -73,7 +84,7 @@ fun rememberCamera2HdrVideoController(
 class Camera2HdrVideoController(
     context: Context,
     private val onRangesScanned: (List<HdrDynamicRange>) -> Unit,
-    private val onVideoCaptured: (File) -> Unit,
+    private val onVideoCaptured: (Uri) -> Unit,
     private val onRecordingError: () -> Unit,
     private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera = false) {
@@ -83,7 +94,7 @@ class Camera2HdrVideoController(
 
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
-    private var currentVideoFile: File? = null
+    private var pendingVideo: MediaStoreSaver.PendingVideo? = null
     private var previewSurface: Surface? = null
 
     override val previewSize: Size = RECORDING_SIZE
@@ -188,7 +199,8 @@ class Camera2HdrVideoController(
         // Back camera only, so the front-mirroring sign is always +1.
         val orientationHint = (sensorRotation - rotationDegrees + 360) % 360
 
-        currentVideoFile = MediaStoreSaver.newVideoFile()
+        val pending = MediaStoreSaver.newPendingVideo(context) ?: return
+        pendingVideo = pending
 
         mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -200,7 +212,11 @@ class Camera2HdrVideoController(
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setOutputFile(currentVideoFile!!.absolutePath)
+                if (pending.usesFileDescriptor) {
+                    setOutputFile(pending.fileDescriptor)
+                } else {
+                    setOutputFile(pending.legacyFilePath)
+                }
                 setVideoEncodingBitRate(20_000_000)
                 setVideoFrameRate(RECORDING_FPS)
                 setVideoSize(RECORDING_SIZE.width, RECORDING_SIZE.height)
@@ -283,8 +299,8 @@ class Camera2HdrVideoController(
     /** Cleans up a failed take and returns the UI to preview rather than leaving a phantom recording. */
     private fun abortRecording() {
         releaseMediaRecorder()
-        currentVideoFile?.delete()
-        currentVideoFile = null
+        pendingVideo?.discard(context)
+        pendingVideo = null
         isRecording = false
         val surface = previewSurface
         val camera = cameraDevice
@@ -304,23 +320,27 @@ class Camera2HdrVideoController(
             Log.e(TAG, "Exception stopping repeating", e)
         }
 
+        var stopFailed = false
         try {
             mediaRecorder?.stop()
         } catch (e: RuntimeException) {
             // MediaRecorder throws if stop is called immediately after start.
             Log.e(TAG, "RuntimeException stopping MediaRecorder", e)
-            currentVideoFile?.delete()
-            currentVideoFile = null
+            stopFailed = true
+            pendingVideo?.discard(context)
+            pendingVideo = null
         }
 
         releaseMediaRecorder()
 
-        val savedFile = currentVideoFile
-        if (savedFile != null && savedFile.exists()) {
-            MediaStoreSaver.scanFile(context, savedFile, "video/mp4")
-            onVideoCaptured(savedFile)
+        if (!stopFailed) {
+            val pv = pendingVideo
+            if (pv != null) {
+                pv.finalize(context)
+                onVideoCaptured(pv.uri)
+            }
+            pendingVideo = null
         }
-        currentVideoFile = null
 
         val surface = previewSurface
         val camera = cameraDevice

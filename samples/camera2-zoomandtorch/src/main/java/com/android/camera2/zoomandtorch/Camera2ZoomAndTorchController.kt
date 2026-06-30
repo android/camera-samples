@@ -25,7 +25,9 @@ import android.util.Log
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 
 private const val TAG = "Camera2ZoomAndTorchCtrl"
@@ -35,10 +37,18 @@ fun rememberCamera2ZoomAndTorchController(
     context: Context,
     isFrontCamera: Boolean,
     onCameraReady: (minZoom: Float, maxZoom: Float, hasFlash: Boolean) -> Unit,
-): Camera2ZoomAndTorchController =
-    remember(context, isFrontCamera, onCameraReady) {
-        Camera2ZoomAndTorchController(context, isFrontCamera, onCameraReady)
+): Camera2ZoomAndTorchController {
+    val latestOnCameraReady by rememberUpdatedState(onCameraReady)
+    return remember(context, isFrontCamera) {
+        Camera2ZoomAndTorchController(
+            context,
+            isFrontCamera,
+            onCameraReady = { minZoom, maxZoom, hasFlash ->
+                latestOnCameraReady(minZoom, maxZoom, hasFlash)
+            },
+        )
     }
+}
 
 /**
  * Camera2 controller exposing optical/digital zoom via [CaptureRequest.CONTROL_ZOOM_RATIO]

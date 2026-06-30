@@ -41,10 +41,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -58,17 +65,20 @@ fun rememberCameraXVideoStabilizationController(
     stabilization: StabilizationMode,
     onStabilizationSupported: (Boolean) -> Unit,
     onVideoCaptured: (Uri) -> Unit,
-): CameraXVideoStabilizationController =
-    remember(context, onStabilizationSupported, onVideoCaptured) {
+): CameraXVideoStabilizationController {
+    val latestOnStabilizationSupported by rememberUpdatedState(onStabilizationSupported)
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    return remember(context, lifecycleOwner) {
         CameraXVideoStabilizationController(
             context,
             lifecycleOwner,
             quality,
             stabilization,
-            onStabilizationSupported,
-            onVideoCaptured,
+            onStabilizationSupported = { supported -> latestOnStabilizationSupported(supported) },
+            onVideoCaptured = { uri -> latestOnVideoCaptured(uri) },
         )
     }
+}
 
 /**
  * CameraX video controller (back camera) that records with optional video stabilization. It scans
@@ -86,6 +96,10 @@ class CameraXVideoStabilizationController(
     private val onStabilizationSupported: (Boolean) -> Unit,
     private val onVideoCaptured: (Uri) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -126,9 +140,8 @@ class CameraXVideoStabilizationController(
     }
 
     fun openCamera() {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
-            val provider = future.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             val supported = scanStabilizationSupported(provider)
@@ -136,7 +149,7 @@ class CameraXVideoStabilizationController(
             currentStabilization = if (supported) StabilizationMode.ON else StabilizationMode.OFF
             videoCapture = buildVideoCapture(currentQuality, currentStabilization == StabilizationMode.ON)
             bindUseCases(provider)
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     private fun scanStabilizationSupported(provider: ProcessCameraProvider): Boolean =
@@ -193,7 +206,7 @@ class CameraXVideoStabilizationController(
             }
         val outputOptions =
             MediaStoreOutputOptions
-                .Builder(context.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+                .Builder(appContext.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
                 .setContentValues(contentValues)
                 .build()
 
@@ -201,7 +214,7 @@ class CameraXVideoStabilizationController(
             videoCapture.output
                 .prepareRecording(context, outputOptions)
                 .withAudioEnabled()
-                .start(ContextCompat.getMainExecutor(context)) { event ->
+                .start(ContextCompat.getMainExecutor(appContext)) { event ->
                     if (event is VideoRecordEvent.Finalize) {
                         if (!event.hasError()) {
                             onVideoCaptured(event.outputResults.outputUri)
@@ -236,5 +249,6 @@ class CameraXVideoStabilizationController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
     }
 }

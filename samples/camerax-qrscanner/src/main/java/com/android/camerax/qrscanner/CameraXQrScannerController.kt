@@ -29,11 +29,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -44,10 +50,18 @@ fun rememberCameraXQrScannerController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     onBarcodes: (barcodes: List<DetectedBarcode>, sourceWidth: Int, sourceHeight: Int) -> Unit,
-): CameraXQrScannerController =
-    remember(context, lifecycleOwner, onBarcodes) {
-        CameraXQrScannerController(context, lifecycleOwner, onBarcodes)
+): CameraXQrScannerController {
+    val latestOnBarcodes by rememberUpdatedState(onBarcodes)
+    return remember(context, lifecycleOwner) {
+        CameraXQrScannerController(
+            context,
+            lifecycleOwner,
+            onBarcodes = { barcodes, sourceWidth, sourceHeight ->
+                latestOnBarcodes(barcodes, sourceWidth, sourceHeight)
+            },
+        )
     }
+}
 
 @Stable
 class CameraXQrScannerController(
@@ -59,6 +73,10 @@ class CameraXQrScannerController(
         sourceHeight: Int,
     ) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -109,9 +127,8 @@ class CameraXQrScannerController(
     }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             val cameraSelector =
@@ -131,7 +148,7 @@ class CameraXQrScannerController(
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun closeCamera() {
@@ -140,6 +157,7 @@ class CameraXQrScannerController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         scanner.close()
         analysisExecutor.shutdown()
     }

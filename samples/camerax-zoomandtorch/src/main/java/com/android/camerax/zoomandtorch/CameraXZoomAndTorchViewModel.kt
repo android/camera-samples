@@ -31,18 +31,19 @@ class CameraXZoomAndTorchViewModel
             MutableStateFlow<CameraXZoomAndTorchUiState>(CameraXZoomAndTorchUiState.Initial)
         val uiState: StateFlow<CameraXZoomAndTorchUiState> = _uiState.asStateFlow()
 
-        private var isFrontCamera = false
+        // The active lens lives in the Previewing UiState; read it back out when a transition needs it.
+        private val isFrontCamera: Boolean
+            get() = (_uiState.value as? CameraXZoomAndTorchUiState.Previewing)?.isFrontCamera ?: false
 
         fun initialize() {
             if (_uiState.value is CameraXZoomAndTorchUiState.Initial) {
-                _uiState.value = previewingState()
+                _uiState.value = previewingState(isFrontCamera)
             }
         }
 
         fun swapCamera() {
-            isFrontCamera = !isFrontCamera
             // Recreating the controller resets zoom and torch, so reset the UI state to match.
-            _uiState.value = previewingState()
+            _uiState.value = previewingState(!isFrontCamera)
         }
 
         /**
@@ -86,10 +87,10 @@ class CameraXZoomAndTorchViewModel
         }
 
         fun resetError() {
-            _uiState.value = previewingState()
+            _uiState.value = previewingState(isFrontCamera)
         }
 
-        private fun previewingState(): CameraXZoomAndTorchUiState.Previewing =
+        private fun previewingState(isFrontCamera: Boolean): CameraXZoomAndTorchUiState.Previewing =
             CameraXZoomAndTorchUiState.Previewing(
                 isFrontCamera = isFrontCamera,
                 zoomRatio = 1f,

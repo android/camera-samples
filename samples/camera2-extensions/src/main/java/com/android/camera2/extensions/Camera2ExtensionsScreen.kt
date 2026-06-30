@@ -18,7 +18,6 @@ package com.android.camera2.extensions
 import android.media.Image
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -36,15 +35,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ShutterButton
+import com.android.camera.coreui.feedback.ObserveSaveEvents
 import com.android.camera.coreui.overlay.SettingsDropdown
 import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.SettingsOverlay
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedImagePreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -55,18 +55,15 @@ import com.android.camera.coreui.state.UnsupportedView
 @Composable
 fun Camera2ExtensionsScreen(
     viewModel: Camera2ExtensionsViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val onBack = { backDispatcher?.onBackPressed() ?: Unit }
 
     LaunchedEffect(Unit) { viewModel.initialize() }
+
+    ObserveSaveEvents(viewModel.events)
 
     CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
@@ -82,27 +79,36 @@ fun Camera2ExtensionsScreen(
                 ErrorView(errorMessage = state.errorMessage, onRetry = viewModel::resetError)
             }
 
-            is Camera2ExtensionsUiState.Previewing -> {
-                CapturingContent(
-                    currentExtension = state.currentExtension,
-                    supportedExtensions = state.supportedExtensions,
-                    viewModel = viewModel,
-                    onBack = onBack,
-                )
-            }
+            // One shared CapturingContent call site for both Previewing and PhotoCaptured so the
+            // controller persists across the transition (and keeps its selected extension) instead
+            // of being disposed/recreated.
+            else -> {
+                val currentExtension: Int
+                val supportedExtensions: List<Int>
+                when (state) {
+                    is Camera2ExtensionsUiState.Previewing -> {
+                        currentExtension = state.currentExtension
+                        supportedExtensions = state.supportedExtensions
+                    }
 
-            is Camera2ExtensionsUiState.PhotoCaptured -> {
+                    is Camera2ExtensionsUiState.PhotoCaptured -> {
+                        currentExtension = state.currentExtension
+                        supportedExtensions = state.supportedExtensions
+                    }
+                }
                 CapturingContent(
-                    currentExtension = NO_SELECTION,
-                    supportedExtensions = emptyList(),
+                    currentExtension = currentExtension,
+                    supportedExtensions = supportedExtensions,
                     viewModel = viewModel,
                     onBack = onBack,
                 )
-                CapturedImagePreview(
-                    bitmap = state.photoBitmap,
-                    onRetake = viewModel::resetToCamera,
-                    onDone = onBack,
-                )
+                if (state is Camera2ExtensionsUiState.PhotoCaptured) {
+                    CapturedImagePreview(
+                        bitmap = state.photoBitmap,
+                        onRetake = viewModel::resetToCamera,
+                        onDone = { viewModel.saveAndFinish(onBack) },
+                    )
+                }
             }
         }
     }
@@ -134,28 +140,19 @@ private fun BoxScope.CapturingContent(
 
     Camera2Preview(controller = controller)
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.extensions_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-    )
-
-    ScrimIconButton(
-        onClick = { settingsVisible = true },
-        imageVector = Icons.Filled.Settings,
-        contentDescription = stringResource(R.string.extensions_settings),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
+    ViewfinderTopBar(
+        title = null,
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        actions = {
+            ScrimIconButton(
+                onClick = { settingsVisible = true },
+                imageVector = Icons.Filled.Settings,
+                contentDescription = stringResource(R.string.extensions_settings),
+                size = 34.dp,
+                iconSize = 18.dp,
+            )
+        },
     )
 
     CameraControlsBar(
@@ -180,6 +177,3 @@ private fun BoxScope.CapturingContent(
         )
     }
 }
-
-/** Placeholder selection while the captured-photo overlay is shown over the live preview. */
-private const val NO_SELECTION = Camera2ExtensionsViewModel.NO_EXTENSION

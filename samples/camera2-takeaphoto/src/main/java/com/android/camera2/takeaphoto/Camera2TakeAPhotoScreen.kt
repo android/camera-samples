@@ -18,11 +18,8 @@ package com.android.camera2.takeaphoto
 import android.media.Image
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,18 +32,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camera2.Camera2Preview
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ShutterButton
+import com.android.camera.coreui.feedback.ObserveSaveEvents
 import com.android.camera.coreui.overlay.FocusIndicator
 import com.android.camera.coreui.overlay.RuleOfThirdsGrid
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedImagePreview
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -56,18 +52,15 @@ import com.android.camera.coreui.state.LoadingView
 @Composable
 fun Camera2TakeAPhotoScreen(
     viewModel: Camera2TakeAPhotoViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val onBack = { backDispatcher?.onBackPressed() ?: Unit }
 
     LaunchedEffect(Unit) { viewModel.initialize() }
+
+    ObserveSaveEvents(viewModel.events)
 
     CameraSampleScaffold(permissions = CameraPermissions.PHOTO, api = CameraApi.CAMERA2) {
         when (val state = uiState) {
@@ -79,27 +72,25 @@ fun Camera2TakeAPhotoScreen(
                 ErrorView(errorMessage = state.errorMessage, onRetry = viewModel::resetError)
             }
 
-            is Camera2TakeAPhotoUiState.Capturing -> {
+            // One shared CapturingContent call site for both Capturing and PhotoCaptured so the
+            // controller persists across the transition instead of being disposed/recreated.
+            else -> {
+                val isFrontCamera =
+                    (state as? Camera2TakeAPhotoUiState.PhotoCaptured)?.isFrontCamera
+                        ?: (state as Camera2TakeAPhotoUiState.Capturing).isFrontCamera
                 CapturingContent(
-                    isFrontCamera = state.isFrontCamera,
+                    isFrontCamera = isFrontCamera,
                     onPhotoCaptured = viewModel::processImage,
                     onSwapCamera = viewModel::swapCamera,
                     onBack = onBack,
                 )
-            }
-
-            is Camera2TakeAPhotoUiState.PhotoCaptured -> {
-                CapturingContent(
-                    isFrontCamera = state.isFrontCamera,
-                    onPhotoCaptured = viewModel::processImage,
-                    onSwapCamera = viewModel::swapCamera,
-                    onBack = onBack,
-                )
-                CapturedImagePreview(
-                    bitmap = state.photoBitmap,
-                    onRetake = viewModel::resetToCamera,
-                    onDone = onBack,
-                )
+                if (state is Camera2TakeAPhotoUiState.PhotoCaptured) {
+                    CapturedImagePreview(
+                        bitmap = state.photoBitmap,
+                        onRetake = viewModel::resetToCamera,
+                        onDone = { viewModel.saveAndFinish(onBack) },
+                    )
+                }
             }
         }
     }
@@ -133,26 +124,9 @@ private fun BoxScope.CapturingContent(
     RuleOfThirdsGrid()
     FocusIndicator(tapOffset = focusPoint)
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.Filled.Close,
-        contentDescription = stringResource(R.string.takeaphoto_close),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp),
-    )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.takeaphoto_title),
-        modifier =
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 44.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.takeaphoto_title),
+        onClose = onBack,
     )
 
     CameraControlsBar(

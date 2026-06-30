@@ -38,10 +38,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -75,10 +82,17 @@ fun rememberCameraXFeatureCombinationController(
     lifecycleOwner: LifecycleOwner,
     isFrontCamera: Boolean,
     onMatrixComputed: (isFront: Boolean, matrix: List<MatrixRow>) -> Unit,
-): CameraXFeatureCombinationController =
-    remember(context, isFrontCamera, onMatrixComputed) {
-        CameraXFeatureCombinationController(context, lifecycleOwner, isFrontCamera, onMatrixComputed)
+): CameraXFeatureCombinationController {
+    val latestOnMatrixComputed by rememberUpdatedState(onMatrixComputed)
+    return remember(context, lifecycleOwner, isFrontCamera) {
+        CameraXFeatureCombinationController(
+            context,
+            lifecycleOwner,
+            isFrontCamera,
+            onMatrixComputed = { isFront, matrix -> latestOnMatrixComputed(isFront, matrix) },
+        )
     }
+}
 
 /**
  * Demonstrates the CameraX feature-combination query. Before binding, it asks the camera —
@@ -95,6 +109,10 @@ class CameraXFeatureCombinationController(
     val isFrontCamera: Boolean,
     private val onMatrixComputed: (isFront: Boolean, matrix: List<MatrixRow>) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -144,9 +162,8 @@ class CameraXFeatureCombinationController(
     }
 
     fun openCamera() {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
-            val provider = future.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             val info =
                 try {
@@ -162,7 +179,7 @@ class CameraXFeatureCombinationController(
             } else {
                 computeMatrix(info)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     /** Queries every combination off the main thread, then reports the matrix back on the main thread. */
@@ -178,7 +195,7 @@ class CameraXFeatureCombinationController(
                         }
                     MatrixRow(combo.labelRes, combo.features, supported)
                 }
-            ContextCompat.getMainExecutor(context).execute {
+            ContextCompat.getMainExecutor(appContext).execute {
                 onMatrixComputed(isFrontCamera, rows)
             }
         }
@@ -240,6 +257,7 @@ class CameraXFeatureCombinationController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         cameraExecutor.shutdown()
     }
 }

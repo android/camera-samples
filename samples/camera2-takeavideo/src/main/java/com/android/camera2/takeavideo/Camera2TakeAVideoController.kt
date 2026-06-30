@@ -22,19 +22,21 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CaptureRequest
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.util.Size
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera.core.media.MediaStoreSaver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.io.File
 
 private const val TAG = "Camera2TakeAVideoCtrl"
 
@@ -43,11 +45,18 @@ fun rememberCamera2TakeAVideoController(
     context: Context,
     isFrontCamera: Boolean,
     config: CameraVideoConfig,
-    onVideoCaptured: (File) -> Unit,
+    onVideoCaptured: (Uri) -> Unit,
 ): Camera2TakeAVideoController {
     val coroutineScope = rememberCoroutineScope()
-    return remember(context, isFrontCamera, onVideoCaptured) {
-        Camera2TakeAVideoController(context, isFrontCamera, config, onVideoCaptured, coroutineScope)
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    return remember(context, isFrontCamera) {
+        Camera2TakeAVideoController(
+            context,
+            isFrontCamera,
+            config,
+            onVideoCaptured = { latestOnVideoCaptured(it) },
+            coroutineScope,
+        )
     }
 }
 
@@ -60,12 +69,12 @@ class Camera2TakeAVideoController(
     context: Context,
     isFrontCamera: Boolean,
     var config: CameraVideoConfig,
-    private val onVideoCaptured: (File) -> Unit,
+    private val onVideoCaptured: (Uri) -> Unit,
     private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera) {
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
-    private var currentVideoFile: File? = null
+    private var pendingVideo: MediaStoreSaver.PendingVideo? = null
     private var previewSurface: Surface? = null
 
     override val previewSize: Size get() = Size(config.size.width, config.size.height)
@@ -134,7 +143,8 @@ class Camera2TakeAVideoController(
         val sign = if (isFrontCamera) -1 else 1
         val orientationHint = (sensorRotation - rotationDegrees * sign + 360) % 360
 
-        currentVideoFile = MediaStoreSaver.newVideoFile()
+        val pending = MediaStoreSaver.newPendingVideo(context) ?: return
+        pendingVideo = pending
 
         mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -146,7 +156,11 @@ class Camera2TakeAVideoController(
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setOutputFile(currentVideoFile!!.absolutePath)
+                if (pending.usesFileDescriptor) {
+                    setOutputFile(pending.fileDescriptor)
+                } else {
+                    setOutputFile(pending.legacyFilePath)
+                }
                 setVideoEncodingBitRate(10_000_000)
                 setVideoFrameRate(config.fps)
                 setVideoSize(config.size.width, config.size.height)
@@ -232,23 +246,27 @@ class Camera2TakeAVideoController(
             Log.e(TAG, "Exception stopping repeating", e)
         }
 
+        var stopFailed = false
         try {
             mediaRecorder?.stop()
         } catch (e: RuntimeException) {
             // MediaRecorder throws if stop is called immediately after start.
             Log.e(TAG, "RuntimeException stopping MediaRecorder", e)
-            currentVideoFile?.delete()
-            currentVideoFile = null
+            stopFailed = true
+            pendingVideo?.discard(context)
+            pendingVideo = null
         }
 
         releaseMediaRecorder()
 
-        val savedFile = currentVideoFile
-        if (savedFile != null && savedFile.exists()) {
-            MediaStoreSaver.scanFile(context, savedFile, "video/mp4")
-            onVideoCaptured(savedFile)
+        if (!stopFailed) {
+            val pv = pendingVideo
+            if (pv != null) {
+                pv.finalize(context)
+                onVideoCaptured(pv.uri)
+            }
+            pendingVideo = null
         }
-        currentVideoFile = null
 
         // Restart the preview session.
         val surface = previewSurface

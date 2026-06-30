@@ -28,9 +28,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -41,10 +47,16 @@ fun rememberCameraXLuminosityController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     onLuma: (luma: Float, fps: Float) -> Unit,
-): CameraXLuminosityController =
-    remember(context, lifecycleOwner, onLuma) {
-        CameraXLuminosityController(context, lifecycleOwner, onLuma)
+): CameraXLuminosityController {
+    val latestOnLuma by rememberUpdatedState(onLuma)
+    return remember(context, lifecycleOwner) {
+        CameraXLuminosityController(
+            context,
+            lifecycleOwner,
+            onLuma = { luma, fps -> latestOnLuma(luma, fps) },
+        )
     }
+}
 
 /**
  * Binds a [Preview] alongside an [ImageAnalysis] use case and reports the average scene luminance of
@@ -59,6 +71,10 @@ class CameraXLuminosityController(
     private val lifecycleOwner: LifecycleOwner,
     private val onLuma: (luma: Float, fps: Float) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -111,9 +127,8 @@ class CameraXLuminosityController(
     }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             try {
                 provider.unbindAll()
@@ -126,7 +141,7 @@ class CameraXLuminosityController(
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun closeCamera() {
@@ -135,6 +150,7 @@ class CameraXLuminosityController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         analysisExecutor.shutdown()
     }
 }

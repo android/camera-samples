@@ -78,6 +78,9 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":core-theme"))
+    implementation(project(":samples:camerax-media3effects"))
+    implementation(project(":samples:camerax-rawcapture"))
+    implementation(project(":samples:camerax-slowmotion"))
     implementation(project(":samples:camerax-featurecombination"))
     implementation(project(":samples:camerax-flipwhilerecording"))
     implementation(project(":samples:camerax-videostabilization"))

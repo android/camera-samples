@@ -15,24 +15,51 @@
  */
 package com.android.camera2.hdrvideo
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import com.android.camera.core.media.MediaStoreSaver
+import com.android.camera.coreui.feedback.SaveEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class Camera2HdrVideoViewModel
     @Inject
-    constructor() : ViewModel() {
+    constructor(
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
         private val _uiState =
             MutableStateFlow<Camera2HdrVideoUiState>(Camera2HdrVideoUiState.Initial)
         val uiState: StateFlow<Camera2HdrVideoUiState> = _uiState.asStateFlow()
 
-        private var selectedRange = HdrDynamicRange.SDR
-        private var supportedRanges = listOf(HdrDynamicRange.SDR)
+        private val _events = Channel<SaveEvent>(Channel.BUFFERED)
+        val events = _events.receiveAsFlow()
+
+        // Range selections live in the UiState; read them back out for each transition.
+        private val selectedRange: HdrDynamicRange
+            get() =
+                when (val state = _uiState.value) {
+                    is Camera2HdrVideoUiState.Previewing -> state.selectedRange
+                    is Camera2HdrVideoUiState.Recording -> state.selectedRange
+                    is Camera2HdrVideoUiState.VideoCaptured -> state.selectedRange
+                    else -> HdrDynamicRange.SDR
+                }
+
+        private val supportedRanges: List<HdrDynamicRange>
+            get() =
+                when (val state = _uiState.value) {
+                    is Camera2HdrVideoUiState.Previewing -> state.supportedRanges
+                    is Camera2HdrVideoUiState.Recording -> state.supportedRanges
+                    is Camera2HdrVideoUiState.VideoCaptured -> state.supportedRanges
+                    else -> listOf(HdrDynamicRange.SDR)
+                }
 
         fun initialize() {
             if (_uiState.value is Camera2HdrVideoUiState.Initial) {
@@ -50,19 +77,21 @@ class Camera2HdrVideoViewModel
                 _uiState.value = Camera2HdrVideoUiState.Unsupported
                 return
             }
-            supportedRanges = ranges
-            if (selectedRange !in ranges || !selectedRange.isHdr) {
-                selectedRange = ranges.first { it.isHdr }
-            }
+            val range =
+                if (selectedRange in ranges && selectedRange.isHdr) {
+                    selectedRange
+                } else {
+                    ranges.first { it.isHdr }
+                }
             if (_uiState.value !is Camera2HdrVideoUiState.Recording) {
-                _uiState.value = previewing()
+                _uiState.value = Camera2HdrVideoUiState.Previewing(range, ranges)
             }
         }
 
         fun updateRange(range: HdrDynamicRange) {
-            selectedRange = range
-            if (_uiState.value is Camera2HdrVideoUiState.Previewing) {
-                _uiState.value = previewing()
+            val state = _uiState.value
+            if (state is Camera2HdrVideoUiState.Previewing) {
+                _uiState.value = state.copy(selectedRange = range)
             }
         }
 
@@ -73,6 +102,15 @@ class Camera2HdrVideoViewModel
         fun videoCaptured(uri: Uri) {
             _uiState.value =
                 Camera2HdrVideoUiState.VideoCaptured(uri, selectedRange, supportedRanges)
+            _events.trySend(SaveEvent.Saved)
+        }
+
+        /** Discards the just-saved clip from the gallery and returns to the viewfinder. */
+        fun retake() {
+            (_uiState.value as? Camera2HdrVideoUiState.VideoCaptured)?.let {
+                MediaStoreSaver.deleteMedia(context, it.videoUri)
+            }
+            resetToCamera()
         }
 
         fun resetToCamera() {

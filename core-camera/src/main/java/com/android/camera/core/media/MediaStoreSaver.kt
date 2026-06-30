@@ -22,10 +22,12 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -106,13 +108,109 @@ object MediaStoreSaver {
     }
 
     /**
-     * Returns a `DCIM/Camera/VID_<timestamp>.mp4` file, creating the directory if needed. Used by
-     * Camera2 video samples that record straight to a [File] via `MediaRecorder`.
+     * A video destination created in `DCIM/Camera` that a `MediaRecorder` can write into.
+     *
+     * On API 29+ the recording targets a pending [MediaStore] entry through [fileDescriptor]; the
+     * underlying [ParcelFileDescriptor] must stay open from `MediaRecorder.prepare()` through
+     * `MediaRecorder.stop()`. On pre-Q devices the recording targets [legacyFile] directly (covered
+     * by the `WRITE_EXTERNAL_STORAGE` permission with `maxSdkVersion=28`).
+     *
+     * Call [finalize] after a successful `stop()` to publish the video, or [discard] to drop a
+     * failed/aborted recording.
      */
-    @Suppress("DEPRECATION")
-    fun newVideoFile(): File {
-        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera")
-        if (!dir.exists()) dir.mkdirs()
-        return File(dir, "VID_${timestamp()}.mp4")
+    class PendingVideo internal constructor(
+        val uri: Uri,
+        private val pfd: ParcelFileDescriptor?,
+        private val legacyFile: File?,
+    ) {
+        /**
+         * `true` when the recording targets a [MediaStore] descriptor (Q+); the caller should use
+         * [fileDescriptor]. `false` on pre-Q, where the caller should use [legacyFilePath].
+         */
+        val usesFileDescriptor: Boolean get() = pfd != null
+
+        /** The file descriptor to hand to `MediaRecorder.setOutputFile(FileDescriptor)` (Q+ only). */
+        val fileDescriptor: FileDescriptor get() = pfd!!.fileDescriptor
+
+        /** The absolute path to hand to `MediaRecorder.setOutputFile(String)` (pre-Q only). */
+        val legacyFilePath: String get() = legacyFile!!.absolutePath
+
+        /**
+         * Publishes the recorded video so it shows up in the gallery. On Q+ this closes the
+         * descriptor and clears `IS_PENDING`; on pre-Q it triggers a media scan of [legacyFile].
+         */
+        fun finalize(context: Context) {
+            if (pfd != null) {
+                pfd.close()
+                val values =
+                    ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0) }
+                context.contentResolver.update(uri, values, null, null)
+            } else {
+                scanFile(context, legacyFile!!, "video/mp4")
+            }
+        }
+
+        /**
+         * Drops a failed or aborted recording, closing the descriptor and deleting the entry/file.
+         */
+        fun discard(context: Context) {
+            pfd?.close()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                context.contentResolver.delete(uri, null, null)
+            } else {
+                legacyFile?.delete()
+            }
+        }
     }
+
+    /**
+     * Creates a pending video destination in `DCIM/Camera`, returning a [PendingVideo] the caller
+     * records into, or `null` on failure. Used by Camera2 video samples that record straight to a
+     * `MediaRecorder`.
+     */
+    fun newPendingVideo(
+        context: Context,
+        displayName: String = "VID_${timestamp()}",
+    ): PendingVideo? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values =
+                ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, "$displayName.mp4")
+                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, CAMERA_RELATIVE_PATH)
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                }
+            val resolver = context.contentResolver
+            val uri =
+                resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return null
+            val pfd =
+                runCatching { resolver.openFileDescriptor(uri, "w") }.getOrNull()
+                    ?: run {
+                        resolver.delete(uri, null, null)
+                        return null
+                    }
+            PendingVideo(uri, pfd, null)
+        } else {
+            @Suppress("DEPRECATION")
+            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera")
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, "$displayName.mp4")
+            PendingVideo(Uri.fromFile(file), null, file)
+        }
+    }
+
+    /**
+     * Deletes media previously saved through this object. Handles both `content://` MediaStore URIs
+     * (Q+) and `file://` URIs (pre-Q). Returns `true` if something was removed.
+     */
+    fun deleteMedia(
+        context: Context,
+        uri: Uri,
+    ): Boolean =
+        when (uri.scheme) {
+            "content" -> context.contentResolver.delete(uri, null, null) > 0
+            "file" -> uri.path?.let { File(it).delete() } ?: false
+            else -> false
+        }
 }

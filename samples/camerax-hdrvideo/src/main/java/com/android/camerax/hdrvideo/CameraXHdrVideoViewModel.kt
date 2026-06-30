@@ -15,26 +15,62 @@
  */
 package com.android.camerax.hdrvideo
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import com.android.camera.core.media.MediaStoreSaver
+import com.android.camera.coreui.feedback.SaveEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import javax.inject.Inject
 
 @HiltViewModel
 class CameraXHdrVideoViewModel
     @Inject
-    constructor() : ViewModel() {
+    constructor(
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
         private val _uiState =
             MutableStateFlow<CameraXHdrVideoUiState>(CameraXHdrVideoUiState.Initial)
         val uiState: StateFlow<CameraXHdrVideoUiState> = _uiState.asStateFlow()
 
+        private val _events = Channel<SaveEvent>(Channel.BUFFERED)
+        val events = _events.receiveAsFlow()
+
         private val isFrontCamera = false
-        private var selectedRange = HdrDynamicRange.SDR
-        private var supportedRanges = listOf(HdrDynamicRange.SDR)
-        private var quality = VideoQuality.HD
+
+        // Range/quality selections live in the UiState; read them back out for each transition.
+        private val selectedRange: HdrDynamicRange
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXHdrVideoUiState.Previewing -> state.selectedRange
+                    is CameraXHdrVideoUiState.Recording -> state.selectedRange
+                    is CameraXHdrVideoUiState.VideoCaptured -> state.selectedRange
+                    else -> HdrDynamicRange.SDR
+                }
+
+        private val supportedRanges: List<HdrDynamicRange>
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXHdrVideoUiState.Previewing -> state.supportedRanges
+                    is CameraXHdrVideoUiState.Recording -> state.supportedRanges
+                    is CameraXHdrVideoUiState.VideoCaptured -> state.supportedRanges
+                    else -> listOf(HdrDynamicRange.SDR)
+                }
+
+        private val quality: VideoQuality
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXHdrVideoUiState.Previewing -> state.quality
+                    is CameraXHdrVideoUiState.Recording -> state.quality
+                    is CameraXHdrVideoUiState.VideoCaptured -> state.quality
+                    else -> VideoQuality.HD
+                }
 
         fun initialize() {
             if (_uiState.value is CameraXHdrVideoUiState.Initial) {
@@ -52,24 +88,28 @@ class CameraXHdrVideoViewModel
                 _uiState.value = CameraXHdrVideoUiState.Unsupported
                 return
             }
-            supportedRanges = ranges
-            selectedRange = ranges.first { it.isHdr }
             if (_uiState.value !is CameraXHdrVideoUiState.Recording) {
-                _uiState.value = previewing()
+                _uiState.value =
+                    CameraXHdrVideoUiState.Previewing(
+                        isFrontCamera,
+                        ranges.first { it.isHdr },
+                        ranges,
+                        quality,
+                    )
             }
         }
 
         fun updateRange(range: HdrDynamicRange) {
-            selectedRange = range
-            if (_uiState.value is CameraXHdrVideoUiState.Previewing) {
-                _uiState.value = previewing()
+            val state = _uiState.value
+            if (state is CameraXHdrVideoUiState.Previewing) {
+                _uiState.value = state.copy(selectedRange = range)
             }
         }
 
         fun updateQuality(newQuality: VideoQuality) {
-            quality = newQuality
-            if (_uiState.value is CameraXHdrVideoUiState.Previewing) {
-                _uiState.value = previewing()
+            val state = _uiState.value
+            if (state is CameraXHdrVideoUiState.Previewing) {
+                _uiState.value = state.copy(quality = newQuality)
             }
         }
 
@@ -87,6 +127,15 @@ class CameraXHdrVideoViewModel
                     supportedRanges,
                     quality,
                 )
+            _events.trySend(SaveEvent.Saved)
+        }
+
+        /** Discards the just-saved clip from the gallery and returns to the viewfinder. */
+        fun retake() {
+            (_uiState.value as? CameraXHdrVideoUiState.VideoCaptured)?.let {
+                MediaStoreSaver.deleteMedia(context, it.videoUri)
+            }
+            resetToCamera()
         }
 
         fun resetToCamera() {

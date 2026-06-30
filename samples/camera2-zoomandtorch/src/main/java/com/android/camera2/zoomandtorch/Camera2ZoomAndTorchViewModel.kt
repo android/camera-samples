@@ -31,18 +31,19 @@ class Camera2ZoomAndTorchViewModel
             MutableStateFlow<Camera2ZoomAndTorchUiState>(Camera2ZoomAndTorchUiState.Initial)
         val uiState: StateFlow<Camera2ZoomAndTorchUiState> = _uiState.asStateFlow()
 
-        private var isFrontCamera = false
+        // The active lens lives in the Previewing UiState; read it back out for each transition.
+        private val isFrontCamera: Boolean
+            get() = (_uiState.value as? Camera2ZoomAndTorchUiState.Previewing)?.isFrontCamera ?: false
 
         fun initialize() {
             if (_uiState.value is Camera2ZoomAndTorchUiState.Initial) {
-                _uiState.value = previewing()
+                _uiState.value = previewing(isFrontCamera)
             }
         }
 
         fun swapCamera() {
-            isFrontCamera = !isFrontCamera
             // Reset zoom/torch to defaults; onCameraReady updates the ranges for the new lens.
-            _uiState.value = previewing()
+            _uiState.value = previewing(!isFrontCamera)
         }
 
         fun onCameraReady(
@@ -79,10 +80,10 @@ class Camera2ZoomAndTorchViewModel
         }
 
         fun resetError() {
-            _uiState.value = previewing()
+            _uiState.value = previewing(isFrontCamera)
         }
 
-        private fun previewing(): Camera2ZoomAndTorchUiState.Previewing =
+        private fun previewing(isFrontCamera: Boolean): Camera2ZoomAndTorchUiState.Previewing =
             Camera2ZoomAndTorchUiState.Previewing(
                 isFrontCamera = isFrontCamera,
                 zoomRatio = 1f,

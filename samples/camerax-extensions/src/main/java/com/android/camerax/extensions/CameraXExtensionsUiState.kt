@@ -16,6 +16,7 @@
 package com.android.camerax.extensions
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.Immutable
 
 /**
  * UI state for the CameraX vendor-extensions sample. The mode values are the integer constants from
@@ -24,13 +25,17 @@ import android.graphics.Bitmap
 sealed interface CameraXExtensionsUiState {
     data object Initial : CameraXExtensionsUiState
 
+    @Immutable
     data class Previewing(
         val currentMode: Int,
         val availableModes: List<Int>,
     ) : CameraXExtensionsUiState
 
+    @Immutable
     data class PhotoCaptured(
         val photoBitmap: Bitmap,
+        val currentMode: Int,
+        val availableModes: List<Int>,
     ) : CameraXExtensionsUiState
 
     data class Error(

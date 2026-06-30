@@ -30,7 +30,14 @@ class CameraXFeatureCombinationViewModel
             MutableStateFlow<CameraXFeatureCombinationUiState>(CameraXFeatureCombinationUiState.Initial)
         val uiState: StateFlow<CameraXFeatureCombinationUiState> = _uiState.asStateFlow()
 
-        private var isFrontCamera = false
+        // The active lens lives in the UiState; read it back out when a transition needs it.
+        private val isFrontCamera: Boolean
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXFeatureCombinationUiState.Loading -> state.isFrontCamera
+                    is CameraXFeatureCombinationUiState.Ready -> state.isFrontCamera
+                    else -> false
+                }
 
         fun initialize() {
             if (_uiState.value is CameraXFeatureCombinationUiState.Initial) {
@@ -73,8 +80,7 @@ class CameraXFeatureCombinationViewModel
         }
 
         fun swapCamera() {
-            isFrontCamera = !isFrontCamera
-            _uiState.value = CameraXFeatureCombinationUiState.Loading(isFrontCamera)
+            _uiState.value = CameraXFeatureCombinationUiState.Loading(!isFrontCamera)
         }
 
         fun resetError() {

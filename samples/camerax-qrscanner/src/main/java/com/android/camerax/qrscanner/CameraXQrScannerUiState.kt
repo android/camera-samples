@@ -16,6 +16,7 @@
 package com.android.camerax.qrscanner
 
 import android.graphics.Rect
+import androidx.compose.runtime.Immutable
 
 /**
  * A single barcode detected by ML Kit on an analysis frame.
@@ -39,6 +40,7 @@ sealed interface CameraXQrScannerUiState {
      * @param sourceWidth width of the analysis frame the [barcodes] were detected in, in pixels.
      * @param sourceHeight height of the analysis frame the [barcodes] were detected in, in pixels.
      */
+    @Immutable
     data class Scanning(
         val barcodes: List<DetectedBarcode>,
         val sourceWidth: Int,

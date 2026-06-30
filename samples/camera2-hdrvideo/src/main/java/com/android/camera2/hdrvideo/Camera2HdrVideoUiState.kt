@@ -18,6 +18,7 @@ package com.android.camera2.hdrvideo
 import android.hardware.camera2.params.DynamicRangeProfiles
 import android.net.Uri
 import androidx.annotation.StringRes
+import androidx.compose.runtime.Immutable
 
 /**
  * A Camera2 10-bit dynamic-range profile this sample can record, mapped to its
@@ -44,16 +45,19 @@ sealed interface Camera2HdrVideoUiState {
     /** API < 33, or the camera advertises no 10-bit HDR profile (e.g. emulators). */
     data object Unsupported : Camera2HdrVideoUiState
 
+    @Immutable
     data class Previewing(
         val selectedRange: HdrDynamicRange,
         val supportedRanges: List<HdrDynamicRange>,
     ) : Camera2HdrVideoUiState
 
+    @Immutable
     data class Recording(
         val selectedRange: HdrDynamicRange,
         val supportedRanges: List<HdrDynamicRange>,
     ) : Camera2HdrVideoUiState
 
+    @Immutable
     data class VideoCaptured(
         val videoUri: Uri,
         val selectedRange: HdrDynamicRange,

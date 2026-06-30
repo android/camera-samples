@@ -59,15 +59,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coretheme.monoFontFamily
 import com.android.camera.coreui.controls.CameraSwitchButton
-import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
@@ -82,12 +81,7 @@ private val UnsupportedRed = Color(0xFFE57373)
 @Composable
 fun CameraXFeatureCombination(
     viewModel: CameraXFeatureCombinationViewModel =
-        hiltViewModel(
-            checkNotNull(LocalViewModelStoreOwner.current) {
-                "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner"
-            },
-            null,
-        ),
+        hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
@@ -172,23 +166,12 @@ private fun BoxScope.DiagnosticContent(
         CameraXPreview(surfaceRequest = request, onTapToFocus = controller::focus)
     }
 
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        ScrimIconButton(
-            onClick = onBack,
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = stringResource(R.string.featurecombination_back),
-            size = 34.dp,
-            iconSize = 18.dp,
-        )
-        CameraSwitchButton(onClick = viewModel::swapCamera)
-    }
+    ViewfinderTopBar(
+        title = null,
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        actions = { CameraSwitchButton(onClick = viewModel::swapCamera) },
+    )
 
     if (ready == null) {
         ViewfinderTitleChip(

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr *)",
+      "Bash(gh api *)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(f'Total inline comments: {len\\(data\\)}'\\); [print\\(f'\\\\n--- {c[\\\\\"user\\\\\"][\\\\\"login\\\\\"]} on {c.get\\(\\\\\"path\\\\\"\\)}:{c.get\\(\\\\\"line\\\\\"\\) or c.get\\(\\\\\"original_line\\\\\"\\)} ---\\\\n{c[\\\\\"body\\\\\"]}'\\) for c in data]\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(f'\\\\n=== Review by {r[\\\\\"user\\\\\"][\\\\\"login\\\\\"]} [{r[\\\\\"state\\\\\"]}] ===\\\\n{r.get\\(\\\\\"body\\\\\",\\\\\"\\\\\"\\)}'\\) for r in data]\")"
+    ]
+  }
+}

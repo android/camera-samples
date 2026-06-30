@@ -15,19 +15,22 @@
  */
 package com.android.camerax.extensions
 
+import android.content.Context
+import android.graphics.Bitmap
 import androidx.annotation.StringRes
-import androidx.camera.core.ImageProxy
 import androidx.camera.extensions.ExtensionMode
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.android.camera.core.image.toBitmap
+import com.android.camera.core.media.MediaStoreSaver
+import com.android.camera.coreui.feedback.SaveEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** Human-readable label resource for an [ExtensionMode] integer constant. */
@@ -45,49 +48,86 @@ fun extensionModeLabel(mode: Int): Int =
 @HiltViewModel
 class CameraXExtensionsViewModel
     @Inject
-    constructor() : ViewModel() {
+    constructor(
+        @ApplicationContext private val context: Context,
+    ) : ViewModel() {
         private val _uiState =
             MutableStateFlow<CameraXExtensionsUiState>(CameraXExtensionsUiState.Initial)
         val uiState: StateFlow<CameraXExtensionsUiState> = _uiState.asStateFlow()
 
-        private var currentMode: Int = ExtensionMode.NONE
+        // One-shot save results surfaced to the UI as a toast (see ObserveSaveEvents).
+        private val _events = Channel<SaveEvent>(Channel.BUFFERED)
+        val events = _events.receiveAsFlow()
 
-        // Until the ExtensionsManager reports what the device supports, only NONE is selectable.
-        private var availableModes: List<Int> = listOf(ExtensionMode.NONE)
+        // Guards against a double-tap on Done saving the same photo twice.
+        private var isSaving = false
+
+        // The selected mode and what the device supports live in the UiState; read them back out
+        // when a transition needs them. Until the ExtensionsManager reports availability, only NONE
+        // is selectable.
+        private val currentMode: Int
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXExtensionsUiState.Previewing -> state.currentMode
+                    is CameraXExtensionsUiState.PhotoCaptured -> state.currentMode
+                    else -> ExtensionMode.NONE
+                }
+
+        private val availableModes: List<Int>
+            get() =
+                when (val state = _uiState.value) {
+                    is CameraXExtensionsUiState.Previewing -> state.availableModes
+                    is CameraXExtensionsUiState.PhotoCaptured -> state.availableModes
+                    else -> listOf(ExtensionMode.NONE)
+                }
 
         fun initialize() {
             if (_uiState.value is CameraXExtensionsUiState.Initial) {
-                _uiState.value = CameraXExtensionsUiState.Previewing(currentMode, availableModes)
+                _uiState.value =
+                    CameraXExtensionsUiState.Previewing(ExtensionMode.NONE, listOf(ExtensionMode.NONE))
             }
         }
 
         /** Called once the [androidx.camera.extensions.ExtensionsManager] has resolved availability. */
         fun setAvailableModes(modes: List<Int>) {
-            availableModes = modes
-            if (currentMode !in modes) {
-                currentMode = ExtensionMode.NONE
-            }
-            _uiState.value = CameraXExtensionsUiState.Previewing(currentMode, availableModes)
+            val mode = if (currentMode in modes) currentMode else ExtensionMode.NONE
+            _uiState.value = CameraXExtensionsUiState.Previewing(mode, modes)
         }
 
         fun setExtension(mode: Int) {
-            currentMode = mode
-            _uiState.value = CameraXExtensionsUiState.Previewing(currentMode, availableModes)
+            _uiState.value = CameraXExtensionsUiState.Previewing(mode, availableModes)
         }
 
-        fun processImage(image: ImageProxy) {
+        fun processImage(bitmap: Bitmap) {
+            // Ignore rapid-fire captures: only the active preview can produce a photo, so a
+            // double-tap can't overwrite an already-captured photo or spawn extra work.
+            if (_uiState.value !is CameraXExtensionsUiState.Previewing) {
+                bitmap.recycle()
+                return
+            }
+            // The controller already decoded/oriented the bitmap and closed the source proxy.
+            _uiState.value =
+                CameraXExtensionsUiState.PhotoCaptured(bitmap, currentMode, availableModes)
+        }
+
+        /**
+         * Persists the captured photo to the gallery, emits a [SaveEvent] for the toast, then runs
+         * [onSaved] (typically navigating back). A re-entrancy guard prevents a double-tap on Done
+         * from saving twice.
+         */
+        fun saveAndFinish(onSaved: () -> Unit) {
+            val bitmap = (_uiState.value as? CameraXExtensionsUiState.PhotoCaptured)?.photoBitmap
+            if (bitmap == null) {
+                onSaved()
+                return
+            }
+            if (isSaving) return
+            isSaving = true
             viewModelScope.launch {
-                try {
-                    val bitmap =
-                        withContext(Dispatchers.IO) {
-                            // toBitmap() rotates and always closes the image.
-                            image.toBitmap()
-                        }
-                    _uiState.value = CameraXExtensionsUiState.PhotoCaptured(bitmap)
-                } catch (e: Exception) {
-                    _uiState.value =
-                        CameraXExtensionsUiState.Error("Error processing image: ${e.message}")
-                }
+                val uri = MediaStoreSaver.saveBitmap(context, bitmap)
+                _events.send(if (uri != null) SaveEvent.Saved else SaveEvent.Failed)
+                isSaving = false
+                onSaved()
             }
         }
 

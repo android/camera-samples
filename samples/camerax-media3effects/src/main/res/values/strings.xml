@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="media3effects_title">Media3 · %1$s</string>
+    <string name="media3effects_settings">Effects</string>
+    <string name="media3effects_settings_header">GPU effect</string>
+    <string name="media3effects_effect_label">Effect</string>
+    <string name="media3effects_mode_none">None</string>
+    <string name="media3effects_mode_grayscale">Grayscale</string>
+    <string name="media3effects_mode_invert">Invert</string>
+    <string name="media3effects_mode_bright">Bright</string>
+    <string name="media3effects_mode_contrast">Contrast</string>
+    <string name="media3effects_mode_warm">Warm</string>
+    <string name="media3effects_mode_cool">Cool</string>
+</resources>

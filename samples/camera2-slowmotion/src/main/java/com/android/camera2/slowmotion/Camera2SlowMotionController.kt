@@ -27,6 +27,7 @@ import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.util.Range
@@ -34,13 +35,14 @@ import android.util.Size
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera.core.media.MediaStoreSaver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.io.File
 import java.util.concurrent.Executor
 
 private const val TAG = "Camera2SlowMotionCtrl"
@@ -52,11 +54,18 @@ private val PREFERRED_SIZE = Size(1280, 720)
 fun rememberCamera2SlowMotionController(
     context: Context,
     onUnsupported: () -> Unit,
-    onVideoCaptured: (File) -> Unit,
+    onVideoCaptured: (Uri) -> Unit,
 ): Camera2SlowMotionController {
     val coroutineScope = rememberCoroutineScope()
-    return remember(context, onUnsupported, onVideoCaptured) {
-        Camera2SlowMotionController(context, onUnsupported, onVideoCaptured, coroutineScope)
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    return remember(context) {
+        Camera2SlowMotionController(
+            context,
+            onUnsupported = { latestOnUnsupported() },
+            onVideoCaptured = { latestOnVideoCaptured(it) },
+            coroutineScope,
+        )
     }
 }
 
@@ -73,7 +82,7 @@ fun rememberCamera2SlowMotionController(
 class Camera2SlowMotionController(
     context: Context,
     private val onUnsupported: () -> Unit,
-    private val onVideoCaptured: (File) -> Unit,
+    private val onVideoCaptured: (Uri) -> Unit,
     private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera = false) {
     private var isSupported = true
@@ -82,7 +91,7 @@ class Camera2SlowMotionController(
 
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
-    private var currentVideoFile: File? = null
+    private var pendingVideo: MediaStoreSaver.PendingVideo? = null
     private var previewSurface: Surface? = null
 
     override val previewSize: Size get() = highSpeedSize
@@ -240,7 +249,8 @@ class Camera2SlowMotionController(
 
         val fps = highSpeedFpsRange.upper
 
-        currentVideoFile = MediaStoreSaver.newVideoFile()
+        val pending = MediaStoreSaver.newPendingVideo(context) ?: return
+        pendingVideo = pending
 
         mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -252,7 +262,11 @@ class Camera2SlowMotionController(
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setOutputFile(currentVideoFile!!.absolutePath)
+                if (pending.usesFileDescriptor) {
+                    setOutputFile(pending.fileDescriptor)
+                } else {
+                    setOutputFile(pending.legacyFilePath)
+                }
                 setVideoEncodingBitRate(10_000_000)
                 setVideoFrameRate(fps)
                 // Capturing at the high rate while keeping the playback frame rate lower yields the
@@ -325,23 +339,27 @@ class Camera2SlowMotionController(
             Log.e(TAG, "Exception stopping repeating", e)
         }
 
+        var stopFailed = false
         try {
             mediaRecorder?.stop()
         } catch (e: RuntimeException) {
             // MediaRecorder throws if stop is called immediately after start.
             Log.e(TAG, "RuntimeException stopping MediaRecorder", e)
-            currentVideoFile?.delete()
-            currentVideoFile = null
+            stopFailed = true
+            pendingVideo?.discard(context)
+            pendingVideo = null
         }
 
         releaseMediaRecorder()
 
-        val savedFile = currentVideoFile
-        if (savedFile != null && savedFile.exists()) {
-            MediaStoreSaver.scanFile(context, savedFile, "video/mp4")
-            onVideoCaptured(savedFile)
+        if (!stopFailed) {
+            val pv = pendingVideo
+            if (pv != null) {
+                pv.finalize(context)
+                onVideoCaptured(pv.uri)
+            }
+            pendingVideo = null
         }
-        currentVideoFile = null
 
         // Restart the preview session.
         val surface = previewSurface

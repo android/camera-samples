@@ -30,7 +30,11 @@ class Camera2HdrViewfinderViewModel
             MutableStateFlow<Camera2HdrViewfinderUiState>(Camera2HdrViewfinderUiState.Initial)
         val uiState: StateFlow<Camera2HdrViewfinderUiState> = _uiState.asStateFlow()
 
-        private var currentMode: ProcessingMode = ProcessingMode.NORMAL
+        // The processing mode lives in the Previewing UiState; read it back out for each transition.
+        private val currentMode: ProcessingMode
+            get() =
+                (_uiState.value as? Camera2HdrViewfinderUiState.Previewing)?.mode
+                    ?: ProcessingMode.NORMAL
 
         fun initialize() {
             if (_uiState.value is Camera2HdrViewfinderUiState.Initial) {
@@ -39,9 +43,8 @@ class Camera2HdrViewfinderViewModel
         }
 
         fun setMode(mode: ProcessingMode) {
-            currentMode = mode
             if (_uiState.value is Camera2HdrViewfinderUiState.Previewing) {
-                _uiState.value = Camera2HdrViewfinderUiState.Previewing(currentMode)
+                _uiState.value = Camera2HdrViewfinderUiState.Previewing(mode)
             }
         }
 

@@ -33,15 +33,21 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.SegmentationMask
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.nio.ByteOrder
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -59,10 +65,18 @@ fun rememberCameraXGreenScreenController(
     lifecycleOwner: LifecycleOwner,
     onPersonOverlay: (ImageBitmap) -> Unit,
     onUnsupported: () -> Unit,
-): CameraXGreenScreenController =
-    remember(context, lifecycleOwner, onPersonOverlay, onUnsupported) {
-        CameraXGreenScreenController(context, lifecycleOwner, onPersonOverlay, onUnsupported)
+): CameraXGreenScreenController {
+    val latestOnPersonOverlay by rememberUpdatedState(onPersonOverlay)
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    return remember(context, lifecycleOwner) {
+        CameraXGreenScreenController(
+            context,
+            lifecycleOwner,
+            onPersonOverlay = { overlay -> latestOnPersonOverlay(overlay) },
+            onUnsupported = { latestOnUnsupported() },
+        )
     }
+}
 
 /**
  * A concurrent-camera "green screen": the back camera streams the live background through a
@@ -81,6 +95,10 @@ class CameraXGreenScreenController(
     private val onPersonOverlay: (ImageBitmap) -> Unit,
     private val onUnsupported: () -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var backSurfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -111,14 +129,13 @@ class CameraXGreenScreenController(
             .apply { setAnalyzer(analysisExecutor, ::analyze) }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             if (provider.availableConcurrentCameraInfos.isEmpty()) {
                 onUnsupported()
-                return@addListener
+                return@launch
             }
 
             try {
@@ -140,7 +157,7 @@ class CameraXGreenScreenController(
                 Log.e(TAG, "Concurrent camera binding failed", e)
                 onUnsupported()
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     @SuppressLint("UnsafeOptInUsageError")
@@ -253,6 +270,7 @@ class CameraXGreenScreenController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         segmenter.close()
         analysisExecutor.shutdown()
     }

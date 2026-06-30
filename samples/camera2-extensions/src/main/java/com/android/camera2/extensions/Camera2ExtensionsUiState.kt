@@ -16,17 +16,22 @@
 package com.android.camera2.extensions
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.Immutable
 
 sealed interface Camera2ExtensionsUiState {
     data object Initial : Camera2ExtensionsUiState
 
+    @Immutable
     data class Previewing(
         val currentExtension: Int,
         val supportedExtensions: List<Int>,
     ) : Camera2ExtensionsUiState
 
+    @Immutable
     data class PhotoCaptured(
         val photoBitmap: Bitmap,
+        val currentExtension: Int,
+        val supportedExtensions: List<Int>,
     ) : Camera2ExtensionsUiState
 
     data object Unsupported : Camera2ExtensionsUiState

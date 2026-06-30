@@ -31,7 +31,9 @@ import android.view.Surface
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera2.extensions.Camera2ExtensionsViewModel.Companion.NO_EXTENSION
 import java.util.concurrent.Executor
@@ -48,15 +50,19 @@ fun rememberCamera2ExtensionsController(
     onUnsupported: () -> Unit,
     onSupportedExtensions: (List<Int>) -> Unit,
     onPhotoCaptured: (Image, Int) -> Unit,
-): Camera2ExtensionsController =
-    remember(context, onUnsupported, onSupportedExtensions, onPhotoCaptured) {
+): Camera2ExtensionsController {
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    val latestOnSupportedExtensions by rememberUpdatedState(onSupportedExtensions)
+    val latestOnPhotoCaptured by rememberUpdatedState(onPhotoCaptured)
+    return remember(context) {
         Camera2ExtensionsController(
             context,
-            onUnsupported,
-            onSupportedExtensions,
-            onPhotoCaptured,
+            onUnsupported = { latestOnUnsupported() },
+            onSupportedExtensions = { latestOnSupportedExtensions(it) },
+            onPhotoCaptured = { image, orientation -> latestOnPhotoCaptured(image, orientation) },
         )
     }
+}
 
 /**
  * Camera2 vendor-extension controller. The shared open/close/transform/focus plumbing lives in

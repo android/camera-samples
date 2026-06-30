@@ -16,6 +16,7 @@
 package com.android.camerax.extensions
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
@@ -34,12 +35,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.android.camera.core.image.toBitmap
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -62,18 +67,18 @@ fun rememberCameraXExtensionsController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     initialMode: Int,
-    onPhotoCaptured: (ImageProxy) -> Unit,
+    onPhotoCaptured: (Bitmap) -> Unit,
     onModesReady: (List<Int>) -> Unit,
 ): CameraXExtensionsController {
-    val coroutineScope = rememberCoroutineScope()
-    return remember(context, onPhotoCaptured, onModesReady) {
+    val latestOnPhotoCaptured by rememberUpdatedState(onPhotoCaptured)
+    val latestOnModesReady by rememberUpdatedState(onModesReady)
+    return remember(context, lifecycleOwner) {
         CameraXExtensionsController(
             context = context,
             lifecycleOwner = lifecycleOwner,
             initialMode = initialMode,
-            onPhotoCaptured = onPhotoCaptured,
-            onModesReady = onModesReady,
-            coroutineScope = coroutineScope,
+            onPhotoCaptured = { bitmap -> latestOnPhotoCaptured(bitmap) },
+            onModesReady = { modes -> latestOnModesReady(modes) },
         )
     }
 }
@@ -83,10 +88,13 @@ class CameraXExtensionsController(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
     initialMode: Int,
-    private val onPhotoCaptured: (ImageProxy) -> Unit,
+    private val onPhotoCaptured: (Bitmap) -> Unit,
     private val onModesReady: (List<Int>) -> Unit,
-    private val coroutineScope: CoroutineScope,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -115,40 +123,35 @@ class CameraXExtensionsController(
         }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             // ExtensionsManager initializes asynchronously against the resolved camera provider.
-            val extensionsManagerFuture =
-                ExtensionsManager.getInstanceAsync(context, provider)
-            extensionsManagerFuture.addListener({
-                try {
-                    val manager = extensionsManagerFuture.get()
-                    extensionsManager = manager
+            try {
+                val manager = ExtensionsManager.getInstanceAsync(appContext, provider).await()
+                extensionsManager = manager
 
-                    val available =
-                        CANDIDATE_MODES.filter { mode ->
-                            mode == ExtensionMode.NONE ||
-                                manager.isExtensionAvailable(baseSelector, mode)
-                        }
-                    onModesReady(available)
-
-                    // Fall back to NONE if the previously selected mode is unsupported here.
-                    if (currentMode !in available) {
-                        currentMode = ExtensionMode.NONE
+                val available =
+                    CANDIDATE_MODES.filter { mode ->
+                        mode == ExtensionMode.NONE ||
+                            manager.isExtensionAvailable(baseSelector, mode)
                     }
-                    bind(currentMode)
-                } catch (exc: Exception) {
-                    Log.e(TAG, "ExtensionsManager init failed; binding without extensions", exc)
-                    extensionsManager = null
-                    onModesReady(listOf(ExtensionMode.NONE))
+                onModesReady(available)
+
+                // Fall back to NONE if the previously selected mode is unsupported here.
+                if (currentMode !in available) {
                     currentMode = ExtensionMode.NONE
-                    bind(currentMode)
                 }
-            }, ContextCompat.getMainExecutor(context))
-        }, ContextCompat.getMainExecutor(context))
+                bind(currentMode)
+            } catch (exc: Exception) {
+                Log.e(TAG, "ExtensionsManager init failed; binding without extensions", exc)
+                extensionsManager = null
+                onModesReady(listOf(ExtensionMode.NONE))
+                currentMode = ExtensionMode.NONE
+                bind(currentMode)
+            }
+        }
     }
 
     private fun bind(mode: Int) {
@@ -194,9 +197,10 @@ class CameraXExtensionsController(
             cameraExecutor,
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
-                    coroutineScope.launch {
-                        onPhotoCaptured(image)
-                    }
+                    // Convert synchronously on the camera executor thread so the proxy is always
+                    // closed (toBitmap() closes it), even if the calling scope is gone.
+                    val bitmap = image.toBitmap()
+                    onPhotoCaptured(bitmap)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -223,6 +227,7 @@ class CameraXExtensionsController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
         cameraExecutor.shutdown()
     }
 }

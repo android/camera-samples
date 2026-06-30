@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="flipwhilerecording_title">Flip While Recording</string>
     <string name="flipwhilerecording_back">Back</string>
     <string name="flipwhilerecording_settings">Settings</string>
     <string name="flipwhilerecording_settings_header">Recording settings</string>

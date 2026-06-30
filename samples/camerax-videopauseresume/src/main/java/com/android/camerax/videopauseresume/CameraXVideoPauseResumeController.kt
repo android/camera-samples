@@ -41,10 +41,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -57,16 +64,19 @@ fun rememberCameraXVideoPauseResumeController(
     isFrontCamera: Boolean,
     onVideoCaptured: (Uri) -> Unit,
     onDuration: (Long) -> Unit,
-): CameraXVideoPauseResumeController =
-    remember(context, isFrontCamera, onVideoCaptured, onDuration) {
+): CameraXVideoPauseResumeController {
+    val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    val latestOnDuration by rememberUpdatedState(onDuration)
+    return remember(context, lifecycleOwner, isFrontCamera) {
         CameraXVideoPauseResumeController(
             context,
             lifecycleOwner,
             isFrontCamera,
-            onVideoCaptured,
-            onDuration,
+            onVideoCaptured = { uri -> latestOnVideoCaptured(uri) },
+            onDuration = { durationNanos -> latestOnDuration(durationNanos) },
         )
     }
+}
 
 /**
  * Records video with CameraX's [Recorder], exposing [pauseRecording]/[resumeRecording] on the active
@@ -81,6 +91,10 @@ class CameraXVideoPauseResumeController(
     private val onVideoCaptured: (Uri) -> Unit,
     private val onDuration: (Long) -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var surfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -109,9 +123,8 @@ class CameraXVideoPauseResumeController(
     }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             val cameraSelector =
                 CameraSelector
@@ -131,7 +144,7 @@ class CameraXVideoPauseResumeController(
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun updateTargetRotation(rotation: Int) {
@@ -155,7 +168,7 @@ class CameraXVideoPauseResumeController(
 
         val outputOptions =
             MediaStoreOutputOptions
-                .Builder(context.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+                .Builder(appContext.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
                 .setContentValues(contentValues)
                 .build()
 
@@ -163,7 +176,7 @@ class CameraXVideoPauseResumeController(
             videoCapture.output
                 .prepareRecording(context, outputOptions)
                 .withAudioEnabled()
-                .start(ContextCompat.getMainExecutor(context)) { event ->
+                .start(ContextCompat.getMainExecutor(appContext)) { event ->
                     when (event) {
                         is VideoRecordEvent.Status -> {
                             onDuration(event.recordingStats.recordedDurationNanos)
@@ -214,5 +227,6 @@ class CameraXVideoPauseResumeController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
     }
 }

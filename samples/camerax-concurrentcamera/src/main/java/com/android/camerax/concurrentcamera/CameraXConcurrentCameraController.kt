@@ -28,9 +28,15 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.launch
 
 private const val TAG = "CameraXConcurrent"
 
@@ -39,10 +45,16 @@ fun rememberCameraXConcurrentCameraController(
     context: Context,
     lifecycleOwner: LifecycleOwner,
     onUnsupported: () -> Unit,
-): CameraXConcurrentCameraController =
-    remember(context, lifecycleOwner, onUnsupported) {
-        CameraXConcurrentCameraController(context, lifecycleOwner, onUnsupported)
+): CameraXConcurrentCameraController {
+    val latestOnUnsupported by rememberUpdatedState(onUnsupported)
+    return remember(context, lifecycleOwner) {
+        CameraXConcurrentCameraController(
+            context,
+            lifecycleOwner,
+            onUnsupported = { latestOnUnsupported() },
+        )
     }
+}
 
 /**
  * Drives two cameras simultaneously with CameraX [ConcurrentCamera][androidx.camera.core.ConcurrentCamera].
@@ -57,6 +69,10 @@ class CameraXConcurrentCameraController(
     private val lifecycleOwner: LifecycleOwner,
     private val onUnsupported: () -> Unit,
 ) {
+    private val appContext = context.applicationContext
+
+    private val providerScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     var backSurfaceRequest: SurfaceRequest? by mutableStateOf(null)
         private set
 
@@ -76,14 +92,13 @@ class CameraXConcurrentCameraController(
         }
 
     fun openCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
+        providerScope.launch {
+            val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
 
             if (provider.availableConcurrentCameraInfos.isEmpty()) {
                 onUnsupported()
-                return@addListener
+                return@launch
             }
 
             try {
@@ -105,7 +120,7 @@ class CameraXConcurrentCameraController(
                 Log.e(TAG, "Concurrent camera binding failed", e)
                 onUnsupported()
             }
-        }, ContextCompat.getMainExecutor(context))
+        }
     }
 
     fun closeCamera() {
@@ -114,5 +129,6 @@ class CameraXConcurrentCameraController(
 
     fun release() {
         closeCamera()
+        providerScope.cancel()
     }
 }
