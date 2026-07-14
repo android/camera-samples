@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="greenscreen_back">Back</string>
+    <string name="greenscreen_unsupported">Running the front and back cameras at once isn\'t supported on this device.</string>
+    <string name="greenscreen_overlay_description">Segmented front-camera subject</string>
+    <string name="greenscreen_title">Green Screen · Front over Back</string>
+</resources>

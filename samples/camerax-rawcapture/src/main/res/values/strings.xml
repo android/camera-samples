@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawcapture_title">RAW / DNG</string>
+    <string name="rawcapture_unsupported">This device\'s camera doesn\'t support simultaneous RAW (DNG) + JPEG capture.</string>
+</resources>

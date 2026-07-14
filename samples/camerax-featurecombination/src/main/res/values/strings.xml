@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="featurecombination_back">Back</string>
+    <string name="featurecombination_querying">Querying device capabilities…</string>
+    <string name="featurecombination_matrix_header">Support matrix</string>
+    <string name="featurecombination_interactive_header">Try a combination</string>
+    <string name="featurecombination_feature_hdr">HDR (HLG10)</string>
+    <string name="featurecombination_feature_fps60">60 FPS</string>
+    <string name="featurecombination_feature_stab">Preview stabilization</string>
+    <string name="featurecombination_feature_ultrahdr">Ultra HDR</string>
+    <string name="featurecombination_matrix_hdr_fps">HDR + 60 FPS</string>
+    <string name="featurecombination_matrix_hdr_stab">HDR + stabilization</string>
+    <string name="featurecombination_matrix_hdr_fps_stab">HDR + 60 FPS + stabilization</string>
+    <string name="featurecombination_matrix_all">All four</string>
+    <string name="featurecombination_not_supported">Not supported together</string>
+    <string name="featurecombination_apply">Apply</string>
+    <string name="featurecombination_applied">Applied</string>
+</resources>

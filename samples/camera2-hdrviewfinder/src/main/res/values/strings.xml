@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hdrviewfinder_back">Back</string>
+    <string name="hdrviewfinder_viewfinder">Processed camera viewfinder</string>
+    <string name="hdrviewfinder_processing_mode">Processing mode</string>
+    <string name="hdrviewfinder_mode_label">Mode</string>
+    <string name="hdrviewfinder_mode_normal">Normal</string>
+    <string name="hdrviewfinder_mode_invert">Invert</string>
+    <string name="hdrviewfinder_mode_threshold">Threshold</string>
+    <string name="hdrviewfinder_mode_posterize">Posterize</string>
+</resources>

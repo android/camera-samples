@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="concurrentcamera_unsupported">Running two cameras at once isn\'t supported on this device.</string>
+    <string name="concurrentcamera_back">Back</string>
+    <string name="concurrentcamera_title">Back + Front</string>
+</resources>

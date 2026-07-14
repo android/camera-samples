@@ -1,0 +1,82 @@
+<resources>
+    <string name="app_name">Camera Samples Catalog</string>
+
+    <string name="top_bar_title">Android Camera Samples</string>
+    <string name="top_bar_title_expanded">Camera Samples</string>
+    <string name="open_sample_button">Open sample</string>
+
+    <string name="close">Close</string>
+
+    <string name="background_image">Background Image</string>
+    <string name="camera_permission_title">Camera Permission</string>
+    <string name="camera_permission_rationale">This catalog requires access to your camera to demonstrate the various capabilities of the Android Camera APIs.</string>
+    <string name="camera_permission_denied">Camera access is permanently denied. You must enable it in your device\'s app settings to view the catalog.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="open_settings">Open Settings</string>
+
+    <!-- CameraX samples -->
+    <string name="camerax_takeaphoto_list_title">CameraX • Take a Photo</string>
+    <string name="camerax_takeaphoto_list_description">Capture a photo with CameraX.</string>
+    <string name="camerax_takeavideo_list_title">CameraX • Take a Video</string>
+    <string name="camerax_takeavideo_list_description">Record video with the CameraX Recorder API.</string>
+    <string name="camerax_qrscanner_list_title">CameraX • QR Scanner</string>
+    <string name="camerax_qrscanner_list_description">Scan QR codes &amp; barcodes with ML Kit and ImageAnalysis.</string>
+    <string name="camerax_imagelabeling_list_title">CameraX • Image Labeling</string>
+    <string name="camerax_imagelabeling_list_description">Real-time on-device image labeling with ML Kit.</string>
+    <string name="camerax_extensions_list_title">CameraX • Extensions</string>
+    <string name="camerax_extensions_list_description">Night, Bokeh, HDR and more via CameraX Extensions.</string>
+    <string name="camerax_zoomandtorch_list_title">CameraX • Zoom &amp; Torch</string>
+    <string name="camerax_zoomandtorch_list_description">Control zoom ratio and the torch with CameraX.</string>
+    <string name="camerax_exposure_list_title">CameraX • Exposure</string>
+    <string name="camerax_exposure_list_description">Adjust exposure compensation with CameraX.</string>
+    <string name="camerax_luminosity_list_title">CameraX • Luminosity</string>
+    <string name="camerax_luminosity_list_description">Measure scene brightness from the ImageAnalysis stream.</string>
+    <string name="camerax_ultrahdr_list_title">CameraX • Ultra HDR</string>
+    <string name="camerax_ultrahdr_list_description">Capture a gain-map Ultra HDR JPEG, then compare SDR, gain map, and Ultra HDR.</string>
+    <string name="camerax_concurrentcamera_list_title">CameraX • Concurrent Camera</string>
+    <string name="camerax_concurrentcamera_list_description">Preview the front and back cameras at the same time.</string>
+    <string name="camerax_videopauseresume_list_title">CameraX • Pause/Resume</string>
+    <string name="camerax_videopauseresume_list_description">Pause and resume a video recording mid-capture.</string>
+    <string name="camerax_effects_list_title">CameraX • Effects</string>
+    <string name="camerax_effects_list_description">Apply a live color filter to the camera (grayscale, sepia, invert, and more).</string>
+    <string name="camerax_greenscreen_list_title">CameraX • Green Screen</string>
+    <string name="camerax_greenscreen_list_description">Composite the segmented front-camera subject over the live back camera (concurrent + ML Kit).</string>
+
+    <!-- Camera2 samples -->
+    <string name="camera2_takeaphoto_list_title">Camera2 • Take a Photo</string>
+    <string name="camera2_takeaphoto_list_description">Capture a photo with Camera2.</string>
+    <string name="camera2_takeavideo_list_title">Camera2 • Take a Video</string>
+    <string name="camera2_takeavideo_list_description">Record video with Camera2 and MediaRecorder.</string>
+    <string name="camera2_extensions_list_title">Camera2 • Extensions</string>
+    <string name="camera2_extensions_list_description">Vendor camera extensions via CameraExtensionSession.</string>
+    <string name="camera2_slowmotion_list_title">Camera2 • Slow Motion</string>
+    <string name="camera2_slowmotion_list_description">High-speed (slow-motion) video capture.</string>
+    <string name="camera2_hdrviewfinder_list_title">Camera2 • Viewfinder Effects</string>
+    <string name="camera2_hdrviewfinder_list_description">Real-time frame processing on the live preview.</string>
+    <string name="camera2_zoomandtorch_list_title">Camera2 • Zoom &amp; Torch</string>
+    <string name="camera2_zoomandtorch_list_description">Control zoom ratio and the torch with Camera2.</string>
+    <string name="camera2_manualcontrols_list_title">Camera2 • Manual Controls</string>
+    <string name="camera2_manualcontrols_list_description">Manual ISO, shutter speed and focus distance.</string>
+    <string name="camera2_qrscanner_list_title">Camera2 • QR Scanner</string>
+    <string name="camera2_qrscanner_list_description">Scan QR codes &amp; barcodes with Camera2 and ML Kit.</string>
+    <string name="camera2_rawcapture_list_title">Camera2 • RAW/DNG</string>
+    <string name="camera2_rawcapture_list_description">Capture a RAW sensor frame as a DNG, then view and re-edit it (exposure, white balance).</string>
+    <string name="camerax_hdrvideo_list_title">CameraX • HDR Video</string>
+    <string name="camerax_hdrvideo_list_description">Record and play back 10-bit HDR video with CameraX DynamicRange.</string>
+    <string name="camera2_hdrvideo_list_title">Camera2 • HDR Video</string>
+    <string name="camera2_hdrvideo_list_description">Record and play back 10-bit HDR with Camera2 DynamicRangeProfiles.</string>
+    <string name="camerax_lowlightboost_list_title">CameraX • Low-Light Boost</string>
+    <string name="camerax_lowlightboost_list_description">Brighten dark scenes with CameraControl low-light boost.</string>
+    <string name="camerax_videostabilization_list_title">CameraX • Video Stabilization</string>
+    <string name="camerax_videostabilization_list_description">Record steadier video with preview and video stabilization.</string>
+    <string name="camerax_flipwhilerecording_list_title">CameraX • Flip While Recording</string>
+    <string name="camerax_flipwhilerecording_list_description">Switch between front and back cameras without interrupting the recording.</string>
+    <string name="camerax_featurecombination_list_title">CameraX • Feature Combination</string>
+    <string name="camerax_featurecombination_list_description">Query and apply CameraX feature-group combinations: HDR, 60fps, stabilization, Ultra HDR.</string>
+    <string name="camerax_slowmotion_list_title">CameraX • Slow Motion</string>
+    <string name="camerax_slowmotion_list_description">High-speed (slow-motion) video capture with the CameraX Recorder.</string>
+    <string name="camerax_rawcapture_list_title">CameraX • RAW/DNG</string>
+    <string name="camerax_rawcapture_list_description">Capture a RAW DNG alongside a JPEG with CameraX.</string>
+    <string name="camerax_media3effects_list_title">CameraX • Media3 Effects</string>
+    <string name="camerax_media3effects_list_description">Apply Media3 GPU effects to the CameraX viewfinder via the CameraX-Media3 bridge.</string>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="slowmotion_title">Slow Motion</string>
+    <string name="slowmotion_unsupported">This device\'s camera doesn\'t support high-speed (slow-motion) recording.</string>
+    <string name="slowmotion_fps_badge">%1$d fps</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="takeavideo_title">Take a Video</string>
+    <string name="takeavideo_back">Back</string>
+    <string name="takeavideo_settings">Settings</string>
+    <string name="takeavideo_settings_header">Recording settings</string>
+    <string name="takeavideo_fps_label">FPS</string>
+    <string name="takeavideo_codec_label">Codec</string>
+    <string name="takeavideo_resolution_label">Resolution</string>
+    <string name="takeavideo_codec_hevc">HEVC</string>
+    <string name="takeavideo_codec_h264">H264</string>
+    <string name="takeavideo_codec_av1">AV1</string>
+</resources>

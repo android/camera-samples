@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rawcapture_back">Back</string>
+    <string name="rawcapture_title">RAW / DNG</string>
+    <string name="rawcapture_unsupported">RAW (DNG) capture is not supported on this device\'s camera.</string>
+    <string name="rawcapture_back_to_camera">Back to camera</string>
+    <string name="rawcapture_editor_title">RAW Editor</string>
+    <string name="rawcapture_captured_description">Captured RAW</string>
+    <string name="rawcapture_decode_failed">This device couldn\'t decode the DNG in-app. The .dng is still saved to Downloads/CameraSamples.</string>
+    <string name="rawcapture_editor_caption">RAW keeps the full sensor data — exposure and white balance stay editable after the shot, unlike a baked JPEG.</string>
+    <string name="rawcapture_exposure">Exposure</string>
+    <string name="rawcapture_white_balance">White Balance</string>
+    <string name="rawcapture_contrast">Contrast</string>
+    <string name="rawcapture_saturation">Saturation</string>
+    <string name="rawcapture_exposure_value">%1$s EV</string>
+    <string name="rawcapture_warm_value">Warm %1$d</string>
+    <string name="rawcapture_cool_value">Cool %1$d</string>
+    <string name="rawcapture_reset">RESET</string>
+</resources>

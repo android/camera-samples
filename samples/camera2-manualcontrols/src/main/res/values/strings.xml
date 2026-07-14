@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="manualcontrols_back">Back</string>
+    <string name="manualcontrols_unsupported">Manual sensor controls aren\'t supported on this device.</string>
+    <string name="manualcontrols_settings">Manual controls</string>
+    <string name="manualcontrols_settings_header">Manual controls</string>
+    <string name="manualcontrols_manual_label">Manual</string>
+    <string name="manualcontrols_iso_label">ISO</string>
+    <string name="manualcontrols_shutter_label">Shutter</string>
+    <string name="manualcontrols_focus_label">Focus</string>
+    <string name="manualcontrols_focus_value">%1$s diopters</string>
+    <string name="manualcontrols_shutter_unavailable">--</string>
+    <string name="manualcontrols_shutter_fraction">1/%1$ds</string>
+    <string name="manualcontrols_shutter_seconds">%1$ss</string>
+</resources>

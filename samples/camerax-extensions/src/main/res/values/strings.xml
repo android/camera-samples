@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="extensions_back">Back</string>
+    <string name="extensions_mode_button">Extension mode</string>
+    <string name="extensions_settings_header">Extension</string>
+    <string name="extensions_dropdown_label">Extension</string>
+    <string name="extensions_mode_none">None</string>
+    <string name="extensions_mode_auto">Auto</string>
+    <string name="extensions_mode_bokeh">Bokeh</string>
+    <string name="extensions_mode_hdr">HDR</string>
+    <string name="extensions_mode_night">Night</string>
+    <string name="extensions_mode_face_retouch">Face Retouch</string>
+</resources>

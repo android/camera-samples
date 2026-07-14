@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ultrahdr_close">Close</string>
+    <string name="ultrahdr_back">Back to camera</string>
+    <string name="ultrahdr_title">Ultra HDR</string>
+    <string name="ultrahdr_title_with_mode">Ultra HDR · %1$s</string>
+    <string name="ultrahdr_unsupported">Ultra HDR (gain-map JPEG) capture is not supported on this device.</string>
+    <string name="ultrahdr_image_description">Captured Ultra HDR image</string>
+    <string name="ultrahdr_sdr_only">HDR rendering needs an Ultra HDR image on an Android 14+ HDR display. Showing SDR only.</string>
+    <string name="ultrahdr_mode_sdr">SDR</string>
+    <string name="ultrahdr_mode_gain_map">Gain map</string>
+    <string name="ultrahdr_mode_ultra_hdr">Ultra HDR</string>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="takeaphoto_title">Take a Photo</string>
+    <string name="takeaphoto_close">Close</string>
+    <string name="takeaphoto_swap_camera">Swap Camera</string>
+</resources>
