@@ -26,6 +26,7 @@ import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.hardware.camera2.params.StreamConfigurationMap
+import android.media.MediaCodec
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -90,9 +91,20 @@ class Camera2SlowMotionController(
     private var highSpeedFpsRange: Range<Int> = Range(120, 120)
 
     private var isRecording = false
-    private var mediaRecorder: MediaRecorder? = null
+    private val mediaRecorder by lazy {
+        setupMediaRecorder(recorderSurface)
+    }
     private var pendingVideo: MediaStoreSaver.PendingVideo? = null
     private var previewSurface: Surface? = null
+
+    private val recorderSurface by lazy {
+        val surface = MediaCodec.createPersistentInputSurface()
+        setupMediaRecorder(surface).apply {
+            prepare()
+            release()
+        }
+        surface
+    }
 
     override val previewSize: Size get() = highSpeedSize
 
@@ -175,9 +187,10 @@ class Camera2SlowMotionController(
         previewRequestBuilder =
             camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
                 addTarget(surface)
-                set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, highSpeedFpsRange)
+                addTarget(recorderSurface)
+                set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(30, highSpeedFpsRange.upper))
             }
-        createHighSpeedSession(camera, listOf(surface)) { session ->
+        createHighSpeedSession(camera, listOf(surface, recorderSurface)) { session ->
             startHighSpeedRepeating(session)
         }
     }
@@ -233,7 +246,7 @@ class Camera2SlowMotionController(
     }
 
     @SuppressLint("InlinedApi")
-    private fun setupMediaRecorder() {
+    private fun setupMediaRecorder(surface: Surface): MediaRecorder {
         val sensorRotation =
             currentCharacteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
         val rotationDegrees =
@@ -249,10 +262,10 @@ class Camera2SlowMotionController(
 
         val fps = highSpeedFpsRange.upper
 
-        val pending = MediaStoreSaver.newPendingVideo(context) ?: return
+        val pending = MediaStoreSaver.newPendingVideo(context)
         pendingVideo = pending
 
-        mediaRecorder =
+        val mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
             } else {
@@ -262,10 +275,12 @@ class Camera2SlowMotionController(
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                if (pending.usesFileDescriptor) {
-                    setOutputFile(pending.fileDescriptor)
-                } else {
-                    setOutputFile(pending.legacyFilePath)
+                if (pending != null) {
+                    if (pending.usesFileDescriptor) {
+                        setOutputFile(pending.fileDescriptor)
+                    } else {
+                        setOutputFile(pending.legacyFilePath)
+                    }
                 }
                 setVideoEncodingBitRate(10_000_000)
                 setVideoFrameRate(fps)
@@ -276,18 +291,20 @@ class Camera2SlowMotionController(
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setOrientationHint(orientationHint)
-                prepare()
+//                prepare()
+                setInputSurface(surface)
             }
+
+        return mediaRecorder
     }
 
     private fun releaseMediaRecorder() {
         try {
-            mediaRecorder?.reset()
-            mediaRecorder?.release()
+            mediaRecorder.reset()
+            mediaRecorder.release()
         } catch (e: Exception) {
             Log.e(TAG, "Exception releasing media recorder", e)
         }
-        mediaRecorder = null
     }
 
     fun startRecording() {
@@ -300,8 +317,8 @@ class Camera2SlowMotionController(
                 captureSession?.close()
                 captureSession = null
 
-                setupMediaRecorder()
-                val recorderSurface = mediaRecorder?.surface ?: return@launch
+//                setupMediaRecorder()
+//                val recorderSurface = mediaRecorder?.surface ?: return@launch
 
                 previewRequestBuilder =
                     camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
@@ -315,7 +332,8 @@ class Camera2SlowMotionController(
                         val builder = previewRequestBuilder ?: return@createHighSpeedSession
                         val requestList = session.createHighSpeedRequestList(builder.build())
                         session.setRepeatingBurst(requestList, null, backgroundHandler)
-                        mediaRecorder?.start()
+                        mediaRecorder.prepare()
+                        mediaRecorder.start()
                         isRecording = true
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to start high-speed recording", e)
@@ -341,7 +359,7 @@ class Camera2SlowMotionController(
 
         var stopFailed = false
         try {
-            mediaRecorder?.stop()
+            mediaRecorder.stop()
         } catch (e: RuntimeException) {
             // MediaRecorder throws if stop is called immediately after start.
             Log.e(TAG, "RuntimeException stopping MediaRecorder", e)
