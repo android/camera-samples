@@ -36,7 +36,7 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       # The project compiles against API 37 (Android 17); install that platform.
       - name: Install compileSdk 37 platform
