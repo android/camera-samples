@@ -64,9 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.createBitmap
-import com.android.camera.coretheme.monoFontFamily
-import com.android.camera.coreui.controls.ScrimIconButton
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.state.LoadingView
 import com.android.camera.coreui.widget.HdrWindowColorMode
 import kotlinx.coroutines.Dispatchers
@@ -144,34 +142,19 @@ fun BoxScope.UltraHdrViewer(
         }
     }
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.ultrahdr_back),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp),
-    )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.ultrahdr_title_with_mode, stringResource(mode.label)),
-        modifier =
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 44.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.ultrahdr_title_with_mode, stringResource(mode.label)),
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        showApiBadge = false,
     )
 
     if (assets != null && !hdrAvailable) {
         Text(
             text = stringResource(R.string.ultrahdr_sdr_only),
-            color = Color.White.copy(alpha = 0.6f),
+            color = Color.White.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 10.sp, letterSpacing = 0.04.em),
+            style = MaterialTheme.typography.bodySmall,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -203,8 +186,8 @@ private fun ModeSelector(
         modifier =
             modifier
                 .clip(RoundedCornerShape(percent = 50))
-                .background(Color.Black.copy(alpha = 0.55f))
-                .padding(4.dp),
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         UltraHdrMode.entries.forEach { entry ->
@@ -226,12 +209,12 @@ private fun ModePill(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val background = if (selected && enabled) MaterialTheme.colorScheme.primary else Color.Transparent
+    val background = if (selected && enabled) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
     val textColor =
         when {
-            !enabled -> Color.White.copy(alpha = 0.25f)
-            selected -> MaterialTheme.colorScheme.onPrimary
-            else -> Color.White.copy(alpha = 0.7f)
+            !enabled -> Color.White.copy(alpha = 0.3f)
+            selected -> MaterialTheme.colorScheme.onPrimaryContainer
+            else -> Color.White.copy(alpha = 0.8f)
         }
     Box(
         modifier =
@@ -239,11 +222,11 @@ private fun ModePill(
                 .clip(RoundedCornerShape(percent = 50))
                 .background(background)
                 .clickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = 18.dp, vertical = 9.dp),
+                .padding(horizontal = 20.dp, vertical = 10.dp),
     ) {
         Text(
             text = stringResource(label),
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 11.sp, letterSpacing = 0.06.em),
+            style = MaterialTheme.typography.labelLarge,
             color = textColor,
         )
     }

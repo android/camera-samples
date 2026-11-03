@@ -2,4 +2,24 @@
 <resources>
     <string name="save_feedback_saved">Saved to Photos</string>
     <string name="save_feedback_failed">Couldn\'t save</string>
+    <string name="permission_title">Camera access</string>
+    <string name="permission_rationale">This sample needs camera access to run.</string>
+    <string name="permission_denied">Camera access was denied. Enable it in Settings to use this sample.</string>
+    <string name="permission_grant">Grant access</string>
+    <string name="permission_open_settings">Open settings</string>
+    <string name="swap_camera">Switch camera</string>
+    <string name="close">Close</string>
+    <string name="back">Back</string>
+    <string name="torch_label_on">Torch on</string>
+    <string name="torch_label_off">Torch</string>
+    <string name="torch_turn_off">Turn torch off</string>
+    <string name="torch_turn_on">Turn torch on</string>
+    <string name="captured_photo_description">Captured photo</string>
+    <string name="review_retake">Retake</string>
+    <string name="review_done">Done</string>
+    <string name="review_dimensions">%1$d × %2$d</string>
+    <string name="state_unknown_error">Something went wrong</string>
+    <string name="state_retry">Retry</string>
+    <string name="state_unsupported_title">Not supported on this device</string>
+    <string name="top_bar_api_and_title">%1$s · %2$s</string>
 </resources>

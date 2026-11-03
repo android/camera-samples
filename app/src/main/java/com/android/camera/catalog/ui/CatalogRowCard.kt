@@ -16,105 +16,123 @@
 package com.android.camera.catalog.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Extension
+import androidx.compose.material.icons.rounded.FilterBAndW
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import com.android.camera.catalog.R
 import com.android.camera.catalog.domain.SampleCatalogItem
+import com.android.camera.catalog.domain.SampleCategory
 import com.android.camera.catalog.domain.SampleTags
 import com.android.camera.catalog.domain.SampleType
 import com.android.camera.coretheme.AISampleCatalogTheme
-import com.android.camera.coretheme.bodyFontFamily
-import com.android.camera.coretheme.monoFontFamily
 
 /**
- * A compact catalog tile for the 2-column grid: a mono API label (accent for CameraX, muted for
- * Camera2), a category dot from the sample's first tag, and the sample title. Clickable as a whole.
+ * A Material 3 catalog tile for the 2-column grid, modeled after the effect tiles in
+ * ImageSuperResolution: a rounded `surfaceContainerHigh` card with a 36dp circular category icon,
+ * a subtle API/tag label, the sample title, and a 2-line description.
  */
 @Composable
 fun CatalogRowCard(
     catalogItem: SampleCatalogItem,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(11.dp)
+    val colors = MaterialTheme.colorScheme
     val isCameraX = catalogItem.type == SampleType.CAMERAX
-    val apiColor =
-        if (isCameraX) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.5f)
-    val dotColor = catalogItem.tags.firstOrNull()?.backgroundColor ?: Color.White.copy(alpha = 0.18f)
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(TileSurface)
-                .border(1.dp, Color.White.copy(alpha = 0.07f), shape)
-                .clickable(onClick = onClick)
-                .defaultMinSize(minHeight = 84.dp)
-                .padding(horizontal = 12.dp, vertical = 13.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
+    val iconContainerColor = if (isCameraX) colors.primaryContainer else colors.secondaryContainer
+    val iconTint = if (isCameraX) colors.onPrimaryContainer else colors.onSecondaryContainer
+    val rawTitle = stringResource(catalogItem.title)
+    val displayTitle = rawTitle.substringAfter("•", rawTitle).trim()
+    val badgeText = catalogItem.tags.firstOrNull()?.label ?: catalogItem.category.label
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = colors.surfaceContainerHigh,
+        contentColor = colors.onSurface,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(36.dp)
+                            .background(iconContainerColor, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = catalogItem.category.icon(),
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = badgeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isCameraX) colors.primary else colors.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = catalogItem.type.apiLabel(),
-                style =
-                    TextStyle(
-                        fontFamily = monoFontFamily,
-                        fontSize = 8.5.sp,
-                        fontWeight = FontWeight.Normal,
-                        letterSpacing = 0.08.em,
-                    ),
-                color = apiColor,
+                text = displayTitle,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Box(
-                modifier =
-                    Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(dotColor),
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = stringResource(catalogItem.description),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 2,
+                minLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        Text(
-            text = stringResource(catalogItem.title),
-            style =
-                TextStyle(
-                    fontFamily = bodyFontFamily,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    lineHeight = 15.9.sp,
-                ),
-            color = TileTextColor,
-        )
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF0D0E0A)
+private fun SampleCategory.icon(): ImageVector =
+    when (this) {
+        SampleCategory.IMAGES -> Icons.Rounded.PhotoCamera
+        SampleCategory.VIDEO -> Icons.Rounded.Videocam
+        SampleCategory.ML -> Icons.Rounded.AutoAwesome
+        SampleCategory.GRAPHICS -> Icons.Rounded.FilterBAndW
+        SampleCategory.EXTENSIONS -> Icons.Rounded.Extension
+        SampleCategory.CONTROLS -> Icons.Rounded.Tune
+    }
+
+@Preview(showBackground = true, backgroundColor = 0xFF141218)
 @Composable
 private fun CatalogRowCardPreview() {
     AISampleCatalogTheme {
@@ -125,6 +143,7 @@ private fun CatalogRowCardPreview() {
                 route = "CameraXImageLabelingScreen",
                 sampleEntryScreen = { },
                 type = SampleType.CAMERAX,
+                category = SampleCategory.ML,
                 tags = listOf(SampleTags.ML_KIT, SampleTags.ANALYSIS),
             )
 

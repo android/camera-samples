@@ -19,25 +19,25 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,29 +46,23 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.android.camera.coretheme.bodyFontFamily
-import com.android.camera.coretheme.monoFontFamily
-import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.R
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.widget.VideoPlayer
 
 /**
- * Full-screen review of a captured still in the console style: a scrim back button, the real image
- * dimensions as mono metadata, and a Retake / Done action bar. [onRetake] returns to the viewfinder;
- * [onDone] leaves the sample.
+ * Full-screen Material 3 review of a captured still: a circular back button, a translucent pill
+ * showing the image dimensions, and a Material 3 Retake / Done action bar. [onRetake] returns to
+ * the viewfinder; [onDone] leaves the sample.
  */
 @Composable
 fun CapturedImagePreview(
@@ -85,121 +79,84 @@ fun CapturedImagePreview(
     ) {
         Image(
             bitmap = bitmap.asImageBitmap(),
-            contentDescription = "Captured Photo",
+            contentDescription = stringResource(R.string.captured_photo_description),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
         )
 
-        ScrimIconButton(
-            onClick = onDone,
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
-            size = 34.dp,
-            iconSize = 18.dp,
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(16.dp),
+        ViewfinderTopBar(
+            title = stringResource(R.string.review_dimensions, bitmap.width, bitmap.height),
+            onClose = onDone,
+            closeIcon = Icons.AutoMirrored.Rounded.ArrowBack,
+            showApiBadge = false,
         )
 
-        Text(
-            text = "${bitmap.width} × ${bitmap.height}",
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.06.em,
-                ),
-            color = Color.White.copy(alpha = 0.55f),
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .navigationBarsPadding()
-                    .padding(start = 20.dp, bottom = 100.dp),
-        )
-
-        Row(
+        ReviewActionsBar(
+            onRetake = onRetake,
+            onDone = onDone,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ReviewActionPill(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Refresh,
-                label = "Retake",
-                filled = false,
-                onClick = onRetake,
-            )
-            ReviewActionPill(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Check,
-                label = "Done",
-                filled = true,
-                onClick = onDone,
-            )
-        }
+                    .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+        )
     }
 }
 
 @Composable
-private fun ReviewActionPill(
-    icon: ImageVector,
-    label: String,
-    filled: Boolean,
-    onClick: () -> Unit,
+private fun ReviewActionsBar(
+    onRetake: () -> Unit,
+    onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(26.dp)
-    val contentColor = if (filled) MaterialTheme.colorScheme.onPrimary else Color.White
-    val base =
-        modifier
-            .height(52.dp)
-            .clip(shape)
-    val styled =
-        if (filled) {
-            base.background(accent)
-        } else {
-            base
-                .background(Color.White.copy(alpha = 0.04f))
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
-        }
     Row(
-        modifier = styled.clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.Center,
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = label,
-            style =
-                TextStyle(
-                    fontFamily = bodyFontFamily,
-                    fontSize = 14.sp,
-                    fontWeight = if (filled) FontWeight.Bold else FontWeight.Medium,
-                ),
-            color = contentColor,
-        )
+        FilledTonalButton(
+            onClick = onRetake,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.review_retake),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Button(
+            onClick = onDone,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.review_done),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
     }
 }
 
 /**
  * Full-screen review of a captured video using the shared [VideoPlayer]. The player is created for
- * the supplied [uri], loops, and is released automatically when this leaves composition. Mirrors
- * [CapturedImagePreview]: a scrim back button plus a Retake / Done action bar. [onRetake] returns to
- * the viewfinder (discarding the clip); [onDone] leaves the sample.
+ * the supplied [uri], loops, and is released automatically when this leaves composition.
  */
 @Composable
 fun CapturedVideoPreview(
@@ -228,43 +185,23 @@ fun CapturedVideoPreview(
                 .background(Color.Black),
     ) {
         VideoPlayer(player = player)
-        ScrimIconButton(
-            onClick = onDone,
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
-            size = 34.dp,
-            iconSize = 18.dp,
-            modifier =
-                Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(16.dp),
+
+        ViewfinderTopBar(
+            title = null,
+            onClose = onDone,
+            closeIcon = Icons.AutoMirrored.Rounded.ArrowBack,
+            showApiBadge = false,
         )
 
-        Row(
+        ReviewActionsBar(
+            onRetake = onRetake,
+            onDone = onDone,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ReviewActionPill(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Refresh,
-                label = "Retake",
-                filled = false,
-                onClick = onRetake,
-            )
-            ReviewActionPill(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Check,
-                label = "Done",
-                filled = true,
-                onClick = onDone,
-            )
-        }
+                    .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+        )
     }
 }

@@ -131,7 +131,7 @@ private fun BoxScope.CameraContent(
     var settingsVisible by remember { mutableStateOf(false) }
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(R.string.manualcontrols_settings_header),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
         actions = {
@@ -139,8 +139,6 @@ private fun BoxScope.CameraContent(
                 onClick = { settingsVisible = true },
                 imageVector = Icons.Filled.Tune,
                 contentDescription = stringResource(R.string.manualcontrols_settings),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )

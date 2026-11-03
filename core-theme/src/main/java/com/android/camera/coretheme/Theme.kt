@@ -18,9 +18,10 @@ package com.android.camera.coretheme
 import android.app.UiModeManager
 import android.content.Context
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -304,22 +305,37 @@ private fun systemContrast(): Contrast {
 
 @Composable
 fun AISampleCatalogTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     contrast: Contrast = systemContrast(),
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
+    val useDynamicColor =
+        dynamicColor &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !LocalInspectionMode.current &&
+            contrast == Contrast.DEFAULT
     val colorScheme =
-        if (darkTheme) {
-            when (contrast) {
-                Contrast.DEFAULT -> darkScheme
-                Contrast.MEDIUM -> mediumContrastDarkColorScheme
-                Contrast.HIGH -> highContrastDarkColorScheme
+        when {
+            useDynamicColor -> {
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
-        } else {
-            when (contrast) {
-                Contrast.DEFAULT -> lightScheme
-                Contrast.MEDIUM -> mediumContrastLightColorScheme
-                Contrast.HIGH -> highContrastLightColorScheme
+
+            darkTheme -> {
+                when (contrast) {
+                    Contrast.DEFAULT -> darkScheme
+                    Contrast.MEDIUM -> mediumContrastDarkColorScheme
+                    Contrast.HIGH -> highContrastDarkColorScheme
+                }
+            }
+
+            else -> {
+                when (contrast) {
+                    Contrast.DEFAULT -> lightScheme
+                    Contrast.MEDIUM -> mediumContrastLightColorScheme
+                    Contrast.HIGH -> highContrastLightColorScheme
+                }
             }
         }
 

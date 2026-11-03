@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -150,46 +151,50 @@ private fun BoxScope.AnalyzingContent(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 40.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 28.dp),
     )
 }
 
-/** A console-style HUD: the luminance percentage, a fill meter, and the analysis frame rate. */
+/** A Material 3 HUD card: the luminance percentage, a fill meter, and the analysis frame rate. */
 @Composable
 private fun LuminosityHud(
     luma: Float,
     fps: Float,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier =
             modifier
                 .clip(shape)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            HudText(text = stringResource(R.string.luminosity_hud_luminance), alpha = 0.6f)
-            HudText(
+            Text(
+                text = stringResource(R.string.luminosity_hud_luminance),
+                style = MaterialTheme.typography.titleSmall,
+                color = Color.White.copy(alpha = 0.75f),
+            )
+            Text(
                 text = stringResource(R.string.luminosity_hud_percent, (luma * 100).roundToInt()),
                 color = MaterialTheme.colorScheme.primary,
-                size = 16.sp,
+                style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"),
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f)),
+                    .background(Color.White.copy(alpha = 0.16f)),
         ) {
             Box(
                 modifier =
@@ -200,32 +205,21 @@ private fun LuminosityHud(
                         .background(MaterialTheme.colorScheme.primary),
             )
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            HudText(text = stringResource(R.string.luminosity_hud_raw, (luma * 255).roundToInt()), alpha = 0.45f)
-            HudText(text = stringResource(R.string.luminosity_hud_fps, fps.roundToInt()), alpha = 0.45f)
+            Text(
+                text = stringResource(R.string.luminosity_hud_raw, (luma * 255).roundToInt()),
+                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                color = Color.White.copy(alpha = 0.6f),
+            )
+            Text(
+                text = stringResource(R.string.luminosity_hud_fps, fps.roundToInt()),
+                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                color = Color.White.copy(alpha = 0.6f),
+            )
         }
     }
-}
-
-@Composable
-private fun HudText(
-    text: String,
-    color: Color = Color.White,
-    alpha: Float = 1f,
-    size: TextUnit = 11.sp,
-) {
-    Text(
-        text = text,
-        color = color.copy(alpha = alpha),
-        style =
-            TextStyle(
-                fontFamily = monoFontFamily,
-                fontSize = size,
-                letterSpacing = 0.08.em,
-            ),
-    )
 }

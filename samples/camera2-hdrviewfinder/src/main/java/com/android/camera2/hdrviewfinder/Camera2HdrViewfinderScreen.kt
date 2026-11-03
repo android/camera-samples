@@ -134,7 +134,7 @@ private fun BoxScope.ViewfinderContent(
     var isOverlayVisible by remember { mutableStateOf(false) }
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(mode.label),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
         actions = {
@@ -142,8 +142,6 @@ private fun BoxScope.ViewfinderContent(
                 onClick = { isOverlayVisible = true },
                 imageVector = Icons.Filled.Tune,
                 contentDescription = stringResource(R.string.hdrviewfinder_processing_mode),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )

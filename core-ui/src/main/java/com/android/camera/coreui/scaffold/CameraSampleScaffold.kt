@@ -20,6 +20,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -27,34 +28,39 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,33 +69,29 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.android.camera.coreui.R
+import com.android.camera.coreui.controls.ScrimIconButton
+
+/** CompositionLocal providing the [CameraApi] of the active sample to [ViewfinderTopBar]. */
+val LocalCameraApi = staticCompositionLocalOf { CameraApi.CAMERAX }
 
 /**
  * Scaffolds a camera sample: requests [permissions], gates the [content] behind them (showing a
- * rationale / "open settings" card until granted), and paints a black full-screen surface. A
- * sample's screen becomes:
- *
- * ```
- * CameraSampleScaffold(permissions = CameraPermissions.PHOTO) {
- *     when (state) { ... }
- * }
- * ```
- *
- * The content is responsible for any in-camera chrome (back button, controls) so it composes
- * correctly with full-screen overlays such as a captured-media preview.
+ * rationale / "open settings" card until granted), and paints an edge-to-edge black surface.
  */
 @Composable
 fun CameraSampleScaffold(
     permissions: List<String>,
     api: CameraApi,
     modifier: Modifier = Modifier,
-    rationale: String = "This sample needs camera access to run.",
-    deniedMessage: String = "Camera access was denied. Enable it in Settings to use this sample.",
+    rationale: String = stringResource(R.string.permission_rationale),
+    deniedMessage: String = stringResource(R.string.permission_denied),
     content: @Composable BoxScope.() -> Unit,
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
     val lifecycleOwner = LocalLifecycleOwner.current
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
     fun allGranted(): Boolean =
         permissions.all {
@@ -129,29 +131,34 @@ fun CameraSampleScaffold(
         if (!hasPermission) launcher.launch(permissions.toTypedArray())
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = Color.Black,
-    ) { paddingValues ->
+    CompositionLocalProvider(LocalCameraApi provides api) {
         Box(
             modifier =
-                Modifier
+                modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .background(Color.Black),
         ) {
             if (hasPermission) {
                 content()
-                ApiBadge(
-                    api = api,
+            } else {
+                ScrimIconButton(
+                    onClick = { backDispatcher?.onBackPressed() },
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.close),
                     modifier =
                         Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 12.dp),
+                            .align(Alignment.TopStart)
+                            .statusBarsPadding()
+                            .padding(start = 16.dp, top = 12.dp),
                 )
-            } else {
                 PermissionCard(
                     message = if (permanentlyDenied) deniedMessage else rationale,
-                    buttonText = if (permanentlyDenied) "Open Settings" else "Grant Permission",
+                    buttonText =
+                        if (permanentlyDenied) {
+                            stringResource(R.string.permission_open_settings)
+                        } else {
+                            stringResource(R.string.permission_grant)
+                        },
                     onClick = {
                         if (permanentlyDenied) {
                             context.startActivity(
@@ -169,53 +176,23 @@ fun CameraSampleScaffold(
     }
 }
 
-/** A small pill identifying which camera API the current sample uses (CameraX vs Camera2). */
-@Composable
-private fun ApiBadge(
-    api: CameraApi,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(percent = 50))
-                .background(Color.Black.copy(alpha = 0.45f))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(api.accent),
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = api.label,
-            color = Color.White,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
 @Composable
 private fun BoxScope.PermissionCard(
     message: String,
     buttonText: String,
     onClick: () -> Unit,
 ) {
+    val colors = MaterialTheme.colorScheme
     Card(
         modifier =
             Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors =
             CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                containerColor = colors.surfaceContainerLow,
             ),
     ) {
         Column(
@@ -223,19 +200,46 @@ private fun BoxScope.PermissionCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .background(colors.primaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PhotoCamera,
+                    contentDescription = null,
+                    tint = colors.onPrimaryContainer,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = stringResource(R.string.permission_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.onSurface,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = colors.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onClick,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
             ) {
-                Text(text = buttonText, modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    text = buttonText,
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
         }
     }

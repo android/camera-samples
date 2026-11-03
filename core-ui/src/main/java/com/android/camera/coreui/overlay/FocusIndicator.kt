@@ -88,7 +88,7 @@ fun FocusIndicator(
                         .offset {
                             IntOffset((x.value - halfPx).roundToInt(), (y.value - halfPx).roundToInt())
                         }.size(ReticleSize)
-                        .border(width = 1.5.dp, color = tint, shape = RoundedCornerShape(6.dp)),
+                        .border(width = 2.dp, color = tint, shape = CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(

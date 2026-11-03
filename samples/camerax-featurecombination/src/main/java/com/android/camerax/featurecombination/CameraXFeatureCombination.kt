@@ -17,10 +17,7 @@ package com.android.camerax.featurecombination
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -38,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -46,14 +44,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -62,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coretheme.monoFontFamily
 import com.android.camera.coreui.controls.CameraSwitchButton
 import com.android.camera.coreui.overlay.SettingsHeader
 import com.android.camera.coreui.overlay.ViewfinderTitleChip
@@ -71,12 +64,6 @@ import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
 import com.android.camera.coreui.state.ErrorView
 import com.android.camera.coreui.state.LoadingView
-
-private val PanelSurface = Color(0xFF14160D)
-private val ChipIdleBg = Color.White.copy(alpha = 0.05f)
-private val ChipIdleBorder = Color.White.copy(alpha = 0.12f)
-private val ChipIdleText = Color.White.copy(alpha = 0.85f)
-private val UnsupportedRed = Color(0xFFE57373)
 
 @Composable
 fun CameraXFeatureCombination(
@@ -207,17 +194,17 @@ private fun DiagnosticPanel(
         modifier =
             modifier
                 .fillMaxWidth()
-                .heightIn(max = 380.dp)
-                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                .background(PanelSurface)
+                .heightIn(max = 400.dp)
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(20.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
         SettingsHeader(text = stringResource(R.string.featurecombination_matrix_header))
         ready.matrix.forEach { row -> MatrixRowView(row) }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(20.dp))
 
         SettingsHeader(text = stringResource(R.string.featurecombination_interactive_header))
         FlowRow(
@@ -234,12 +221,12 @@ private fun DiagnosticPanel(
         }
 
         if (ready.selected.isNotEmpty()) {
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
             if (!ready.currentlySupported) {
                 Text(
                     text = stringResource(R.string.featurecombination_not_supported),
-                    style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp, letterSpacing = 0.04.em),
-                    color = UnsupportedRed,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
                 )
             } else {
                 Button(onClick = onApply, enabled = !ready.applied) {
@@ -263,19 +250,20 @@ private fun DiagnosticPanel(
 private fun MatrixRowView(row: MatrixRow) {
     val accent = MaterialTheme.colorScheme.primary
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(row.label),
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
-            color = Color.White.copy(alpha = 0.75f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = if (row.supported) "✓" else "✗",
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 14.sp, fontWeight = FontWeight.Bold),
-            color = if (row.supported) accent else Color.White.copy(alpha = 0.3f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (row.supported) accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
         )
     }
 }
@@ -286,27 +274,29 @@ private fun FeatureChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(14.dp)
-    val styled =
+    val containerColor =
         if (selected) {
-            Modifier.clip(shape).background(accent)
+            MaterialTheme.colorScheme.primaryContainer
         } else {
-            Modifier.clip(shape).background(ChipIdleBg).border(1.dp, ChipIdleBorder, shape)
+            MaterialTheme.colorScheme.surfaceContainerHigh
         }
-    Box(
-        modifier = styled.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
-        contentAlignment = Alignment.Center,
+    val contentColor =
+        if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        contentColor = contentColor,
     ) {
         Text(
             text = label,
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 12.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                ),
-            color = if (selected) MaterialTheme.colorScheme.onPrimary else ChipIdleText,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
 }

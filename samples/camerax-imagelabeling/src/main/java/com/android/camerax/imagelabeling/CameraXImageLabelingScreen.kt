@@ -17,12 +17,12 @@ package com.android.camerax.imagelabeling
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,11 +39,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -51,8 +48,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coretheme.bodyFontFamily
-import com.android.camera.coretheme.monoFontFamily
 import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -136,7 +131,7 @@ private fun BoxScope.AnalyzingContent(
     }
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(R.string.imagelabeling_labels_header),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
@@ -147,7 +142,8 @@ private fun BoxScope.AnalyzingContent(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(24.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 28.dp),
     )
 }
 
@@ -158,25 +154,20 @@ private fun LabelOverlay(
 ) {
     if (labels.isEmpty()) return
 
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier =
             modifier
                 .clip(shape)
-                .background(Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
             text = stringResource(R.string.imagelabeling_labels_header),
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.16.em,
-                ),
-            color = Color.White.copy(alpha = 0.40f),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.7f),
         )
         labels.take(MAX_LABELS).forEach { label ->
             val percent = (label.confidence * 100).roundToInt()
@@ -187,18 +178,15 @@ private fun LabelOverlay(
             ) {
                 Text(
                     text = label.text,
-                    color = Color.White.copy(alpha = 0.92f),
-                    style =
-                        TextStyle(
-                            fontFamily = bodyFontFamily,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        ),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                 )
                 Text(
                     text = stringResource(R.string.imagelabeling_confidence_percent, percent),
                     color = MaterialTheme.colorScheme.primary,
-                    style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }

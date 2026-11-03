@@ -1,6 +1,9 @@
 # built application files
 *.apk
 *.ap_
+*.aar
+aar/
+
 
 # Mac files
 .DS_Store

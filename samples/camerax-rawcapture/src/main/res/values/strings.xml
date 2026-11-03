@@ -24,4 +24,9 @@
     <string name="rawcapture_mode_full_sensor">Full Sensor (%1$s)</string>
     <string name="rawcapture_mode_default_fallback">Default</string>
     <string name="rawcapture_mode_max_fallback">Max</string>
+    <string name="rawcapture_captured_photo">Captured photo</string>
+    <string name="rawcapture_back">Back</string>
+    <string name="rawcapture_retake">Retake</string>
+    <string name="rawcapture_done">Done</string>
 </resources>
+

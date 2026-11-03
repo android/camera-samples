@@ -157,8 +157,6 @@ private fun BoxScope.CapturingContent(
                     onClick = { isOverlayVisible = true },
                     imageVector = Icons.Filled.Settings,
                     contentDescription = stringResource(R.string.hdrvideo_settings),
-                    size = 34.dp,
-                    iconSize = 18.dp,
                 )
             }
         },
@@ -172,7 +170,7 @@ private fun BoxScope.CapturingContent(
                 Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 96.dp),
+                    .padding(top = 68.dp),
         )
     }
 

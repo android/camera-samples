@@ -21,6 +21,7 @@ import android.graphics.Rect
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraConstrainedHighSpeedCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
@@ -335,8 +336,7 @@ abstract class BaseCamera2Controller(
         viewWidth: Float,
         viewHeight: Float,
     ) {
-        val session = captureSession ?: return
-        val builder = previewRequestBuilder ?: return
+        if (captureSession == null || previewRequestBuilder == null) return
 
         try {
             val characteristics = currentCharacteristics ?: cameraManager.getCameraCharacteristics(cameraId)
@@ -356,22 +356,44 @@ abstract class BaseCamera2Controller(
                     (y0 + halfTouchHeight).toInt().coerceAtMost(sensorArraySize.height()),
                 )
 
-            try {
-                session.stopRepeating()
-            } catch (e: CameraAccessException) {
-                Log.w(TAG, "Exception while stopping repeating", e)
+            val pendingFocusArea = focusArea
+            backgroundHandler.post {
+                val activeSession = captureSession ?: return@post
+                val activeBuilder = previewRequestBuilder ?: return@post
+                try {
+                    try {
+                        activeSession.stopRepeating()
+                    } catch (e: CameraAccessException) {
+                        Log.w(TAG, "Exception while stopping repeating", e)
+                    }
+
+                    val rectangle = MeteringRectangle(pendingFocusArea, MeteringRectangle.METERING_WEIGHT_MAX)
+                    activeBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(rectangle))
+                    activeBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, arrayOf(rectangle))
+                    activeBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+                    activeBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START)
+
+                    if (activeSession is CameraConstrainedHighSpeedCaptureSession) {
+                        activeSession.captureBurst(
+                            activeSession.createHighSpeedRequestList(activeBuilder.build()),
+                            null,
+                            backgroundHandler,
+                        )
+                        activeBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE)
+                        activeSession.setRepeatingBurst(
+                            activeSession.createHighSpeedRequestList(activeBuilder.build()),
+                            null,
+                            backgroundHandler,
+                        )
+                    } else {
+                        activeSession.capture(activeBuilder.build(), null, backgroundHandler)
+                        activeBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE)
+                        activeSession.setRepeatingRequest(activeBuilder.build(), null, backgroundHandler)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Focus error", e)
+                }
             }
-
-            val rectangle = MeteringRectangle(focusArea, MeteringRectangle.METERING_WEIGHT_MAX)
-            builder.set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(rectangle))
-            builder.set(CaptureRequest.CONTROL_AE_REGIONS, arrayOf(rectangle))
-            builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
-            builder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START)
-
-            session.capture(builder.build(), null, backgroundHandler)
-
-            builder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE)
-            session.setRepeatingRequest(builder.build(), null, backgroundHandler)
         } catch (e: CameraAccessException) {
             Log.e(TAG, "Focus error", e)
         }

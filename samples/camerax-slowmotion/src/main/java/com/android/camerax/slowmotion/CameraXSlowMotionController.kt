@@ -61,10 +61,12 @@ fun rememberCameraXSlowMotionController(
     onSessionConfigured: (Range<Int>) -> Unit,
     onUnsupported: () -> Unit,
     onVideoCaptured: (Uri) -> Unit,
+    onRecordingFailed: () -> Unit = {},
 ): CameraXSlowMotionController {
     val latestOnSessionConfigured by rememberUpdatedState(onSessionConfigured)
     val latestOnUnsupported by rememberUpdatedState(onUnsupported)
     val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    val latestOnRecordingFailed by rememberUpdatedState(onRecordingFailed)
     return remember(context, lifecycleOwner) {
         CameraXSlowMotionController(
             context,
@@ -72,6 +74,7 @@ fun rememberCameraXSlowMotionController(
             onSessionConfigured = { range -> latestOnSessionConfigured(range) },
             onUnsupported = { latestOnUnsupported() },
             onVideoCaptured = { uri -> latestOnVideoCaptured(uri) },
+            onRecordingFailed = { latestOnRecordingFailed() },
         )
     }
 }
@@ -93,6 +96,7 @@ class CameraXSlowMotionController(
     private val onSessionConfigured: (Range<Int>) -> Unit,
     private val onUnsupported: () -> Unit,
     private val onVideoCaptured: (Uri) -> Unit,
+    private val onRecordingFailed: () -> Unit = {},
 ) {
     private val appContext = context.applicationContext
 
@@ -104,21 +108,20 @@ class CameraXSlowMotionController(
     private var cameraProvider: ProcessCameraProvider? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
-
-    private val preview =
-        Preview.Builder().build().apply {
-            setSurfaceProvider { request -> surfaceRequest = request }
-        }
+    private var isSessionBound = false
 
     private val cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
     fun openCamera() {
+        if (isSessionBound) return
+        isSessionBound = true
         providerScope.launch {
             val provider = ProcessCameraProvider.getInstance(appContext).await()
             cameraProvider = provider
             try {
                 val cameraInfo = cameraSelector.filter(provider.availableCameraInfos).firstOrNull()
                 if (cameraInfo == null) {
+                    isSessionBound = false
                     onUnsupported()
                     return@launch
                 }
@@ -126,6 +129,7 @@ class CameraXSlowMotionController(
                 // High-speed capabilities gate the whole sample.
                 val highSpeedCaps = Recorder.getHighSpeedVideoCapabilities(cameraInfo)
                 if (highSpeedCaps == null) {
+                    isSessionBound = false
                     onUnsupported()
                     return@launch
                 }
@@ -133,6 +137,7 @@ class CameraXSlowMotionController(
                 val quality =
                     highSpeedCaps.getSupportedQualities(DynamicRange.SDR).firstOrNull()
                 if (quality == null) {
+                    isSessionBound = false
                     onUnsupported()
                     return@launch
                 }
@@ -145,6 +150,14 @@ class CameraXSlowMotionController(
                 val capture = VideoCapture.withOutput(recorder)
                 videoCapture = capture
 
+                // Create a fresh Preview per bind; binding a HighSpeedVideoSessionConfig mutates
+                // the Preview's internal config with the high-speed target frame rate, which
+                // HighSpeedVideoSessionConfig rejects if the same Preview instance is reused.
+                val preview =
+                    Preview.Builder().build().apply {
+                        setSurfaceProvider { request -> surfaceRequest = request }
+                    }
+
                 // Probe the high-speed frame-rate ranges the camera offers for this use-case combo
                 // and pick the highest (e.g. 120/240 fps) so the slow-motion effect is strongest.
                 val probeConfig = HighSpeedVideoSessionConfig(capture, preview)
@@ -153,6 +166,7 @@ class CameraXSlowMotionController(
                         .getSupportedFrameRateRanges(probeConfig)
                         .maxByOrNull { it.upper }
                 if (frameRateRange == null) {
+                    isSessionBound = false
                     onUnsupported()
                     return@launch
                 }
@@ -168,6 +182,7 @@ class CameraXSlowMotionController(
                 provider.bindToLifecycle(lifecycleOwner, cameraSelector, sessionConfig)
                 onSessionConfigured(frameRateRange)
             } catch (e: Exception) {
+                isSessionBound = false
                 Log.e(TAG, "High-speed session binding failed", e)
                 onUnsupported()
             }
@@ -176,7 +191,11 @@ class CameraXSlowMotionController(
 
     @SuppressLint("MissingPermission")
     fun startRecording(context: Context) {
-        val capture = videoCapture ?: return
+        val capture =
+            videoCapture ?: run {
+                onRecordingFailed()
+                return
+            }
         if (activeRecording != null) return
 
         val name =
@@ -200,12 +219,13 @@ class CameraXSlowMotionController(
                 .prepareRecording(context, outputOptions)
                 .start(ContextCompat.getMainExecutor(appContext)) { event ->
                     if (event is VideoRecordEvent.Finalize) {
+                        activeRecording = null
                         if (!event.hasError()) {
                             onVideoCaptured(event.outputResults.outputUri)
                         } else {
                             Log.e(TAG, "Slow-motion recording failed: ${event.error}")
+                            onRecordingFailed()
                         }
-                        activeRecording = null
                     }
                 }
     }
@@ -216,6 +236,7 @@ class CameraXSlowMotionController(
     }
 
     fun closeCamera() {
+        isSessionBound = false
         stopRecording()
         cameraProvider?.unbindAll()
     }

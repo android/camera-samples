@@ -17,16 +17,23 @@ package com.android.camera2.slowmotion
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.camera.core.camera2.Camera2Preview
@@ -34,6 +41,8 @@ import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.controls.RecordButton
 import com.android.camera.coreui.feedback.ObserveSaveEvents
+import com.android.camera.coreui.overlay.FocusIndicator
+import com.android.camera.coreui.overlay.ViewfinderTitleChip
 import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.preview.CapturedVideoPreview
 import com.android.camera.coreui.scaffold.CameraApi
@@ -104,19 +113,38 @@ private fun BoxScope.CapturingContent(
             context = context,
             onUnsupported = viewModel::markUnsupported,
             onVideoCaptured = viewModel::videoCaptured,
+            onRecordingFailed = viewModel::resetToCamera,
         )
 
     DisposableEffect(controller) {
         onDispose { controller.release() }
     }
 
-    Camera2Preview(controller = controller)
+    var tapOffset by remember { mutableStateOf<Offset?>(null) }
+
+    Camera2Preview(
+        controller = controller,
+        onFocusTap = { tapOffset = it },
+    )
+
+    FocusIndicator(tapOffset = tapOffset)
 
     ViewfinderTopBar(
         title = stringResource(R.string.slowmotion_title),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
+
+    if (controller.currentFps > 0) {
+        ViewfinderTitleChip(
+            text = stringResource(R.string.slowmotion_fps_badge, controller.currentFps),
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 68.dp),
+        )
+    }
 
     CameraControlsBar(
         modifier = Modifier.align(Alignment.BottomCenter),

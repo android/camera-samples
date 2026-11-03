@@ -15,76 +15,139 @@
  */
 package com.android.camera.coreui.overlay
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.android.camera.coreui.R
 import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.scaffold.CameraApi
+import com.android.camera.coreui.scaffold.LocalCameraApi
 
 /**
- * The shared viewfinder top bar: a single status-bar-padded [Row] pinned to the top of a sample's
- * camera surface so the close button, centered title chip, and trailing [actions] always sit at the
- * same vertical position across every sample.
- *
- * The bar is offset below [com.android.camera.coreui.scaffold.CameraSampleScaffold]'s ApiBadge (which
- * floats at the very top center) so the badge and the title chip never collide. The title chip is
- * held at the row's vertical center inside a weighted [Box] so it stays centered even when the start
- * and end slots have different widths.
- *
- * @param title centered title; pass `null` to omit the chip.
- * @param onClose invoked by the leading [ScrimIconButton].
- * @param closeIcon defaults to [Icons.Filled.Close]; pass an arrow for screens that "go back".
- * @param actions trailing controls (torch, settings, camera-swap, record quality, etc.).
+ * The shared viewfinder top bar: a status-bar-padded [Box] pinned to the top of a sample's camera
+ * surface so the close button (`Alignment.CenterStart`), dead-centered API + title pill
+ * (`Alignment.Center`), and trailing [actions] (`Alignment.CenterEnd`) always sit on the exact
+ * same horizontal axis and true screen center across every sample.
  */
 @Composable
 fun BoxScope.ViewfinderTopBar(
     title: String?,
     onClose: () -> Unit,
-    closeIcon: ImageVector = Icons.Filled.Close,
+    closeIcon: ImageVector = Icons.Rounded.Close,
+    showApiBadge: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    val api = LocalCameraApi.current
+    Box(
         modifier =
             modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .statusBarsPadding()
-                // Offset below the scaffold's ApiBadge (top-center) so the two never overlap.
-                .padding(start = 16.dp, end = 16.dp, top = 40.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+                .background(
+                    Brush.verticalGradient(
+                        colors =
+                            listOf(
+                                Color.Black.copy(alpha = 0.52f),
+                                Color.Transparent,
+                            ),
+                    ),
+                ).statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .heightIn(min = 44.dp),
     ) {
         ScrimIconButton(
             onClick = onClose,
             imageVector = closeIcon,
-            contentDescription = "Close",
-            size = 34.dp,
-            iconSize = 18.dp,
+            contentDescription = stringResource(R.string.close),
+            size = 44.dp,
+            iconSize = 22.dp,
+            modifier = Modifier.align(Alignment.CenterStart),
         )
 
         Box(
-            modifier = Modifier.weight(1f),
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 56.dp),
             contentAlignment = Alignment.Center,
         ) {
-            title?.let { ViewfinderTitleChip(it) }
+            if (showApiBadge) {
+                ViewfinderHeaderPill(api = api, title = title)
+            } else if (title != null) {
+                ViewfinderTitleChip(title)
+            }
         }
 
         Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
             content = actions,
+        )
+    }
+}
+
+@Composable
+private fun ViewfinderHeaderPill(
+    api: CameraApi,
+    title: String?,
+    modifier: Modifier = Modifier,
+) {
+    val label =
+        if (!title.isNullOrBlank()) {
+            stringResource(R.string.top_bar_api_and_title, api.label, title)
+        } else {
+            api.label
+        }
+    Row(
+        modifier =
+            modifier
+                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(8.dp)
+                    .background(api.accent, CircleShape),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

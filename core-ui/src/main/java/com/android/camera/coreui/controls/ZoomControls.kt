@@ -17,7 +17,6 @@ package com.android.camera.coreui.controls
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,30 +24,30 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.android.camera.coretheme.monoFontFamily
 import java.util.Locale
 import kotlin.math.abs
 
-private val ScrimColor = Color.Black.copy(alpha = 0.42f)
+private val CardScrimColor = Color.Black.copy(alpha = 0.6f)
+private val CardBorderColor = Color.White.copy(alpha = 0.14f)
+private val CardShape = RoundedCornerShape(24.dp)
 
 /**
- * The console zoom control: a centered zoom-value pill, an accent slider, and discrete zoom-stop
- * chips kept in sync with the slider. Stops outside [valueRange] are hidden; tapping a chip jumps the
- * zoom to that ratio.
+ * The Android camera zoom control: a cohesive Material 3 card containing circular zoom stop pills,
+ * a live zoom-ratio readout badge, and a smooth slider kept in sync. Stops outside [valueRange]
+ * are hidden; tapping a chip jumps the zoom to that ratio.
  */
 @Composable
 fun ZoomControls(
@@ -59,27 +58,70 @@ fun ZoomControls(
     enabled: Boolean = true,
     stops: List<Float> = listOf(0.5f, 1f, 2f, 5f),
 ) {
-    val accent = MaterialTheme.colorScheme.primary
+    val colors = MaterialTheme.colorScheme
     Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(CardScrimColor, CardShape)
+                .border(1.dp, CardBorderColor, CardShape)
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(
-            text = String.format(Locale.US, "%.1f×", zoomRatio),
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            color = accent,
-            modifier =
-                Modifier
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(ScrimColor)
-                    .padding(horizontal = 14.dp, vertical = 5.dp),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                        .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                stops
+                    .filter { it in valueRange }
+                    .forEach { stop ->
+                        val active = abs(zoomRatio - stop) < 0.05f
+                        Surface(
+                            onClick = {
+                                onValueChange(
+                                    stop.coerceIn(valueRange.start, valueRange.endInclusive),
+                                )
+                            },
+                            enabled = enabled,
+                            shape = CircleShape,
+                            color = if (active) colors.primaryContainer else Color.Transparent,
+                            contentColor = if (active) colors.onPrimaryContainer else Color.White,
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = stop.toStopLabel(),
+                                    style =
+                                        MaterialTheme.typography.labelMedium.copy(
+                                            fontFeatureSettings = "tnum",
+                                        ),
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                )
+                            }
+                        }
+                    }
+            }
+
+            Text(
+                text = String.format(Locale.US, "%.1f×", zoomRatio),
+                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.SemiBold,
+                color = colors.primary,
+                modifier =
+                    Modifier
+                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+            )
+        }
 
         Slider(
             value = zoomRatio.coerceIn(valueRange.start, valueRange.endInclusive),
@@ -88,56 +130,12 @@ fun ZoomControls(
             enabled = enabled,
             colors =
                 SliderDefaults.colors(
-                    thumbColor = accent,
-                    activeTrackColor = accent,
+                    thumbColor = colors.primary,
+                    activeTrackColor = colors.primary,
                     inactiveTrackColor = Color.White.copy(alpha = 0.3f),
                 ),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
         )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            stops
-                .filter { it in valueRange }
-                .forEach { stop ->
-                    val active = abs(zoomRatio - stop) < 0.05f
-                    val shape = RoundedCornerShape(15.dp)
-                    val chipBase =
-                        Modifier
-                            .size(width = 42.dp, height = 30.dp)
-                            .clip(shape)
-                    val chipModifier =
-                        if (active) {
-                            chipBase.background(accent)
-                        } else {
-                            chipBase
-                                .background(ScrimColor)
-                                .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
-                        }
-                    Box(
-                        modifier =
-                            chipModifier.clickable(enabled = enabled) {
-                                onValueChange(stop.coerceIn(valueRange.start, valueRange.endInclusive))
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stop.toStopLabel(),
-                            style =
-                                TextStyle(
-                                    fontFamily = monoFontFamily,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                ),
-                            color =
-                                if (active) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    Color.White.copy(alpha = 0.85f)
-                                },
-                        )
-                    }
-                }
-        }
     }
 }
 

@@ -16,7 +16,9 @@
 package com.android.camera2.zoomandtorch
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -115,14 +117,6 @@ private fun BoxScope.PreviewingContent(
     ViewfinderTopBar(
         title = stringResource(R.string.zoomandtorch_title),
         onClose = onBack,
-        actions = {
-            if (state.hasFlash && !state.isFrontCamera) {
-                TorchChip(
-                    on = state.torchOn,
-                    onToggle = viewModel::toggleTorch,
-                )
-            }
-        },
     )
 
     val zoomEnabled = state.minZoom < state.maxZoom
@@ -132,21 +126,32 @@ private fun BoxScope.PreviewingContent(
         } else {
             state.minZoom..(state.minZoom + 1f)
         }
-    ZoomControls(
-        zoomRatio = state.zoomRatio,
-        valueRange = zoomRange,
-        onValueChange = viewModel::setZoom,
-        enabled = zoomEnabled,
-        modifier =
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 150.dp),
-    )
-
-    CameraControlsBar(
+    Column(
         modifier = Modifier.align(Alignment.BottomCenter),
-        endSlot = { CameraSwitchButton(onClick = viewModel::swapCamera) },
-        center = {},
-    )
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ZoomControls(
+            zoomRatio = state.zoomRatio,
+            valueRange = zoomRange,
+            onValueChange = viewModel::setZoom,
+            enabled = zoomEnabled,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+        )
+
+        CameraControlsBar(
+            modifier = Modifier.fillMaxWidth(),
+            center = {
+                if (state.hasFlash && !state.isFrontCamera) {
+                    TorchChip(
+                        on = state.torchOn,
+                        onToggle = viewModel::toggleTorch,
+                    )
+                }
+            },
+            endSlot = { CameraSwitchButton(onClick = viewModel::swapCamera) },
+        )
+    }
 }
