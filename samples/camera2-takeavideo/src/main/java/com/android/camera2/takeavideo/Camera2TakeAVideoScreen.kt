@@ -154,8 +154,6 @@ private fun BoxScope.CapturingContent(
                     onClick = viewModel::toggleOverlay,
                     imageVector = Icons.Filled.Settings,
                     contentDescription = stringResource(R.string.takeavideo_settings),
-                    size = 34.dp,
-                    iconSize = 18.dp,
                 )
             }
         },

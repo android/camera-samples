@@ -18,6 +18,7 @@ package com.android.camera.coreui.controls
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,29 +27,39 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.rounded.Cameraswitch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.camera.coreui.R
+
+private val RecordRed = Color(0xFFE53935)
+private val ControlScrimColor = Color.Black.copy(alpha = 0.55f)
+private val ControlBorderColor = Color.White.copy(alpha = 0.14f)
 
 /**
- * The standard shutter button: a 70dp white ring around a 56dp white core. The core scales down
- * briefly while pressed before firing [onClick], matching the console viewfinder.
+ * The Android camera shutter button: an 80dp white outer ring around a 64dp white core that scales
+ * smoothly while pressed before firing [onClick].
  */
 @Composable
 fun ShutterButton(
@@ -59,15 +70,17 @@ fun ShutterButton(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val coreScale by animateFloatAsState(
-        targetValue = if (pressed) 0.8f else 1f,
-        animationSpec = tween(durationMillis = 130),
+        targetValue = if (pressed) 0.84f else 1f,
+        animationSpec = tween(durationMillis = 120),
         label = "shutterScale",
     )
     Box(
         modifier =
             modifier
-                .size(70.dp)
-                .border(width = 3.dp, color = Color.White, shape = CircleShape)
+                .size(80.dp)
+                .background(Color.Black.copy(alpha = 0.25f), CircleShape)
+                .border(width = 4.dp, color = Color.White, shape = CircleShape)
+                .clip(CircleShape)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -79,7 +92,7 @@ fun ShutterButton(
         Box(
             modifier =
                 Modifier
-                    .size(56.dp)
+                    .size(64.dp)
                     .graphicsLayer {
                         scaleX = coreScale
                         scaleY = coreScale
@@ -100,22 +113,23 @@ fun RecordButton(
     enabled: Boolean = true,
 ) {
     val cornerRadius by animateDpAsState(
-        targetValue = if (isRecording) 8.dp else 28.dp,
+        targetValue = if (isRecording) 8.dp else 32.dp,
         label = "recordCorner",
     )
     val innerSize by animateDpAsState(
-        targetValue = if (isRecording) 32.dp else 56.dp,
+        targetValue = if (isRecording) 32.dp else 64.dp,
         label = "recordSize",
     )
     IconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.size(72.dp),
+        modifier = modifier.size(80.dp),
     ) {
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.25f), CircleShape)
                     .border(width = 4.dp, color = Color.White, shape = CircleShape),
             contentAlignment = Alignment.Center,
         ) {
@@ -124,7 +138,7 @@ fun RecordButton(
                     Modifier
                         .size(innerSize)
                         .clip(RoundedCornerShape(cornerRadius))
-                        .background(Color.Red),
+                        .background(RecordRed),
             )
         }
     }
@@ -135,19 +149,27 @@ fun CameraSwitchButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    IconButton(onClick = onClick, modifier = modifier.size(32.dp)) {
-        Icon(
-            imageVector = Icons.Filled.Cameraswitch,
-            contentDescription = "Swap Camera",
-            tint = Color.White,
-            modifier = Modifier.fillMaxSize(),
-        )
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = ControlScrimColor,
+        contentColor = Color.White,
+        border = BorderStroke(1.dp, ControlBorderColor),
+        modifier = modifier.size(52.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Rounded.Cameraswitch,
+                contentDescription = stringResource(R.string.swap_camera),
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
 /**
- * A circular scrim-backed icon button (translucent black disc + white glyph), used for the console
- * viewfinder/review chrome. Defaults to 48dp; pass [size] = 34dp for the smaller top-bar variant.
+ * A circular scrim-backed icon button (translucent dark disc + white glyph) for viewfinder and
+ * media review chrome.
  */
 @Composable
 fun ScrimIconButton(
@@ -155,31 +177,31 @@ fun ScrimIconButton(
     imageVector: ImageVector,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
+    size: Dp = 44.dp,
     iconSize: Dp = 22.dp,
 ) {
-    Box(
-        modifier =
-            modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.42f))
-                .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = ControlScrimColor,
+        contentColor = Color.White,
+        border = BorderStroke(1.dp, ControlBorderColor),
+        modifier = modifier.size(size),
     ) {
-        Icon(
-            imageVector = imageVector,
-            contentDescription = contentDescription,
-            tint = Color.White,
-            modifier = Modifier.size(iconSize),
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(iconSize),
+            )
+        }
     }
 }
 
 /**
  * Standard bottom control bar: a centered [center] action (shutter/record) with optional
- * [startSlot] and [endSlot] (e.g. a camera-swap button), matching the layout shared by every
- * capture sample.
+ * [startSlot] and [endSlot] (e.g. a camera-swap button), aligned on the same horizontal center axis
+ * and padded above the gesture navigation bar.
  */
 @Composable
 fun CameraControlsBar(
@@ -192,7 +214,17 @@ fun CameraControlsBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(bottom = 48.dp, start = 32.dp, end = 48.dp),
+                .background(
+                    Brush.verticalGradient(
+                        colors =
+                            listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.56f),
+                            ),
+                    ),
+                ).navigationBarsPadding()
+                .padding(start = 32.dp, end = 32.dp, top = 16.dp, bottom = 28.dp)
+                .heightIn(min = 52.dp),
     ) {
         Box(modifier = Modifier.align(Alignment.CenterStart)) { startSlot() }
         Box(modifier = Modifier.align(Alignment.Center)) { center() }

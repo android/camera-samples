@@ -132,7 +132,7 @@ private fun BoxScope.PreviewingContent(
     }
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(R.string.exposure_slider_label),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
     )
@@ -153,12 +153,11 @@ private fun BoxScope.PreviewingContent(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 20.dp),
         )
         CameraControlsBar(
             modifier = Modifier.fillMaxWidth(),
-            endSlot = { CameraSwitchButton(onClick = onSwapCamera) },
-            center = {},
+            center = { CameraSwitchButton(onClick = onSwapCamera) },
         )
     }
 }

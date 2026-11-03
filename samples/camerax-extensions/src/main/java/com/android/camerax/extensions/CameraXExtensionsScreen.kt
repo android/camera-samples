@@ -178,7 +178,7 @@ private fun BoxScope.CapturingContent(
     }
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(extensionModeLabel(currentMode)),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
         actions = {
@@ -186,8 +186,6 @@ private fun BoxScope.CapturingContent(
                 onClick = { settingsVisible = true },
                 imageVector = Icons.Filled.AutoAwesome,
                 contentDescription = stringResource(R.string.extensions_mode_button),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )

@@ -29,8 +29,6 @@ import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.core.SurfaceRequest
 import androidx.camera.core.UseCase
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.Quality
-import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
 import androidx.camera.video.VideoCapture
 import androidx.compose.runtime.Composable
@@ -129,7 +127,7 @@ class CameraXFeatureCombinationController(
         }
     private val videoCapture =
         VideoCapture.withOutput(
-            Recorder.Builder().setQualitySelector(QualitySelector.from(Quality.HD)).build(),
+            Recorder.Builder().build(),
         )
     private val imageCapture = ImageCapture.Builder().build()
 

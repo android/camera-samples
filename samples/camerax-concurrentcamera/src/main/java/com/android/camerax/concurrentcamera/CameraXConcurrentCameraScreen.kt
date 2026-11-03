@@ -134,7 +134,7 @@ private fun BoxScope.StreamingContent(
             Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = 56.dp, end = 16.dp)
+                .padding(top = 68.dp, end = 16.dp)
                 .width(116.dp)
                 .height(174.dp)
                 .clip(pipShape)
@@ -146,16 +146,8 @@ private fun BoxScope.StreamingContent(
     }
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(R.string.concurrentcamera_title),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
-    )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.concurrentcamera_title),
-        modifier =
-            Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp),
     )
 }

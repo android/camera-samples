@@ -16,43 +16,16 @@
 package com.android.camera.coretheme
 
 import androidx.compose.material3.Typography
-import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
-import com.android.camera.coretheme.R
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
-val provider =
-    GoogleFont.Provider(
-        providerAuthority = "com.google.android.gms.fonts",
-        providerPackage = "com.google.android.gms",
-        certificates = R.array.com_google_android_gms_fonts_certs,
-    )
+val bodyFontFamily: FontFamily = FontFamily.Default
 
-val bodyFontFamily =
-    FontFamily(
-        Font(
-            googleFont = GoogleFont("Space Grotesk"),
-            fontProvider = provider,
-        ),
-    )
+val displayFontFamily: FontFamily = FontFamily.Default
 
-val displayFontFamily =
-    FontFamily(
-        Font(
-            googleFont = GoogleFont("Space Grotesk"),
-            fontProvider = provider,
-        ),
-    )
-
-// Monospace family for technical / metadata text: API labels, filter chips, counts, HUD readouts.
-val monoFontFamily =
-    FontFamily(
-        Font(
-            googleFont = GoogleFont("Space Mono"),
-            fontProvider = provider,
-        ),
-    )
+val monoFontFamily: FontFamily = FontFamily.Default
 
 val baseline = Typography()
 
@@ -67,7 +40,14 @@ val AppTypography =
         titleLarge = baseline.titleLarge.copy(fontFamily = displayFontFamily),
         titleMedium = baseline.titleMedium.copy(fontFamily = displayFontFamily),
         titleSmall = baseline.titleSmall.copy(fontFamily = displayFontFamily),
-        bodyLarge = baseline.bodyLarge.copy(fontFamily = bodyFontFamily),
+        bodyLarge =
+            TextStyle(
+                fontFamily = bodyFontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                letterSpacing = 0.5.sp,
+            ),
         bodyMedium = baseline.bodyMedium.copy(fontFamily = bodyFontFamily),
         bodySmall = baseline.bodySmall.copy(fontFamily = bodyFontFamily),
         labelLarge = baseline.labelLarge.copy(fontFamily = bodyFontFamily),

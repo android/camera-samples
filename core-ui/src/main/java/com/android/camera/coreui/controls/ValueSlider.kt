@@ -16,23 +16,25 @@
 package com.android.camera.coreui.controls
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.android.camera.coretheme.monoFontFamily
+
+private val SliderCardShape = RoundedCornerShape(24.dp)
 
 /**
  * A labeled slider styled for use over a dark camera preview. Used by samples that expose a single
@@ -55,25 +57,30 @@ fun ValueSlider(
         modifier =
             modifier
                 .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .background(Color.Black.copy(alpha = 0.6f), SliderCardShape)
+                .border(1.dp, Color.White.copy(alpha = 0.14f), SliderCardShape)
+                .padding(horizontal = 18.dp, vertical = 14.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = label,
-                style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
                 color = Color.White,
                 modifier = Modifier.weight(1f),
             )
             Text(
                 text = valueLabel,
-                style =
-                    TextStyle(
-                        fontFamily = monoFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
+                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.SemiBold,
                 color = accentColor,
+                modifier =
+                    Modifier
+                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
         Slider(

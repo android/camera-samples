@@ -18,8 +18,6 @@ package com.android.camerax.takeaphoto
 import android.graphics.Bitmap
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,7 +39,7 @@ import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.display.rememberDisplayRotation
 import com.android.camera.core.permissions.CameraPermissions
 import com.android.camera.coreui.controls.CameraControlsBar
-import com.android.camera.coreui.controls.ScrimIconButton
+import com.android.camera.coreui.controls.CameraSwitchButton
 import com.android.camera.coreui.controls.ShutterButton
 import com.android.camera.coreui.feedback.ObserveSaveEvents
 import com.android.camera.coreui.overlay.FocusIndicator
@@ -165,13 +163,7 @@ private fun BoxScope.CapturingContent(
 
     CameraControlsBar(
         modifier = Modifier.align(Alignment.BottomCenter),
-        endSlot = {
-            ScrimIconButton(
-                onClick = onSwapCamera,
-                imageVector = Icons.Filled.Cameraswitch,
-                contentDescription = stringResource(R.string.takeaphoto_swap_camera),
-            )
-        },
+        endSlot = { CameraSwitchButton(onClick = onSwapCamera) },
         center = { ShutterButton(onClick = controller::takePicture) },
     )
 }

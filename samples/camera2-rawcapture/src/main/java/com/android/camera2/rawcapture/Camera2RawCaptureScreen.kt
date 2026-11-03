@@ -126,8 +126,6 @@ private fun BoxScope.PreviewingContent(
                 onClick = { viewModel.setSettingsVisible(true) },
                 imageVector = Icons.Filled.Settings,
                 contentDescription = stringResource(R.string.rawcapture_settings_button),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )

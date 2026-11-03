@@ -60,9 +60,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.android.camera.coretheme.monoFontFamily
-import com.android.camera.coreui.controls.ScrimIconButton
 import com.android.camera.coreui.controls.ValueSlider
-import com.android.camera.coreui.overlay.ViewfinderTitleChip
+import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.state.LoadingView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -156,26 +155,11 @@ fun BoxScope.RawEditorContent(
         )
     }
 
-    ScrimIconButton(
-        onClick = onBack,
-        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-        contentDescription = stringResource(R.string.rawcapture_back_to_camera),
-        size = 34.dp,
-        iconSize = 18.dp,
-        modifier =
-            Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(16.dp),
-    )
-
-    ViewfinderTitleChip(
-        text = stringResource(R.string.rawcapture_editor_title),
-        modifier =
-            Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 44.dp),
+    ViewfinderTopBar(
+        title = stringResource(R.string.rawcapture_editor_title),
+        onClose = onBack,
+        closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
+        showApiBadge = false,
     )
 }
 
@@ -195,21 +179,17 @@ private fun EditPanel(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.7f))
+                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow)
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState()),
     ) {
         Text(
             text = stringResource(R.string.rawcapture_editor_caption),
-            color = Color.White.copy(alpha = 0.7f),
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 11.sp,
-                    letterSpacing = 0.04.em,
-                ),
-            modifier = Modifier.padding(bottom = 8.dp),
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(bottom = 12.dp),
         )
         ValueSlider(
             label = stringResource(R.string.rawcapture_exposure),
@@ -248,25 +228,15 @@ private fun EditPanel(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 8.dp),
             contentAlignment = Alignment.CenterEnd,
         ) {
-            Text(
-                text = stringResource(R.string.rawcapture_reset),
-                color = Color.White,
-                style =
-                    TextStyle(
-                        fontFamily = monoFontFamily,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.1.em,
-                    ),
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(percent = 50))
-                        .background(Color.White.copy(alpha = 0.12f))
-                        .clickable(onClick = onReset)
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            androidx.compose.material3.FilledTonalButton(onClick = onReset) {
+                Text(
+                    text = stringResource(R.string.rawcapture_reset),
+                    style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                )
+            }
         }
     }
 }

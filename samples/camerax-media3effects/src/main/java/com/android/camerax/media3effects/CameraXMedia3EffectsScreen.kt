@@ -133,8 +133,6 @@ private fun BoxScope.PreviewingContent(
                 onClick = { isOverlayVisible = true },
                 imageVector = Icons.Filled.AutoFixHigh,
                 contentDescription = stringResource(R.string.media3effects_settings),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )

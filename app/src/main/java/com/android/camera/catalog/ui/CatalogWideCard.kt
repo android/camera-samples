@@ -17,16 +17,20 @@ package com.android.camera.catalog.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,126 +40,122 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import com.android.camera.catalog.R
 import com.android.camera.catalog.domain.SampleCatalogItem
 import com.android.camera.catalog.domain.SampleType
 import com.android.camera.coretheme.AISampleCatalogTheme
-import com.android.camera.coretheme.bodyFontFamily
-import com.android.camera.coretheme.monoFontFamily
+
+internal val ReadyGreen = Color(0xFF6DD58C)
 
 /**
- * The featured "hero" card for the catalog: a bordered surface with a tall key-art region, an accent
- * API badge, the sample title/description, and an "OPEN ▸" affordance. The whole card is clickable.
+ * The featured hero card for the catalog: a Material 3 rounded stage (`surfaceContainerLow`) with a
+ * framed key-art preview, a translucent pill badge, the sample title/description, and a filled
+ * action pill.
  */
 @Composable
 fun CatalogWideCard(
     catalogItem: SampleCatalogItem,
     onClick: () -> Unit,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(16.dp)
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(FeaturedSurface)
-                .border(1.dp, accent.copy(alpha = 0.34f), shape)
-                .clickable(onClick = onClick),
+    val colors = MaterialTheme.colorScheme
+    val rawTitle = stringResource(catalogItem.title)
+    val displayTitle = rawTitle.substringAfter("•", rawTitle).trim()
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(28.dp),
+        color = colors.surfaceContainerLow,
+        contentColor = colors.onSurface,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(130.dp),
-        ) {
-            Image(
-                painter = painterResource(id = catalogItem.keyArt ?: R.drawable.img_keyart_multimodal),
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().height(130.dp),
-                contentScale = ContentScale.Crop,
-            )
-            Text(
-                text = catalogItem.type.apiLabel(),
-                style =
-                    TextStyle(
-                        fontFamily = monoFontFamily,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.10.em,
-                    ),
-                color = MaterialTheme.colorScheme.onPrimary,
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(
                 modifier =
                     Modifier
-                        .align(Alignment.TopStart)
-                        .padding(10.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(accent)
-                        .padding(horizontal = 9.dp, vertical = 4.dp),
-            )
-        }
-        Column(
-            modifier = Modifier.padding(start = 15.dp, end = 15.dp, top = 14.dp, bottom = 13.dp),
-        ) {
-            Text(
-                text = stringResource(catalogItem.title),
-                style =
-                    TextStyle(
-                        fontFamily = bodyFontFamily,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                color = TextPrimary,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = stringResource(catalogItem.description),
-                style =
-                    TextStyle(
-                        fontFamily = bodyFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        lineHeight = 17.4.sp,
-                    ),
-                color = Color.White.copy(alpha = 0.55f),
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "OPEN ▸",
-                style =
-                    TextStyle(
-                        fontFamily = monoFontFamily,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.12.em,
-                    ),
-                color = accent,
-            )
+                        .fillMaxWidth()
+                        .height(152.dp)
+                        .clip(RoundedCornerShape(18.dp)),
+            ) {
+                Image(
+                    painter = painterResource(id = catalogItem.keyArt ?: R.drawable.img_keyart_multimodal),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                Row(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                            .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(8.dp)
+                                .background(ReadyGreen, CircleShape),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.featured_badge, catalogItem.type.apiLabel()),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = displayTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(catalogItem.description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Surface(
+                    shape = CircleShape,
+                    color = colors.primary,
+                    contentColor = colors.onPrimary,
+                ) {
+                    Text(
+                        text = stringResource(R.string.open_sample_button),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                    )
+                }
+            }
         }
     }
 }
 
-/** The uppercase API label shown on catalog cards/tiles. */
+/** The human-readable API label shown on catalog cards and tiles. */
+@Composable
 internal fun SampleType.apiLabel(): String =
     when (this) {
-        SampleType.CAMERAX -> "CAMERAX"
-        SampleType.CAMERA2 -> "CAMERA2"
+        SampleType.CAMERAX -> stringResource(R.string.section_camerax)
+        SampleType.CAMERA2 -> stringResource(R.string.section_camera2)
     }
 
-/** Console catalog surface tokens (see design handoff). */
-internal val AppBackground = Color(0xFF0D0E0A)
-internal val TileSurface = Color(0xFF14160D)
-internal val FeaturedSurface = Color(0xFF13150C)
-internal val TextPrimary = Color(0xFFF1F3EA)
-internal val TileTextColor = Color(0xFFEEF0E6)
-
-@Preview(showBackground = true, backgroundColor = 0xFF0D0E0A)
+@Preview(showBackground = true, backgroundColor = 0xFF141218)
 @Composable
 private fun CatalogWideCardPreview() {
     AISampleCatalogTheme {

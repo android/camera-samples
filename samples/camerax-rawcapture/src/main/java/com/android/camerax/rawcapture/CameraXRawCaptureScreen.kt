@@ -211,8 +211,6 @@ private fun BoxScope.PreviewingContent(
                 onClick = { viewModel.setSettingsVisible(true) },
                 imageVector = Icons.Filled.Settings,
                 contentDescription = stringResource(R.string.rawcapture_settings_button),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )
@@ -369,7 +367,7 @@ private fun ZoomableCapturedImagePreview(
         ) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Captured Photo",
+                contentDescription = stringResource(R.string.rawcapture_captured_photo),
                 modifier =
                     Modifier
                         .fillMaxSize()
@@ -386,9 +384,9 @@ private fun ZoomableCapturedImagePreview(
         ScrimIconButton(
             onClick = onDone,
             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
-            size = 34.dp,
-            iconSize = 18.dp,
+            contentDescription = stringResource(R.string.rawcapture_back),
+            size = 40.dp,
+            iconSize = 20.dp,
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
@@ -397,38 +395,40 @@ private fun ZoomableCapturedImagePreview(
         )
 
         if (scale > 1.05f) {
-            Text(
-                text = String.format(Locale.US, "%.1fx", scale),
-                style =
-                    TextStyle(
-                        fontFamily = monoFontFamily,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.06.em,
-                    ),
-                color = MaterialTheme.colorScheme.primary,
+            Box(
                 modifier =
                     Modifier
                         .align(Alignment.TopEnd)
                         .statusBarsPadding()
-                        .padding(16.dp),
-            )
+                        .padding(16.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = String.format(Locale.US, "%.1fx", scale),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
 
-        Text(
-            text = "${bitmap.width} × ${bitmap.height} • $mpLabel",
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.06.em,
-                ),
-            color = Color.White.copy(alpha = 0.55f),
+        Box(
             modifier =
                 Modifier
-                    .align(Alignment.BottomStart)
-                    .navigationBarsPadding()
-                    .padding(start = 20.dp, bottom = 100.dp),
-        )
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 20.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = "${bitmap.width} × ${bitmap.height} • $mpLabel",
+                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                color = Color.White,
+            )
+        }
 
         Row(
             modifier =
@@ -436,73 +436,51 @@ private fun ZoomableCapturedImagePreview(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+                    .padding(start = 24.dp, end = 24.dp, bottom = 28.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ReviewActionPill(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Refresh,
-                label = "Retake",
-                filled = false,
+            androidx.compose.material3.FilledTonalButton(
                 onClick = onRetake,
-            )
-            ReviewActionPill(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Filled.Check,
-                label = "Done",
-                filled = true,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                shape = androidx.compose.foundation.shape.CircleShape,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.rawcapture_retake),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            androidx.compose.material3.Button(
                 onClick = onDone,
-            )
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                shape = androidx.compose.foundation.shape.CircleShape,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.rawcapture_done),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun ReviewActionPill(
-    icon: ImageVector,
-    label: String,
-    filled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val accent = MaterialTheme.colorScheme.primary
-    val shape = RoundedCornerShape(26.dp)
-    val contentColor = if (filled) MaterialTheme.colorScheme.onPrimary else Color.White
-    val base =
-        modifier
-            .height(52.dp)
-            .clip(shape)
-    val styled =
-        if (filled) {
-            base.background(accent)
-        } else {
-            base
-                .background(Color.White.copy(alpha = 0.04f))
-                .border(1.dp, Color.White.copy(alpha = 0.22f), shape)
-        }
-    Row(
-        modifier = styled.clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = label,
-            style =
-                TextStyle(
-                    fontFamily = bodyFontFamily,
-                    fontSize = 14.sp,
-                    fontWeight = if (filled) FontWeight.Bold else FontWeight.Medium,
-                ),
-            color = contentColor,
-        )
     }
 }
 

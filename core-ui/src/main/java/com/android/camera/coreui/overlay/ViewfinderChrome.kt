@@ -17,37 +17,39 @@ package com.android.camera.coreui.overlay
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
-import com.android.camera.coretheme.monoFontFamily
+import com.android.camera.coreui.R
 
-private val HairlineColor = Color.White.copy(alpha = 0.07f)
-private val ScrimColor = Color.Black.copy(alpha = 0.42f)
+private val HairlineColor = Color.White.copy(alpha = 0.08f)
+private val ScrimColor = Color.Black.copy(alpha = 0.55f)
+private val ScrimBorderColor = Color.White.copy(alpha = 0.14f)
 private val WarmGlow = Color(0xFFFFFADC)
 
 /** Rule-of-thirds guide lines drawn as faint hairlines across the viewfinder. */
@@ -66,63 +68,67 @@ fun RuleOfThirdsGrid(modifier: Modifier = Modifier) {
     }
 }
 
-/** A centered scrim pill showing the sample name in uppercase mono, for the viewfinder top area. */
+/** A translucent Material 3 pill showing a title or readout over the viewfinder. */
 @Composable
 fun ViewfinderTitleChip(
     text: String,
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = text.uppercase(),
-        style =
-            TextStyle(
-                fontFamily = monoFontFamily,
-                fontSize = 10.sp,
-                letterSpacing = 0.16.em,
-            ),
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Medium,
         color = Color.White,
         modifier =
             modifier
-                .clip(RoundedCornerShape(percent = 50))
-                .background(ScrimColor)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .background(ScrimColor, CircleShape)
+                .border(1.dp, ScrimBorderColor, CircleShape)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
     )
 }
 
-/** Torch toggle chip: a scrim pill whose label/icon turn accent when the torch is on. */
+/** Torch toggle chip: a Material 3 pill that highlights with the primary container when the torch is on. */
 @Composable
 fun TorchChip(
     on: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tint = if (on) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.75f)
-    Row(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(percent = 50))
-                .background(ScrimColor)
-                .clickable(onClick = onToggle)
-                .padding(horizontal = 12.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onToggle,
+        shape = CircleShape,
+        color = if (on) colors.primaryContainer else ScrimColor,
+        contentColor = if (on) colors.onPrimaryContainer else Color.White,
+        border = if (on) null else BorderStroke(1.dp, ScrimBorderColor),
+        modifier = modifier.heightIn(min = 44.dp),
     ) {
-        Icon(
-            imageVector = Icons.Filled.FlashOn,
-            contentDescription = if (on) "Turn torch off" else "Turn torch on",
-            tint = tint,
-            modifier = Modifier.size(16.dp),
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = if (on) "TORCH ON" else "TORCH",
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.1.em,
-                ),
-            color = tint,
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.FlashOn,
+                contentDescription =
+                    if (on) {
+                        stringResource(R.string.torch_turn_off)
+                    } else {
+                        stringResource(R.string.torch_turn_on)
+                    },
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text =
+                    if (on) {
+                        stringResource(R.string.torch_label_on)
+                    } else {
+                        stringResource(R.string.torch_label_off)
+                    },
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+            )
+        }
     }
 }
 

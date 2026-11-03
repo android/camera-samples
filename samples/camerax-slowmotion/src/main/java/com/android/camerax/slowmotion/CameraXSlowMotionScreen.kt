@@ -123,6 +123,7 @@ private fun BoxScope.CapturingContent(
             onSessionConfigured = viewModel::onSessionConfigured,
             onUnsupported = viewModel::setUnsupported,
             onVideoCaptured = viewModel::videoCaptured,
+            onRecordingFailed = viewModel::resetToCamera,
         )
 
     DisposableEffect(lifecycleOwner, controller) {
@@ -165,7 +166,7 @@ private fun BoxScope.CapturingContent(
                 Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 96.dp),
+                    .padding(top = 68.dp),
         )
     }
 

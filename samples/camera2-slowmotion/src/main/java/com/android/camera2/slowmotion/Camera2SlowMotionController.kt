@@ -36,9 +36,11 @@ import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import com.android.camera.core.camera2.BaseCamera2Controller
 import com.android.camera.core.media.MediaStoreSaver
 import kotlinx.coroutines.CoroutineScope
@@ -47,23 +49,29 @@ import java.util.concurrent.Executor
 
 private const val TAG = "Camera2SlowMotionCtrl"
 
-/** Preferred high-speed capture size; falls back to the largest the device offers. */
-private val PREFERRED_SIZE = Size(1280, 720)
+/** Preferred high-speed capture size (1080p); falls back to the largest the device offers. */
+private val PREFERRED_SIZE = Size(1920, 1080)
+
+/** Standard playback frame rate so a 120/240 fps capture plays back at 1/4x or 1/8x slow motion. */
+private const val PLAYBACK_FPS = 30
 
 @Composable
 fun rememberCamera2SlowMotionController(
     context: Context,
     onUnsupported: () -> Unit,
     onVideoCaptured: (Uri) -> Unit,
+    onRecordingFailed: () -> Unit = {},
 ): Camera2SlowMotionController {
     val coroutineScope = rememberCoroutineScope()
     val latestOnUnsupported by rememberUpdatedState(onUnsupported)
     val latestOnVideoCaptured by rememberUpdatedState(onVideoCaptured)
+    val latestOnRecordingFailed by rememberUpdatedState(onRecordingFailed)
     return remember(context) {
         Camera2SlowMotionController(
             context,
             onUnsupported = { latestOnUnsupported() },
             onVideoCaptured = { latestOnVideoCaptured(it) },
+            onRecordingFailed = { latestOnRecordingFailed() },
             coroutineScope,
         )
     }
@@ -73,7 +81,8 @@ fun rememberCamera2SlowMotionController(
  * Camera2 high-speed ("slow motion") video controller. Reuses [BaseCamera2Controller] for the
  * background thread, camera open/close, transform, and tap-to-focus, but replaces the normal
  * capture-session path with a [CameraConstrainedHighSpeedCaptureSession] so the device can run at a
- * fixed high frame rate (e.g. 120/240 fps) that [MediaRecorder] then plays back as slow motion.
+ * fixed high frame rate (e.g. 120/240 fps) that [MediaRecorder] then encodes for 30 fps slow-motion
+ * playback.
  *
  * Back camera only; high-speed recording is not available on emulators, in which case
  * [onUnsupported] fires and the screen shows the unsupported state.
@@ -83,11 +92,15 @@ class Camera2SlowMotionController(
     context: Context,
     private val onUnsupported: () -> Unit,
     private val onVideoCaptured: (Uri) -> Unit,
+    private val onRecordingFailed: () -> Unit,
     private val coroutineScope: CoroutineScope,
 ) : BaseCamera2Controller(context, isFrontCamera = false) {
     private var isSupported = true
     private var highSpeedSize: Size = PREFERRED_SIZE
     private var highSpeedFpsRange: Range<Int> = Range(120, 120)
+
+    var currentFps: Int by mutableIntStateOf(0)
+        private set
 
     private var isRecording = false
     private var mediaRecorder: MediaRecorder? = null
@@ -118,6 +131,7 @@ class Camera2SlowMotionController(
         isSupported = true
         highSpeedSize = selection.first
         highSpeedFpsRange = selection.second
+        currentFps = highSpeedFpsRange.upper
         Log.d(TAG, "High-speed config: size=$highSpeedSize fps=$highSpeedFpsRange")
     }
 
@@ -157,7 +171,7 @@ class Camera2SlowMotionController(
         surface: Surface,
     ) {
         if (!isSupported) {
-            onUnsupported()
+            coroutineScope.launch { onUnsupported() }
             return
         }
         previewSurface = surface
@@ -165,6 +179,7 @@ class Camera2SlowMotionController(
     }
 
     override fun onCameraClosed() {
+        isRecording = false
         releaseMediaRecorder()
     }
 
@@ -190,6 +205,7 @@ class Camera2SlowMotionController(
     private fun createHighSpeedSession(
         camera: CameraDevice,
         surfaces: List<Surface>,
+        onConfigureFailedCallback: () -> Unit = {},
         onConfigured: (CameraConstrainedHighSpeedCaptureSession) -> Unit,
     ) {
         val stateCallback =
@@ -202,6 +218,7 @@ class Camera2SlowMotionController(
 
                 override fun onConfigureFailed(session: CameraCaptureSession) {
                     Log.e(TAG, "Failed to configure high-speed session")
+                    onConfigureFailedCallback()
                 }
             }
 
@@ -252,6 +269,10 @@ class Camera2SlowMotionController(
         val pending = MediaStoreSaver.newPendingVideo(context) ?: return
         pendingVideo = pending
 
+        // True slow-motion encoding in MediaRecorder (StagefrightRecorder) uses video-only capture
+        // with captureRate = high-speed FPS (e.g. 240.0) and videoFrameRate = 30 so recorded frames
+        // are time-stretched for 30 fps slow-motion playback. Audio is omitted because MediaRecorder
+        // rejects audio tracks when captureRate differs from videoFrameRate.
         mediaRecorder =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
@@ -259,7 +280,6 @@ class Camera2SlowMotionController(
                 @Suppress("DEPRECATION")
                 MediaRecorder()
             }.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                 if (pending.usesFileDescriptor) {
@@ -267,14 +287,11 @@ class Camera2SlowMotionController(
                 } else {
                     setOutputFile(pending.legacyFilePath)
                 }
-                setVideoEncodingBitRate(10_000_000)
-                setVideoFrameRate(fps)
-                // Capturing at the high rate while keeping the playback frame rate lower yields the
-                // slow-motion effect.
+                setVideoEncodingBitRate(20_000_000)
+                setVideoFrameRate(PLAYBACK_FPS)
                 setCaptureRate(fps.toDouble())
                 setVideoSize(highSpeedSize.width, highSpeedSize.height)
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setOrientationHint(orientationHint)
                 prepare()
             }
@@ -291,17 +308,33 @@ class Camera2SlowMotionController(
     }
 
     fun startRecording() {
-        if (isRecording || !isSupported) return
-        val camera = cameraDevice ?: return
-        val viewfinderSurface = previewSurface ?: return
+        backgroundHandler.post {
+            if (isRecording || !isSupported) {
+                coroutineScope.launch { onRecordingFailed() }
+                return@post
+            }
+            val camera = cameraDevice
+            val viewfinderSurface = previewSurface
+            if (camera == null || viewfinderSurface == null) {
+                coroutineScope.launch { onRecordingFailed() }
+                return@post
+            }
 
-        coroutineScope.launch {
             try {
-                captureSession?.close()
+                try {
+                    captureSession?.stopRepeating()
+                    captureSession?.close()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Exception closing preview session before recording", e)
+                }
                 captureSession = null
 
                 setupMediaRecorder()
-                val recorderSurface = mediaRecorder?.surface ?: return@launch
+                val recorderSurface =
+                    mediaRecorder?.surface ?: run {
+                        coroutineScope.launch { onRecordingFailed() }
+                        return@post
+                    }
 
                 previewRequestBuilder =
                     camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
@@ -310,7 +343,16 @@ class Camera2SlowMotionController(
                         set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, highSpeedFpsRange)
                     }
 
-                createHighSpeedSession(camera, listOf(viewfinderSurface, recorderSurface)) { session ->
+                createHighSpeedSession(
+                    camera = camera,
+                    surfaces = listOf(viewfinderSurface, recorderSurface),
+                    onConfigureFailedCallback = {
+                        releaseMediaRecorder()
+                        pendingVideo?.discard(context)
+                        pendingVideo = null
+                        coroutineScope.launch { onRecordingFailed() }
+                    },
+                ) { session ->
                     try {
                         val builder = previewRequestBuilder ?: return@createHighSpeedSession
                         val requestList = session.createHighSpeedRequestList(builder.build())
@@ -319,51 +361,65 @@ class Camera2SlowMotionController(
                         isRecording = true
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to start high-speed recording", e)
+                        releaseMediaRecorder()
+                        pendingVideo?.discard(context)
+                        pendingVideo = null
+                        coroutineScope.launch { onRecordingFailed() }
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exception starting recording", e)
+                releaseMediaRecorder()
+                pendingVideo?.discard(context)
+                pendingVideo = null
+                coroutineScope.launch { onRecordingFailed() }
             }
         }
     }
 
     fun stopRecording() {
-        if (!isRecording) return
-        isRecording = false
-
-        try {
-            captureSession?.stopRepeating()
-            captureSession?.close()
-            captureSession = null
-        } catch (e: CameraAccessException) {
-            Log.e(TAG, "Exception stopping repeating", e)
-        }
-
-        var stopFailed = false
-        try {
-            mediaRecorder?.stop()
-        } catch (e: RuntimeException) {
-            // MediaRecorder throws if stop is called immediately after start.
-            Log.e(TAG, "RuntimeException stopping MediaRecorder", e)
-            stopFailed = true
-            pendingVideo?.discard(context)
-            pendingVideo = null
-        }
-
-        releaseMediaRecorder()
-
-        if (!stopFailed) {
-            val pv = pendingVideo
-            if (pv != null) {
-                pv.finalize(context)
-                onVideoCaptured(pv.uri)
+        backgroundHandler.post {
+            if (!isRecording) {
+                coroutineScope.launch { onRecordingFailed() }
+                return@post
             }
-            pendingVideo = null
-        }
+            isRecording = false
 
-        // Restart the preview session.
-        val surface = previewSurface
-        val camera = cameraDevice
-        if (surface != null && camera != null) startPreviewSession(camera, surface)
+            try {
+                captureSession?.stopRepeating()
+                captureSession?.close()
+                captureSession = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception stopping repeating", e)
+            }
+
+            var stopFailed = false
+            try {
+                mediaRecorder?.stop()
+            } catch (e: RuntimeException) {
+                // MediaRecorder throws if stop is called immediately after start.
+                Log.e(TAG, "RuntimeException stopping MediaRecorder", e)
+                stopFailed = true
+                pendingVideo?.discard(context)
+                pendingVideo = null
+            }
+
+            releaseMediaRecorder()
+
+            val pv = pendingVideo
+            pendingVideo = null
+            if (!stopFailed && pv != null) {
+                pv.finalize(context)
+                val uri = pv.uri
+                coroutineScope.launch { onVideoCaptured(uri) }
+            } else {
+                coroutineScope.launch { onRecordingFailed() }
+            }
+
+            // Restart the preview session.
+            val surface = previewSurface
+            val camera = cameraDevice
+            if (surface != null && camera != null) startPreviewSession(camera, surface)
+        }
     }
 }

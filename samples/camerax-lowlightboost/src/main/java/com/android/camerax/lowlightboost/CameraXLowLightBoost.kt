@@ -16,18 +16,19 @@
 package com.android.camerax.lowlightboost
 
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,14 +36,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -50,7 +48,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.camera.core.camerax.CameraXPreview
 import com.android.camera.core.permissions.CameraPermissions
-import com.android.camera.coretheme.monoFontFamily
+import com.android.camera.coreui.controls.CameraControlsBar
 import com.android.camera.coreui.overlay.ViewfinderTopBar
 import com.android.camera.coreui.scaffold.CameraApi
 import com.android.camera.coreui.scaffold.CameraSampleScaffold
@@ -141,7 +139,11 @@ private fun BoxScope.PreviewingContent(
     ViewfinderTopBar(
         title = stringResource(R.string.lowlightboost_title),
         onClose = onBack,
-        actions = { LowLightChip(on = state.enabled, onToggle = viewModel::toggle) },
+    )
+
+    CameraControlsBar(
+        modifier = Modifier.align(Alignment.BottomCenter),
+        center = { LowLightChip(on = state.enabled, onToggle = viewModel::toggle) },
     )
 }
 
@@ -151,30 +153,44 @@ private fun LowLightChip(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tint = if (on) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.75f)
-    Row(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(percent = 50))
-                .background(Color.Black.copy(alpha = 0.42f))
-                .clickable(onClick = onToggle)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    val containerColor =
+        if (on) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            Color.Black.copy(alpha = 0.55f)
+        }
+    val contentColor =
+        if (on) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            Color.White
+        }
+    Surface(
+        onClick = onToggle,
+        modifier = modifier.heightIn(min = 48.dp),
+        shape = CircleShape,
+        color = containerColor,
+        contentColor = contentColor,
+        border = if (on) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
     ) {
-        Icon(
-            imageVector = Icons.Filled.WbSunny,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(16.dp),
-        )
-        Text(
-            text =
-                stringResource(
-                    if (on) R.string.lowlightboost_chip_on else R.string.lowlightboost_chip,
-                ).uppercase(),
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 10.sp, letterSpacing = 0.1.em),
-            color = tint,
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.WbSunny,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text =
+                    stringResource(
+                        if (on) R.string.lowlightboost_chip_on else R.string.lowlightboost_chip,
+                    ),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+            )
+        }
     }
 }

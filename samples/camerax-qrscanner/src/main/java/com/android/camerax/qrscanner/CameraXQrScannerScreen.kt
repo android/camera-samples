@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -151,7 +152,8 @@ private fun BoxScope.ScanningContent(
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(32.dp),
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
         )
     }
 
@@ -204,34 +206,32 @@ private fun BarcodeOverlay(
     }
 }
 
-/** A console pill showing the most recently decoded barcode value. */
+/** A translucent pill showing the most recently decoded barcode value. */
 @Composable
 private fun BarcodeValueChip(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(14.dp)
     Row(
         modifier =
             modifier
-                .clip(shape)
-                .background(Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(6.dp)
+                    .size(8.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary),
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = value,
-            color = Color.White.copy(alpha = 0.9f),
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 12.sp),
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
         )
     }
 }

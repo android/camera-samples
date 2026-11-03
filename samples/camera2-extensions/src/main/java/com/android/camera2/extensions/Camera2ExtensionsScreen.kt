@@ -141,7 +141,7 @@ private fun BoxScope.CapturingContent(
     Camera2Preview(controller = controller)
 
     ViewfinderTopBar(
-        title = null,
+        title = stringResource(extensionLabel(currentExtension)),
         onClose = onBack,
         closeIcon = Icons.AutoMirrored.Filled.ArrowBack,
         actions = {
@@ -149,8 +149,6 @@ private fun BoxScope.CapturingContent(
                 onClick = { settingsVisible = true },
                 imageVector = Icons.Filled.Settings,
                 contentDescription = stringResource(R.string.extensions_settings),
-                size = 34.dp,
-                iconSize = 18.dp,
             )
         },
     )

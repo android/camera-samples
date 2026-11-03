@@ -30,25 +30,28 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -56,6 +59,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -66,17 +70,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -90,8 +89,6 @@ import com.android.camera.catalog.domain.SampleCatalogItem
 import com.android.camera.catalog.domain.SampleCategory
 import com.android.camera.catalog.domain.SampleType
 import com.android.camera.catalog.domain.sampleCatalog
-import com.android.camera.coretheme.bodyFontFamily
-import com.android.camera.coretheme.monoFontFamily
 import kotlinx.serialization.Serializable
 
 @Composable
@@ -162,7 +159,10 @@ fun CatalogApp() {
         startDestination = HomeScreen,
     ) {
         composable<HomeScreen> {
-            Scaffold(containerColor = AppBackground) { innerPadding ->
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                contentWindowInsets = WindowInsets.safeDrawing,
+            ) { innerPadding ->
                 AnimatedContent(
                     targetState = hasCameraPermission,
                     label = "PermissionAnimation",
@@ -216,7 +216,7 @@ fun CatalogApp() {
     }
 }
 
-/** The console catalog: mono header, filter pills, featured hero, and a 2-column tile grid. */
+/** The Material 3 catalog: headline top bar with status pill, tonal filter pills, hero stage, and a 2-column grid. */
 @Composable
 private fun CatalogHome(
     modifier: Modifier = Modifier,
@@ -234,9 +234,9 @@ private fun CatalogHome(
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = modifier,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             CatalogHeader(count = filtered.size)
@@ -251,7 +251,10 @@ private fun CatalogHome(
         }
         if (cameraXTiles.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                SectionLabel(text = "CAMERAX")
+                SectionLabel(
+                    text = stringResource(R.string.section_camerax),
+                    count = cameraXTiles.size,
+                )
             }
             items(items = cameraXTiles, key = { it.route }) { item ->
                 CatalogRowCard(catalogItem = item, onClick = { onSampleClick(item) })
@@ -259,7 +262,10 @@ private fun CatalogHome(
         }
         if (camera2Tiles.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                SectionLabel(text = "CAMERA2")
+                SectionLabel(
+                    text = stringResource(R.string.section_camera2),
+                    count = camera2Tiles.size,
+                )
             }
             items(items = camera2Tiles, key = { it.route }) { item ->
                 CatalogRowCard(catalogItem = item, onClick = { onSampleClick(item) })
@@ -270,47 +276,45 @@ private fun CatalogHome(
 
 @Composable
 private fun CatalogHeader(count: Int) {
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(MaterialTheme.colorScheme.primary),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(id = R.string.top_bar_title_expanded),
-                style =
-                    TextStyle(
-                        fontFamily = bodyFontFamily,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                color = TextPrimary,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = count.toString(),
-                style = TextStyle(fontFamily = monoFontFamily, fontSize = 11.sp),
-                color = Color.White.copy(alpha = 0.55f),
+                text = stringResource(id = R.string.top_bar_subtitle),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "CAMERA2 · CAMERAX · COMPOSE",
-            style =
-                TextStyle(
-                    fontFamily = monoFontFamily,
-                    fontSize = 9.sp,
-                    letterSpacing = 0.12.em,
-                ),
-            color = Color.White.copy(alpha = 0.40f),
-        )
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(8.dp)
+                            .background(ReadyGreen, CircleShape),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(id = R.string.catalog_sample_count, count),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
     }
 }
 
@@ -319,16 +323,24 @@ private fun FilterRow(
     selectedFilter: SampleCategory?,
     onSelect: (SampleCategory?) -> Unit,
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterPill(label = "All", selected = selectedFilter == null) { onSelect(null) }
+        FilterPill(
+            label = stringResource(id = R.string.filter_all),
+            selected = selectedFilter == null,
+            onClick = { onSelect(null) },
+        )
         SampleCategory.entries.forEach { category ->
-            FilterPill(label = category.label, selected = selectedFilter == category) {
-                onSelect(category)
-            }
+            FilterPill(
+                label = category.label,
+                selected = selectedFilter == category,
+                onClick = { onSelect(category) },
+            )
         }
     }
 }
@@ -339,39 +351,44 @@ private fun FilterPill(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
-    val borderColor = if (selected) accent else Color.White.copy(alpha = 0.14f)
-    val textColor = if (selected) accent else Color.White.copy(alpha = 0.5f)
-    val shape = RoundedCornerShape(15.dp)
-    Box(
-        modifier =
-            Modifier
-                .clip(shape)
-                .border(1.dp, borderColor, shape)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 7.dp),
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (selected) colors.primaryContainer else colors.surfaceContainerHigh,
+        contentColor = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
     ) {
         Text(
             text = label,
-            style = TextStyle(fontFamily = monoFontFamily, fontSize = 10.sp),
-            color = textColor,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 }
 
 @Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style =
-            TextStyle(
-                fontFamily = monoFontFamily,
-                fontSize = 9.sp,
-                letterSpacing = 0.16.em,
-            ),
-        color = Color.White.copy(alpha = 0.35f),
-        modifier = Modifier.padding(top = 6.dp),
-    )
+private fun SectionLabel(
+    text: String,
+    count: Int,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = stringResource(id = R.string.catalog_sample_count, count),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -380,6 +397,7 @@ private fun PermissionContent(
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = MaterialTheme.colorScheme
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -387,30 +405,36 @@ private fun PermissionContent(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             colors =
                 CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    containerColor = colors.surfaceContainerLow,
                 ),
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.spark_android),
-                    contentDescription = stringResource(id = R.string.camera_permission_title),
+                Box(
                     modifier =
                         Modifier
-                            .height(64.dp)
-                            .width(92.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.height(24.dp))
+                            .size(64.dp)
+                            .background(colors.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.spark_android),
+                        contentDescription = stringResource(id = R.string.camera_permission_title),
+                        modifier = Modifier.size(32.dp),
+                        tint = colors.onPrimaryContainer,
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
                 Text(
                     text = stringResource(id = R.string.camera_permission_title),
                     style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -421,14 +445,16 @@ private fun PermissionContent(
                             stringResource(id = R.string.camera_permission_rationale)
                         },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = colors.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(28.dp))
                 Button(
                     onClick = onAction,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp),
                 ) {
                     Text(
                         text =
@@ -437,7 +463,7 @@ private fun PermissionContent(
                             } else {
                                 stringResource(id = R.string.grant_permission)
                             },
-                        modifier = Modifier.padding(vertical = 8.dp),
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
             }
